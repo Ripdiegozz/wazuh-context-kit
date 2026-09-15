@@ -174,3 +174,49 @@ describe("index template discovery", () => {
     }
   });
 });
+
+describe("WCS modules carry the index they declare", () => {
+  test("reads index_patterns from the module's own template-settings.json", async () => {
+    // The link is declared, not inferred. Every one of the 39 real modules has
+    // `fields/template-settings.json` with an `index_patterns` array.
+    //
+    // Inferring it from the path is hopeless and was measured as such: a
+    // literal rule matches 2 of 39. `stateful/` becomes `states-`, `content/`
+    // becomes `threatintel-`, `stateless/` disappears, and
+    // `stateless/metrics/engine` ends up as `normalization`.
+    const dir = await makeCheckout({
+      "wcs/content/decoders/docs/fields.csv": "ECS_Version,Field\n9.1.0,offset\n",
+      "wcs/content/decoders/fields/template-settings.json": JSON.stringify({
+        index_patterns: ["wazuh-threatintel-decoders*"],
+      }),
+      "wcs/stateful/sca/docs/fields.csv": "ECS_Version,Field\n9.1.0,id\n",
+      "wcs/stateful/sca/fields/template-settings.json": JSON.stringify({
+        index_patterns: ["wazuh-states-sca*"],
+      }),
+    });
+
+    try {
+      const { wcsModules } = await parseIndexerArtifacts(targetFor(dir));
+      expect(wcsModules.map((m) => [m.name, m.indexPatterns])).toEqual([
+        ["content/decoders", ["wazuh-threatintel-decoders*"]],
+        ["stateful/sca", ["wazuh-states-sca*"]],
+      ]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a module without template-settings.json yields an empty pattern list, not a crash", async () => {
+    const dir = await makeCheckout({
+      "wcs/orphan/docs/fields.csv": "ECS_Version,Field\n9.1.0,x\n",
+    });
+
+    try {
+      const { wcsModules } = await parseIndexerArtifacts(targetFor(dir));
+      expect(wcsModules).toHaveLength(1);
+      expect(wcsModules[0]!.indexPatterns).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

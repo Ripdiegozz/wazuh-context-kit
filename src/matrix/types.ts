@@ -219,17 +219,63 @@ export interface Skipped {
 /**
  * An index name referenced by plugin source.
  *
- * `via` says how it was recovered, because the three routes carry different
- * confidence: a catalog literal is the declaration, an import is a real
- * consumer, and a saved-object title is an asset that names an index without
- * any code reading it.
+ * `via` says how it was recovered, because the routes carry different
+ * confidence: a catalog literal passed both the identifier and the value test,
+ * an import is a real consumer, a saved-object title is an asset naming an
+ * index without code reading it, and an inline literal passed the value test
+ * alone — weaker, and the only way to see the object maps and call-site
+ * comparisons the forks actually use.
  */
+/** An index pattern declared by an indexer template. */
+export interface DeclaredIndex {
+  pattern: string;
+  /** The template file that declares it, repo-relative. */
+  template: string;
+  /** The `templates/` subdirectory, or "" for the four at the root. */
+  group: string;
+}
+
+/**
+ * Two or more modules each declaring the same index name as authoritative.
+ *
+ * SPEC 1.8 does not ask for this. Drift between two catalogs inside one
+ * repository is exactly what this project exists to watch, so it is reported —
+ * as a finding, never as a fatal error.
+ */
+export interface CompetingCatalog {
+  name: string;
+  files: string[];
+}
+
+/**
+ * What the scan could not see.
+ *
+ * FIRST key of the crosscheck on purpose: a reader scrolling the file meets the
+ * limits before the findings. "No consumer found" is not "no consumer exists".
+ */
+export interface Coverage {
+  recoveredNames: number;
+  scannedRepos: string[];
+  uncovered: UncoveredMechanism[];
+}
+
+export interface CrosscheckJson {
+  /** Excluded from any comparison. The only non-deterministic block. */
+  meta: { generatedAt: string; tool: string };
+  ref: string;
+  coverage: Coverage;
+  declaredUnreferenced: DeclaredIndex[];
+  referencedUndeclared: IndexReference[];
+  wcsWithoutConsumer: string[];
+  competingCatalogs: CompetingCatalog[];
+}
+
 export interface IndexReference {
   name: string;
   /** Repo-relative, POSIX. */
   file: string;
   line: number;
-  via: "catalog-literal" | "import" | "saved-object";
+  via: "catalog-literal" | "import" | "saved-object" | "inline-literal";
   /** The constant's name, when the reference came through one. */
   identifier?: string;
 }
@@ -268,6 +314,16 @@ export interface WcsModule {
   name: string;
   fieldsCsv: string;
   fieldCount: number;
+  /**
+   * The index this module's schema is for, from its own
+   * `fields/template-settings.json`.
+   *
+   * Declared, never inferred. A literal path-to-index rule matches 2 of the 39
+   * real modules: `stateful/` becomes `states-`, `content/` becomes
+   * `threatintel-`, `stateless/` vanishes, and `stateless/metrics/engine` ends
+   * up as `normalization`. The mapping is curated, so it has to be read.
+   */
+  indexPatterns: string[];
 }
 
 export interface MatrixJson {

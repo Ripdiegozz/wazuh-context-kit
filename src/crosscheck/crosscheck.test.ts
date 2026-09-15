@@ -221,3 +221,54 @@ describe("determinism", () => {
     expect(first.wcsWithoutConsumer).toEqual(["alpha", "zeta"]);
   });
 });
+
+describe("the trailing star is the difference between a name and a family", () => {
+  test("two distinct exact names do NOT match each other", () => {
+    // Reported by review and reproduced: an earlier version prefix-matched
+    // both directions, so `wazuh-a` declared and `wazuh-ab` referenced
+    // cancelled each other and BOTH findings disappeared.
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-a")],
+        references: [referenced("wazuh-ab")],
+      }),
+    );
+
+    expect(cc.declaredUnreferenced.map((d) => d.pattern)).toEqual(["wazuh-a"]);
+    expect(cc.referencedUndeclared.map((r) => r.name)).toEqual(["wazuh-ab"]);
+  });
+
+  test("a declared glob covers a more specific reference", () => {
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-findings-v5*", "streams")],
+        references: [referenced("wazuh-findings-v5-cloud-services*")],
+      }),
+    );
+    expect(cc.referencedUndeclared).toEqual([]);
+    expect(cc.declaredUnreferenced).toEqual([]);
+  });
+
+  test("a referenced glob covers a more specific declaration", () => {
+    // The dashboard queries `wazuh-states-fim*`; the indexer declares
+    // `wazuh-states-fim-files*`. The query does reach that index.
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-states-fim-files*")],
+        references: [referenced("wazuh-states-fim*")],
+      }),
+    );
+    expect(cc.referencedUndeclared).toEqual([]);
+    expect(cc.declaredUnreferenced).toEqual([]);
+  });
+
+  test("an exact reference is not covered by a longer exact declaration", () => {
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-states-sca-extra")],
+        references: [referenced("wazuh-states-sca")],
+      }),
+    );
+    expect(cc.referencedUndeclared.map((r) => r.name)).toEqual(["wazuh-states-sca"]);
+  });
+});

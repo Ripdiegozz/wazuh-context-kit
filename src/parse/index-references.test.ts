@@ -558,3 +558,44 @@ describe("index names that live outside a catalog constant", () => {
     }
   });
 });
+
+describe("two sites in the same file are two references", () => {
+  test("the same index named twice in one file yields one entry per line", async () => {
+    // A reader acts on a site, not on a name. Two call sites reaching the same
+    // index are two things to change, and collapsing them to one would hide
+    // the second.
+    const dir = await makeCheckout({
+      "plugins/main/server/routes.ts": [
+        "const a = client.search({ index: 'wazuh-states-sca*' });",
+        "const b = other.search({ index: 'wazuh-states-sca*' });",
+      ].join("\n"),
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references).toHaveLength(2);
+      expect(references.map((r) => r.line)).toEqual([1, 2]);
+      expect(new Set(references.map((r) => r.name)).size).toBe(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a one-line index map closes on its own line", async () => {
+    // Reported by review: `const FOO_INDEX = { v: '...' };` opened map context
+    // that never closed, so every later literal in the file was swallowed.
+    const dir = await makeCheckout({
+      "plugins/main/server/maps.ts": [
+        "const FOO_INDEX = { value: 'wazuh-foo*' };",
+        "const host = 'wazuh-cluster-node-01';",
+      ].join("\n"),
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references.map((r) => r.name)).toEqual(["wazuh-foo*"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

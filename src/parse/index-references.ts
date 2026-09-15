@@ -41,9 +41,8 @@ const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
  */
 function isTestFile(path: string): boolean {
   return (
-    /\.(test|spec)\.[jt]sx?$/.test(path) ||
-    /(^|\/)(test|tests|__tests__|__mocks__)\//.test(path) ||
-    /\.mock\.[jt]sx?$/.test(path)
+    /\.(test|spec|fixture|fixtures|mock|mocks)\.[jt]sx?$/.test(path) ||
+    /(^|\/)(test|tests|__tests__|__mocks__|__fixtures__|fixture|fixtures|mocks)\//.test(path)
   );
 }
 
@@ -188,6 +187,14 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
       for (const m of text.matchAll(CONST_ANY)) {
         const identifier = (m as unknown as string[])[1]!;
         if (literalNames.has(identifier)) continue;
+        // A catalog file also holds shard counts, intervals and UI constants.
+        // Reporting every one of them as uncovered inflated the count to 80
+        // and buried the handful that actually name an index.
+        // Substring, not suffix: `SAMPLE_INDICES` and
+        // `WAZUH_SAMPLE_DATA_CATEGORIES` are assembled index names, while
+        // `..._SHARDS`, `..._INTERVAL` and UI constants are not. A suffix test
+        // drops the first group with the second.
+        if (!/INDEX|INDICES|PATTERN/i.test(identifier)) continue;
         uncovered.push({
           kind: "computed-expression",
           file,
@@ -247,11 +254,20 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
     let indexMapDepth = 0;
 
     lines.forEach((line, i) => {
-      if (indexMapDepth > 0) {
-        indexMapDepth += (line.match(/\{/g)?.length ?? 0) - (line.match(/\}/g)?.length ?? 0);
-      } else if (/\b(?:const|let|var)\s+[A-Za-z_0-9]*(?:INDEX|PATTERN|Index|Pattern)[A-Za-z_0-9]*\b[^=]*=\s*\{/.test(line)) {
-        indexMapDepth = 1;
-      }
+      const opensMap =
+        indexMapDepth === 0 &&
+        /\b(?:const|let|var)\s+[A-Za-z_0-9]*(?:INDEX|PATTERN|Index|Pattern)[A-Za-z_0-9]*\b[^=]*=\s*\{/.test(line);
+      // Set to 0, not 1: this line's own opening brace is counted by the
+      // balance below. Setting 1 here counted it twice, so depth never
+      // returned to 0 and the map swallowed every literal after it.
+      if (opensMap) indexMapDepth = 0;
+
+      // Whether this line is in map context is decided BEFORE its own braces
+      // are counted, and the balance is applied after. A one-line map —
+      // `const FOO_INDEX = { value: "wazuh-foo*" };` — opens and closes here,
+      // so counting first would miss its literal and counting never would
+      // leave the map open forever, swallowing unrelated literals below.
+      const inMapContext = opensMap || indexMapDepth > 0;
 
       const sameLineContext =
         /\bindex\s*:/.test(line) ||
@@ -260,7 +276,7 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
         /\bindex_patterns?\b/.test(line) ||
         /\bindexPattern\b/.test(line);
 
-      if (indexMapDepth === 0 && !sameLineContext) return;
+      if (!inMapContext && !sameLineContext) return;
 
       for (const m of line.matchAll(/['"`](\.?[a-z][a-z0-9.*_-]*)['"`]/g)) {
         const value = m[1]!;
@@ -270,6 +286,10 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
         );
         if (alreadyCatalogued) continue;
         references.push({ name: value, file, line: i + 1, via: "inline-literal" });
+      }
+
+      if (inMapContext) {
+        indexMapDepth += (line.match(/\{/g)?.length ?? 0) - (line.match(/\}/g)?.length ?? 0);
       }
     });
   }

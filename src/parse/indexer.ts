@@ -102,8 +102,14 @@ async function findWcsModules(dir: string): Promise<WcsModule[]> {
       return Array.isArray(parsed.index_patterns)
         ? parsed.index_patterns.filter((p): p is string => typeof p === "string")
         : [];
-    } catch {
-      return [];
+    } catch (error) {
+      // A module with no template-settings.json declares nothing, and that is
+      // a fact. A module whose template-settings.json will not parse is a
+      // module we could not read, and returning [] there would make it look
+      // consumed -- hiding the breakage behind a clean result. Same
+      // distinction the template discovery makes, for the same reason.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
     }
   }
 

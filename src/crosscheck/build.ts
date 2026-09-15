@@ -25,20 +25,37 @@ import type { CrosscheckInput } from "./types.ts";
  * template. Of 31 findings that rule produced, at least 22 were false, and six
  * of them were indices holding live data.
  */
+function isGlob(pattern: string): boolean {
+  return pattern.endsWith("*");
+}
+
 function prefixOf(pattern: string): string {
-  return pattern.endsWith("*") ? pattern.slice(0, -1) : pattern;
+  return isGlob(pattern) ? pattern.slice(0, -1) : pattern;
 }
 
 /**
- * Two globs overlap when either could match an index the other does.
+ * Does a declared pattern cover a referenced one?
  *
- * `wazuh-findings-v5*` and `wazuh-findings-v5-cloud-services*` overlap: the
- * repository declares the general form and the running indexer expands it into
- * a template per category, so a reference to the specific one is declared.
+ * The trailing `*` is not decoration — it is the difference between a name and
+ * a family, and treating every name as a prefix silently merges distinct
+ * indices. An earlier version did exactly that: `wazuh-a` declared and
+ * `wazuh-ab` referenced matched each other, and BOTH findings vanished.
+ *
+ *   both globs      -> they overlap in either direction. `wazuh-states-fim*`
+ *                      referenced against `wazuh-states-fim-files*` declared
+ *                      does reach a templated index.
+ *   declared glob   -> it must cover the exact reference.
+ *   reference glob  -> its family must include the exact declaration.
+ *   both exact      -> equality, and nothing else.
  */
-function overlaps(a: string, b: string): boolean {
-  const [x, y] = [prefixOf(a), prefixOf(b)];
-  return x.startsWith(y) || y.startsWith(x);
+function covers(declared: string, reference: string): boolean {
+  const d = prefixOf(declared);
+  const r = prefixOf(reference);
+
+  if (isGlob(declared) && isGlob(reference)) return d.startsWith(r) || r.startsWith(d);
+  if (isGlob(declared)) return r.startsWith(d);
+  if (isGlob(reference)) return d.startsWith(r);
+  return d === r;
 }
 
 /**
@@ -58,7 +75,7 @@ function wcsIsConsumed(
 ): boolean {
   if (module.indexPatterns.length === 0) return true;
   return module.indexPatterns.some((pattern) =>
-    references.some((r) => overlaps(pattern, r.name)),
+    references.some((r) => covers(pattern, r.name)),
   );
 }
 
@@ -67,14 +84,14 @@ export function buildCrosscheck(input: CrosscheckInput): CrosscheckJson {
   const declaredPatterns = input.declared.map((d) => d.pattern);
 
   const declaredUnreferenced: DeclaredIndex[] = input.declared
-    .filter((d) => !referencedNames.some((name) => overlaps(d.pattern, name)))
+    .filter((d) => !referencedNames.some((name) => covers(d.pattern, name)))
     .sort((a, b) => a.pattern.localeCompare(b.pattern) || a.template.localeCompare(b.template));
 
   // One entry per referencing site, not per name: a reader needs the file and
   // line to act on it, and the same undeclared name reached from two places is
   // two things to fix.
   const referencedUndeclared: IndexReference[] = input.references
-    .filter((r) => !declaredPatterns.some((pattern) => overlaps(pattern, r.name)))
+    .filter((r) => !declaredPatterns.some((pattern) => covers(pattern, r.name)))
     .sort(
       (a, b) =>
         a.name.localeCompare(b.name) || a.file.localeCompare(b.file) || a.line - b.line,

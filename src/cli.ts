@@ -252,6 +252,17 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
   const outDir = (values.out as string | undefined) ?? "out";
   const frozenTime = values["frozen-time"] as string | undefined;
 
+  // The crosscheck reads plugin SOURCE, which the fixtures do not carry.
+  // Accepting the flag and cloning anyway would make a documented no-network
+  // mode quietly reach the network.
+  if (values.fixtures === true) {
+    console.error(
+      "wazuh-ctx crosscheck: --fixtures is not supported; it applies to `matrix` only.\n" +
+        "The crosscheck scans plugin source, which the bundled fixtures do not contain.",
+    );
+    return { code: 2 };
+  }
+
   let sources: Awaited<ReturnType<typeof loadSources>>;
   try {
     sources = await loadSources(process.cwd());
@@ -265,7 +276,13 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
 
   let fetchOutcome: Awaited<ReturnType<typeof fetchRepos>>;
   try {
-    fetchOutcome = await fetchRepos({ repos: sources.repos, ref, cacheRoot, refresh: false, io });
+    fetchOutcome = await fetchRepos({
+      repos: sources.repos,
+      ref,
+      cacheRoot,
+      refresh: values.refresh === true,
+      io,
+    });
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") {

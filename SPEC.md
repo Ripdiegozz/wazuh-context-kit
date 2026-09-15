@@ -291,8 +291,11 @@ factor de uno, escrito acá en vez de fingir que no.
 
 Se resolvió así, y la resolución es un reparto, no una excepción:
 
-- **Sin conflictos de reconciliación → auto-merge** cuando pasan tests,
-  typecheck, build y el guard de frescura. Ese diff es generado y determinista;
+- **Sin conflictos de reconciliación → merge automático** cuando pasan tests,
+  typecheck, build y el guard de frescura. Mecánicamente el workflow espera los
+  checks requeridos y mergea él mismo, en vez de usar el auto-merge de GitHub:
+  un PAT fine-grained no puede invocar `enablePullRequestAutoMerge`. La política
+  es idéntica; cambia quién aprieta el botón. Ese diff es generado y determinista;
   nadie lo lee línea por línea y nadie debería tener que hacerlo. Poner a una
   sola persona como único camino de publicación era el riesgo mayor.
 - **Con al menos un conflicto → el PR espera a un humano**, etiquetado

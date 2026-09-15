@@ -180,6 +180,7 @@ jobs:
 
       - name: Open regeneration PR
         if: steps.diff.outputs.changed == 'true'
+        timeout-minutes: 20
         env:
           GH_TOKEN: ${{ secrets.REGEN_PAT }}
           MOVED_SUMMARY: ${{ steps.precheck.outputs.summary }}
@@ -254,7 +255,27 @@ jobs:
           if [ "${CONFLICTS:-0}" -gt 0 ]; then
             gh pr edit "$pr_url" --add-label "needs-human-review" 2>/dev/null \
               || echo "Label 'needs-human-review' not present in this repo; PR left unlabelled."
-            echo "Auto-merge withheld: ${CONFLICTS} reconciliation conflict(s)."
+            echo "Merge withheld: ${CONFLICTS} reconciliation conflict(s). This PR waits for a human."
+            exit 0
+          fi
+
+          # Wait for the required checks, then merge — rather than calling
+          # `gh pr merge --auto`.
+          #
+          # GitHub's auto-merge is enabled through the `enablePullRequestAutoMerge`
+          # GraphQL mutation, and a fine-grained PAT cannot call it:
+          #   GraphQL: Resource not accessible by personal access token
+          # Observed in run 35012830351, after the PR itself was created fine.
+          #
+          # Waiting and merging needs only the permissions this token already
+          # has and has already used. `--required` watches the checks the
+          # ruleset actually gates on, so a slow third-party app cannot hold
+          # the regeneration hostage; `--fail-fast` stops on the first failure.
+          echo "Waiting for required checks on $pr_url ..."
+          if gh pr checks "$pr_url" --watch --required --fail-fast; then
+            gh pr merge "$pr_url" --squash --delete-branch
+            echo "Merged $pr_url"
           else
-            gh pr merge --auto --squash "$pr_url"
+            echo "::error::Required checks did not pass. PR left open for inspection: $pr_url"
+            exit 1
           fi

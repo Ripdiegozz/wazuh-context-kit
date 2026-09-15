@@ -1,9 +1,9 @@
 {
   "meta": {
-    "generatedAt": "2026-09-15T20:01:39.616Z",
+    "generatedAt": "2026-09-15T20:57:56.537Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:68a0570ea06797523018fa612a9101cb16ce3d0551c44fe1065d6032e0ed5d36",
+  "payloadHash": "sha256:eb45d6fb62e8a97f51a84170bbadd9fe73876eb06375ceda5440079259b10019",
   "ref": "5.0.0",
   "resolvedAt": "2026-09-15T20:01:45.643Z",
   "resolvedRefs": {
@@ -2053,197 +2053,314 @@
       {
         "name": "ai-assistant/sessions",
         "fieldsCsv": "wcs/ai-assistant/sessions/docs/fields.csv",
-        "fieldCount": 6
+        "fieldCount": 6,
+        "indexPatterns": [
+          "wazuh-ai-assistant-sessions*"
+        ]
       },
       {
         "name": "content/decoders",
         "fieldsCsv": "wcs/content/decoders/docs/fields.csv",
-        "fieldCount": 22
+        "fieldCount": 22,
+        "indexPatterns": [
+          "wazuh-threatintel-decoders*"
+        ]
       },
       {
         "name": "content/filters",
         "fieldsCsv": "wcs/content/filters/docs/fields.csv",
-        "fieldCount": 17
+        "fieldCount": 17,
+        "indexPatterns": [
+          "wazuh-threatintel-filters"
+        ]
       },
       {
         "name": "content/integrations",
         "fieldsCsv": "wcs/content/integrations/docs/fields.csv",
-        "fieldCount": 22
+        "fieldCount": 22,
+        "indexPatterns": [
+          "wazuh-threatintel-integrations*"
+        ]
       },
       {
         "name": "content/ioc",
         "fieldsCsv": "wcs/content/ioc/docs/fields.csv",
-        "fieldCount": 16
+        "fieldCount": 16,
+        "indexPatterns": [
+          ".iocs_development_*iocs"
+        ]
       },
       {
         "name": "content/kvdbs",
         "fieldsCsv": "wcs/content/kvdbs/docs/fields.csv",
-        "fieldCount": 15
+        "fieldCount": 15,
+        "indexPatterns": [
+          "wazuh-threatintel-kvdbs*"
+        ]
       },
       {
         "name": "content/policies",
         "fieldsCsv": "wcs/content/policies/docs/fields.csv",
-        "fieldCount": 21
+        "fieldCount": 21,
+        "indexPatterns": [
+          "wazuh-threatintel-policies*"
+        ]
       },
       {
         "name": "content/rules",
         "fieldsCsv": "wcs/content/rules/docs/fields.csv",
-        "fieldCount": 39
+        "fieldCount": 39,
+        "indexPatterns": [
+          "wazuh-threatintel-rules*"
+        ]
       },
       {
         "name": "content/vulnerabilities",
         "fieldsCsv": "wcs/content/vulnerabilities/docs/fields.csv",
-        "fieldCount": 3
+        "fieldCount": 3,
+        "indexPatterns": [
+          ".wazuh-threatintel-vulnerabilities*"
+        ]
       },
       {
         "name": "cve",
         "fieldsCsv": "wcs/cve/docs/fields.csv",
-        "fieldCount": 419
+        "fieldCount": 419,
+        "indexPatterns": [
+          "wazuh-cve*"
+        ]
       },
       {
         "name": "internal-state",
         "fieldsCsv": "wcs/internal-state/docs/fields.csv",
-        "fieldCount": 14
+        "fieldCount": 14,
+        "indexPatterns": [
+          ".wazuh-internal-state*"
+        ]
       },
       {
         "name": "settings",
         "fieldsCsv": "wcs/settings/docs/fields.csv",
-        "fieldCount": 1
+        "fieldCount": 1,
+        "indexPatterns": [
+          ".wazuh-settings*"
+        ]
       },
       {
         "name": "stateful/agent-config",
         "fieldsCsv": "wcs/stateful/agent-config/docs/fields.csv",
-        "fieldCount": 397
+        "fieldCount": 397,
+        "indexPatterns": [
+          "wazuh-agent-config*"
+        ]
       },
       {
         "name": "stateful/agent-stats",
         "fieldsCsv": "wcs/stateful/agent-stats/docs/fields.csv",
-        "fieldCount": 27
+        "fieldCount": 27,
+        "indexPatterns": [
+          "wazuh-agent-stats*"
+        ]
       },
       {
         "name": "stateful/fim/files",
         "fieldsCsv": "wcs/stateful/fim/files/docs/fields.csv",
-        "fieldCount": 32
+        "fieldCount": 32,
+        "indexPatterns": [
+          "wazuh-states-fim-files*"
+        ]
       },
       {
         "name": "stateful/fim/windows-registry-keys",
         "fieldsCsv": "wcs/stateful/fim/windows-registry-keys/docs/fields.csv",
-        "fieldCount": 28
+        "fieldCount": 28,
+        "indexPatterns": [
+          "wazuh-states-fim-registry-keys*"
+        ]
       },
       {
         "name": "stateful/fim/windows-registry-values",
         "fieldsCsv": "wcs/stateful/fim/windows-registry-values/docs/fields.csv",
-        "fieldCount": 28
+        "fieldCount": 28,
+        "indexPatterns": [
+          "wazuh-states-fim-registry-values*"
+        ]
       },
       {
         "name": "stateful/inventory/browser-extensions",
         "fieldsCsv": "wcs/stateful/inventory/browser-extensions/docs/fields.csv",
-        "fieldCount": 40
+        "fieldCount": 40,
+        "indexPatterns": [
+          "wazuh-states-inventory-browser-extensions*"
+        ]
       },
       {
         "name": "stateful/inventory/groups",
         "fieldsCsv": "wcs/stateful/inventory/groups/docs/fields.csv",
-        "fieldCount": 25
+        "fieldCount": 25,
+        "indexPatterns": [
+          "wazuh-states-inventory-groups*"
+        ]
       },
       {
         "name": "stateful/inventory/hardware",
         "fieldsCsv": "wcs/stateful/inventory/hardware/docs/fields.csv",
-        "fieldCount": 26
+        "fieldCount": 26,
+        "indexPatterns": [
+          "wazuh-states-inventory-hardware*"
+        ]
       },
       {
         "name": "stateful/inventory/hotfixes",
         "fieldsCsv": "wcs/stateful/inventory/hotfixes/docs/fields.csv",
-        "fieldCount": 20
+        "fieldCount": 20,
+        "indexPatterns": [
+          "wazuh-states-inventory-hotfixes*"
+        ]
       },
       {
         "name": "stateful/inventory/interfaces",
         "fieldsCsv": "wcs/stateful/inventory/interfaces/docs/fields.csv",
-        "fieldCount": 32
+        "fieldCount": 32,
+        "indexPatterns": [
+          "wazuh-states-inventory-interfaces*"
+        ]
       },
       {
         "name": "stateful/inventory/networks",
         "fieldsCsv": "wcs/stateful/inventory/networks/docs/fields.csv",
-        "fieldCount": 25
+        "fieldCount": 25,
+        "indexPatterns": [
+          "wazuh-states-inventory-networks*"
+        ]
       },
       {
         "name": "stateful/inventory/packages",
         "fieldsCsv": "wcs/stateful/inventory/packages/docs/fields.csv",
-        "fieldCount": 31
+        "fieldCount": 31,
+        "indexPatterns": [
+          "wazuh-states-inventory-packages*"
+        ]
       },
       {
         "name": "stateful/inventory/ports",
         "fieldsCsv": "wcs/stateful/inventory/ports/docs/fields.csv",
-        "fieldCount": 29
+        "fieldCount": 29,
+        "indexPatterns": [
+          "wazuh-states-inventory-ports*"
+        ]
       },
       {
         "name": "stateful/inventory/processes",
         "fieldsCsv": "wcs/stateful/inventory/processes/docs/fields.csv",
-        "fieldCount": 28
+        "fieldCount": 28,
+        "indexPatterns": [
+          "wazuh-states-inventory-processes*"
+        ]
       },
       {
         "name": "stateful/inventory/protocols",
         "fieldsCsv": "wcs/stateful/inventory/protocols/docs/fields.csv",
-        "fieldCount": 23
+        "fieldCount": 23,
+        "indexPatterns": [
+          "wazuh-states-inventory-protocols*"
+        ]
       },
       {
         "name": "stateful/inventory/services",
         "fieldsCsv": "wcs/stateful/inventory/services/docs/fields.csv",
-        "fieldCount": 50
+        "fieldCount": 50,
+        "indexPatterns": [
+          "wazuh-states-inventory-services*"
+        ]
       },
       {
         "name": "stateful/inventory/system",
         "fieldsCsv": "wcs/stateful/inventory/system/docs/fields.csv",
-        "fieldCount": 34
+        "fieldCount": 34,
+        "indexPatterns": [
+          "wazuh-states-inventory-system*"
+        ]
       },
       {
         "name": "stateful/inventory/users",
         "fieldsCsv": "wcs/stateful/inventory/users/docs/fields.csv",
-        "fieldCount": 50
+        "fieldCount": 50,
+        "indexPatterns": [
+          "wazuh-states-inventory-users*"
+        ]
       },
       {
         "name": "stateful/sca",
         "fieldsCsv": "wcs/stateful/sca/docs/fields.csv",
-        "fieldCount": 52
+        "fieldCount": 52,
+        "indexPatterns": [
+          "wazuh-states-sca*"
+        ]
       },
       {
         "name": "stateful/vulnerabilities",
         "fieldsCsv": "wcs/stateful/vulnerabilities/docs/fields.csv",
-        "fieldCount": 87
+        "fieldCount": 87,
+        "indexPatterns": [
+          "wazuh-states-vulnerabilities*"
+        ]
       },
       {
         "name": "stateless/active-responses",
         "fieldsCsv": "wcs/stateless/active-responses/docs/fields.csv",
-        "fieldCount": 536
+        "fieldCount": 536,
+        "indexPatterns": [
+          "wazuh-active-responses*"
+        ]
       },
       {
         "name": "stateless/events/findings",
         "fieldsCsv": "wcs/stateless/events/findings/docs/fields.csv",
-        "fieldCount": 2412
+        "fieldCount": 2412,
+        "indexPatterns": [
+          "wazuh-findings-v5*"
+        ]
       },
       {
         "name": "stateless/events/main",
         "fieldsCsv": "wcs/stateless/events/main/docs/fields.csv",
-        "fieldCount": 2362
+        "fieldCount": 2362,
+        "indexPatterns": [
+          "wazuh-events-v5*"
+        ]
       },
       {
         "name": "stateless/events/raw",
         "fieldsCsv": "wcs/stateless/events/raw/docs/fields.csv",
-        "fieldCount": 78
+        "fieldCount": 78,
+        "indexPatterns": [
+          "wazuh-events-raw-v5*"
+        ]
       },
       {
         "name": "stateless/metrics/agents",
         "fieldsCsv": "wcs/stateless/metrics/agents/docs/fields.csv",
-        "fieldCount": 19
+        "fieldCount": 19,
+        "indexPatterns": [
+          "wazuh-metrics-agents*"
+        ]
       },
       {
         "name": "stateless/metrics/comms",
         "fieldsCsv": "wcs/stateless/metrics/comms/docs/fields.csv",
-        "fieldCount": 21
+        "fieldCount": 21,
+        "indexPatterns": [
+          "wazuh-metrics-comms-v4*"
+        ]
       },
       {
         "name": "stateless/metrics/engine",
         "fieldsCsv": "wcs/stateless/metrics/engine/docs/fields.csv",
-        "fieldCount": 11
+        "fieldCount": 11,
+        "indexPatterns": [
+          "wazuh-metrics-normalization*"
+        ]
       }
     ]
   },

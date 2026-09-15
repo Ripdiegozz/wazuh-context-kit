@@ -35,6 +35,19 @@ changed. Then it either enables auto-merge or deliberately withholds it — see
 
 ## Repository settings a maintainer must enable
 
+0. **Settings → Actions → General → Workflow permissions →
+   "Allow GitHub Actions to create and approve pull requests".**
+
+   Without it, `regenerate.yml` pushes its branch and then dies on
+   `pull request create failed: GitHub Actions is not permitted to create or
+   approve pull requests`. The job fails *after* pushing, so you are left with
+   an orphan `automation/regenerate-*` branch and no PR — clean it up with
+   `git push origin --delete <branch>`.
+
+   This one was missed on the first pass and only surfaced when the workflow
+   actually ran. It is listed first because it is the earliest thing that
+   breaks.
+
 These are **not in the YAML** — GitHub does not let a workflow set them for
 itself.
 

@@ -111,18 +111,6 @@ jobs:
           echo "wcs=$(jq '.indexer.wcsModules | length' "$m")" >> "$GITHUB_OUTPUT"
           echo "unknowns=$(jq '.unknowns | length' "$m")" >> "$GITHUB_OUTPUT"
 
-          # SPEC 5.4 calls the reconciliation cross-check "probably the most
-          # valuable signal this system emits", and says a superseded decision
-          # whose derived value DIFFERS from the decided one "requires explicit
-          # human review". No test fails on that, so auto-merge would bury it.
-          conflicts=$(jq '[.reconciliation[]? | select(.conflict == true)] | length' "$m")
-          echo "conflicts=$conflicts" >> "$GITHUB_OUTPUT"
-          if [ "$conflicts" -gt 0 ]; then
-            echo "$conflicts reconciliation conflict(s) found - this PR needs a human."
-            jq -r '.reconciliation[]? | select(.conflict == true)
-                   | "  \(.plugin).\(.field): decided \(.decidedValue), derived \(.derivedValue)"' "$m"
-          fi
-
       # Only reached when something moved. Clones just the moved repos
       # (fetchRepos re-uses the cache for everything else) and rewrites out/.
       - name: Regenerate matrix
@@ -139,6 +127,18 @@ jobs:
           echo "templates=$(jq '.indexer.templates | length' "$m")" >> "$GITHUB_OUTPUT"
           echo "wcs=$(jq '.indexer.wcsModules | length' "$m")" >> "$GITHUB_OUTPUT"
           echo "unknowns=$(jq '.unknowns | length' "$m")" >> "$GITHUB_OUTPUT"
+
+          # SPEC 5.4 calls the reconciliation cross-check "probably the most
+          # valuable signal this system emits", and says a superseded decision
+          # whose derived value DIFFERS from the decided one "requires explicit
+          # human review". No test fails on that, so auto-merge would bury it.
+          conflicts=$(jq '[.reconciliation[]? | select(.conflict == true)] | length' "$m")
+          echo "conflicts=$conflicts" >> "$GITHUB_OUTPUT"
+          if [ "$conflicts" -gt 0 ]; then
+            echo "$conflicts reconciliation conflict(s) found - this PR needs a human."
+            jq -r '.reconciliation[]? | select(.conflict == true)
+                   | "  \(.plugin).\(.field): decided \(.decidedValue), derived \(.derivedValue)"' "$m"
+          fi
 
       # A moved SHA does not always change the payload (SPEC 5.4: "regenerar es
       # parsear y reconciliar", not every upstream commit touches a tracked
@@ -178,7 +178,7 @@ jobs:
           AFTER_UNKNOWNS: ${{ steps.after.outputs.unknowns }}
           CONFLICTS: ${{ steps.after.outputs.conflicts }}
         run: |
-          if [ "${CONFLICTS}" -gt 0 ]; then
+          if [ "${CONFLICTS:-0}" -gt 0 ]; then
             REVIEW_NOTE="⚠️ **${CONFLICTS} reconciliation conflict(s). Auto-merge deliberately NOT enabled on this PR.**
 
           A field became derivable and the derived value disagrees with a human decision in \`decisions.yml\`. Either the rule is wrong or the decision was. SPEC 5.4 requires explicit human review for exactly this case, and no test fails on it — so this one waits for you."
@@ -234,7 +234,7 @@ jobs:
           # The boring 95% merges itself; the case SPEC 5.4 names as needing a
           # person is the case that waits for one. Closing the bus factor must
           # not also close the eyes.
-          if [ "${CONFLICTS}" -gt 0 ]; then
+          if [ "${CONFLICTS:-0}" -gt 0 ]; then
             gh pr edit "$pr_url" --add-label "needs-human-review" 2>/dev/null \
               || echo "Label 'needs-human-review' not present in this repo; PR left unlabelled."
             echo "Auto-merge withheld: ${CONFLICTS} reconciliation conflict(s)."

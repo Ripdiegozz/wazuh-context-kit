@@ -73,6 +73,9 @@ async function buildFromFixtures(
     annotations: layers.annotations,
     ref,
     facts: allFacts,
+    // Fixtures declare no platform repository, so there is no core section to
+    // build. Empty by construction, not by omission.
+    coreRepos: [],
     resolvedRefs: Object.fromEntries(
       [...new Set(allFacts.map((f) => f.repo))].map((repo) => [
         repo,
@@ -142,6 +145,7 @@ async function buildFromRealData(
     annotations: layers.annotations,
     ref,
     facts: parsed.facts,
+    coreRepos: parsed.coreRepos,
     templates: parsed.templates,
     wcsModules: parsed.wcsModules,
     resolvedRefs: Object.fromEntries(fetchOutcome.fetched.map((f) => [f.repo, f.commit])),
@@ -187,6 +191,9 @@ async function runMatrix(values: Record<string, unknown>): Promise<CommandResult
 
   console.log(`ref           ${matrix.ref}`);
   console.log(`plugins       ${matrix.plugins.length}`);
+  const corePlugins = matrix.core.reduce((total, repo) => total + repo.plugins.length, 0);
+  console.log(`core plugins  ${corePlugins} from ${matrix.core.length} platform repo(s)`);
+  console.log(`unresolved    ${matrix.unresolvedDependencies.length} dependency edge(s)`);
   console.log(`asserted      ${asserted} cell(s) from decisions.yml`);
   console.log(`unknowns      ${matrix.unknowns.length}`);
   console.log(`skipped       ${matrix.skipped.length}`);

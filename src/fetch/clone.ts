@@ -20,7 +20,11 @@ export function cacheDirFor(cacheRoot: string, repo: string, ref: string): strin
 export function sparsePathsFor(kind: RepoKind): string[] {
   switch (kind) {
     case "platform":
-      return [];
+      // `src/plugins` holds the OpenSearch Dashboards core plugin manifests —
+      // the destination of every wazuh-native `requiredPlugins` edge. NOT the
+      // root-level `plugins/`: that directory is git-ignored upstream and empty,
+      // a local dev mount point rather than repository content.
+      return ["src/plugins"];
     case "dashboard":
       return ["plugins"];
     case "indexer":

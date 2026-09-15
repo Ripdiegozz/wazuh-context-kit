@@ -3,7 +3,13 @@
  * `wazuh/*` repository content (SPEC 6.1).
  */
 
-import type { IndexTemplate, RawPluginFacts, RepoKind, WcsModule } from "../matrix/types.ts";
+import type {
+  IndexTemplate,
+  RawCoreRepo,
+  RawPluginFacts,
+  RepoKind,
+  WcsModule,
+} from "../matrix/types.ts";
 
 export interface ParseTarget {
   readonly repo: string;
@@ -14,6 +20,8 @@ export interface ParseTarget {
 
 export interface ParsedRepo {
   facts: RawPluginFacts[];
+  /** One entry per `platform` repository. Empty when none is declared. */
+  coreRepos: RawCoreRepo[];
   templates: IndexTemplate[];
   wcsModules: WcsModule[];
 }

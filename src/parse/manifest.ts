@@ -26,7 +26,7 @@ function toPosix(path: string): string {
  * `undefined` — because `exactOptionalPropertyTypes` makes `{ id: undefined }`
  * a type error (see fixture-driven hazard coverage in parse.test.ts).
  */
-function buildRawManifest(value: unknown): RawManifest {
+export function buildRawManifest(value: unknown): RawManifest {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return {};
   const obj = value as Record<string, unknown>;
 
@@ -39,6 +39,7 @@ function buildRawManifest(value: unknown): RawManifest {
   const requiredOSDataSourcePlugins = Array.isArray(obj.requiredOSDataSourcePlugins)
     ? (obj.requiredOSDataSourcePlugins as string[])
     : undefined;
+  const requiredBundles = Array.isArray(obj.requiredBundles) ? (obj.requiredBundles as string[]) : undefined;
 
   return {
     ...(id !== undefined ? { id } : {}),
@@ -47,6 +48,7 @@ function buildRawManifest(value: unknown): RawManifest {
     ...(configPath !== undefined ? { configPath } : {}),
     ...(opensearchDashboardsVersion !== undefined ? { opensearchDashboardsVersion } : {}),
     ...(requiredOSDataSourcePlugins !== undefined ? { requiredOSDataSourcePlugins } : {}),
+    ...(requiredBundles !== undefined ? { requiredBundles } : {}),
   };
 }
 

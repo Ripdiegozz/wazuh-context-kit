@@ -5,8 +5,9 @@
  */
 
 import type { FetchedRepo } from "../fetch/types.ts";
-import type { IndexTemplate, RawPluginFacts, WcsModule } from "../matrix/types.ts";
+import type { IndexTemplate, RawCoreRepo, RawPluginFacts, WcsModule } from "../matrix/types.ts";
 import type { RepoSource } from "../sources.ts";
+import { parsePlatformRepo } from "./core-plugins.ts";
 import { parseIndexerArtifacts } from "./indexer.ts";
 import { parseRepoManifests } from "./manifest.ts";
 import type { ParsedRepo, ParseTarget } from "./types.ts";
@@ -28,6 +29,7 @@ export function toParseTargets(
 
 export async function parseFetchedRepos(targets: readonly ParseTarget[]): Promise<ParsedRepo> {
   const facts: RawPluginFacts[] = [];
+  const coreRepos: RawCoreRepo[] = [];
   let templates: IndexTemplate[] = [];
   let wcsModules: WcsModule[] = [];
 
@@ -36,14 +38,19 @@ export async function parseFetchedRepos(targets: readonly ParseTarget[]): Promis
       const result = await parseIndexerArtifacts(target);
       templates = templates.concat(result.templates);
       wcsModules = wcsModules.concat(result.wcsModules);
+    } else if (target.repoKind === "platform") {
+      // A platform repo carries no root manifest, so parseRepoManifests would
+      // legitimately find nothing. Its content is the core plugin tree.
+      coreRepos.push(await parsePlatformRepo(target));
     } else {
       facts.push(...(await parseRepoManifests(target)));
     }
   }
 
   facts.sort((a, b) => a.manifestPath.localeCompare(b.manifestPath));
+  coreRepos.sort((a, b) => a.repo.localeCompare(b.repo));
   templates.sort((a, b) => a.path.localeCompare(b.path));
   wcsModules.sort((a, b) => a.name.localeCompare(b.name));
 
-  return { facts, templates, wcsModules };
+  return { facts, coreRepos, templates, wcsModules };
 }

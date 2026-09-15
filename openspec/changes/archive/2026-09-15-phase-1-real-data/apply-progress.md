@@ -248,3 +248,94 @@ to get a receipt-grade confirmation for the PR description, per task 10.1.
 4. Run `git diff --stat -- src/matrix src/decisions/apply.ts` and confirm empty.
 5. Make the 7 work-unit commits per `tasks.md`'s Suggested Work Units table.
 6. Only then hand off to `sdd-verify`.
+
+---
+
+# Batch 2 — 2026-09-15 — outstanding coverage (tasks 12.1, 12.2)
+
+Everything above this line is the batch-1 snapshot and is left untouched. This
+section records the second apply batch, which closed the two tasks that
+`sdd-verify` left outstanding. No production code changed: both tasks were
+coverage gaps, not behaviour gaps.
+
+## What was written
+
+| File | Lines | Task |
+|---|---|---|
+| `src/fetch/sparse-disk.test.ts` | 184 | 12.1 |
+| `src/cli.test.ts` | 216 | 12.2 |
+
+`git diff --stat -- src/matrix src/decisions/apply.ts` is empty. The purity
+seam of SPEC 6.1 (D1) holds, confirmed by command this time rather than by
+tool-call log.
+
+## Observed verification
+
+| Command | Observed result |
+|---|---|
+| `bun test` | 104 pass · 1 skip · 0 fail · 281 assertions · 8 files · 884 ms |
+| `bun run typecheck` | clean |
+| `bun run build` | `dist/cli.js` 0.95 MB, 184 modules |
+| `node dist/cli.js --version` | `0.1.0` |
+| `git diff --stat -- src/matrix src/decisions/apply.ts` | empty |
+| `WAZUH_CTX_NETWORK=1 bun test src/fetch/network.integration.test.ts` | 1 pass · 0 fail · 5 assertions · 2.67 s |
+
+Baseline before this batch was 94 pass · 1 skip · 0 fail. The ten new tests are
+the whole delta.
+
+## Design decisions
+
+**Real git, no network (12.1).** The point of the task is what git puts on
+disk, so a fake runner cannot serve. The test builds a throwaway origin in
+`tmpdir()`, enables `uploadpack.allowFilter` on it, and clones over `file://`
+with the production `cloneRepo()` and `createGitRunner()`. That exercises the
+real `--filter=blob:none` argv instead of letting git silently downgrade it,
+while keeping the default `bun test` run hermetic. The network-gated
+integration test remains the only suite that touches github.com.
+
+**Regression injection as the failing-first step (12.1).** There was no
+implementation to write, so strict TDD's "observe it fail first" was satisfied
+by injecting the two regressions the test exists to catch and observing each
+failure. Dropping the `sparse-checkout set` call leaves only root files on
+disk; widening the indexer path set to `["plugins", "wcs"]` materialises
+`plugins/unrelated/` and `plugins/setup/src/main/java/`. Both were reverted
+immediately.
+
+**A pinned payload hash (12.2).** `--fixtures` parity was previously a manual
+diff against a worktree. Fixture SHAs are constants and `--frozen-time`
+removes the clock, so the fixtures payload hash is a pure function of the
+bundled fixtures plus the committed human layers. Pinning it means a
+deliberate edit to `decisions.yml` updates the literal in the same commit, and
+an accidental change fails review instead of passing silently. This also
+closes batch 1's open item 4, which recorded task 9.5 as unverified.
+
+**Spawning the CLI as a process (12.2).** Exit codes and stderr are the
+contract under test, and an in-process call cannot observe `process.exit`.
+
+## Findings worth carrying
+
+1. **Cone mode always checks out top-level files.** `sparse-checkout init
+   --cone` materialises the repository's root files in addition to the
+   directories passed to `sparse-checkout set`. So the SPEC 1.2 requirement
+   "only the declared paths are present on disk" is really "the declared
+   subtrees, plus root files". No argv-level test could have surfaced this. It
+   is also the on-disk explanation for a `platform` repo resolving a SHA while
+   contributing no plugin entry: its declared path set is empty, so nothing
+   below the root is ever checked out for it.
+
+2. **`PATH=""` does not hide a binary.** An empty or unset `PATH` makes libc
+   fall back to a built-in default (`/bin:/usr/bin`), where git usually lives.
+   The first draft of the git-missing test therefore found git, exited 0
+   instead of 2, and spent 11 s on the network inside what was meant to be an
+   offline unit test. Pointing `PATH` at a real, empty directory is what
+   actually makes the lookup fail with ENOENT; the suite then runs in 449 ms.
+   The 24x runtime drop was the signal that the test had been lying.
+
+3. **`bun install` was required first.** A fresh clone of this repository has
+   no `node_modules`, and `bun run ./src/cli.ts` fails with
+   `Cannot find package 'yaml'` until `bun install` runs. `HANDOFF.md` already
+   documents this in its getting-running section.
+
+## Status
+
+All 53 tasks are complete. `sdd-verify` can run final verification.

@@ -1,13 +1,13 @@
 # Handoff — what is done, what is left
 
-> Written 2026-09-14 to continue on a different machine.
-> Everything here is committed and pushed to `origin/master`.
+> Written 2026-09-15, replacing the 2026-09-14 version.
 > The authoritative contract is [`SPEC.md`](SPEC.md). This file only says where
 > the work stopped.
 
 ## Where it stands
 
-**Phase 1 runs against the real Wazuh repositories.** Not fixtures.
+**Phase 1 is complete and closed.** It runs against the real Wazuh
+repositories, not fixtures, and every requirement now carries runtime evidence.
 
 ```
 wazuh-ctx matrix --ref 5.0.0
@@ -35,8 +35,8 @@ payloadHash and MATRIX.md byte-identical across runs
 ```bash
 git clone https://github.com/Ripdiegozz/wazuh-context-kit.git
 cd wazuh-context-kit
-bun install
-bun test                                  # expect 94 pass · 1 skip · 0 fail
+bun install                               # required — nothing runs without it
+bun test                                  # expect 104 pass · 1 skip · 0 fail
 bun run ./src/cli.ts matrix --ref 5.0.0   # first run clones, ~30s
 ```
 
@@ -47,69 +47,70 @@ requirement only, never a consumer one.
 `.cache/` and `decisions.local.yml` are gitignored. `out/` is **not** — the
 dataset is the product and is committed (SPEC 5.1).
 
-## Verified on 2026-09-14
+## Verified on 2026-09-15
 
 ```
-bun test                                  94 pass · 1 skip · 0 fail
+bun test                                  104 pass · 1 skip · 0 fail · 281 assertions
 bun run typecheck                         clean
-WAZUH_CTX_NETWORK=1 bun test …integration 1 pass
 bun run build && node dist/cli.js -v      0.1.0
+WAZUH_CTX_NETWORK=1 bun test …integration  1 pass · 5 assertions
 git diff -- src/matrix src/decisions/apply.ts    empty   (purity seam holds)
---fixtures output vs pre-change baseline  byte-identical
 ```
 
 All nine SPEC 1.9 acceptance criteria pass against real data, including
 `wazuh-dashboard-ml-commons` reaching `skipped[]` **by discovery** rather than by
 a hardcode.
 
+## Test coverage map
+
+| Suite | What it proves |
+|---|---|
+| `src/matrix/matrix.test.ts` | pure core: classification, hashing, render |
+| `src/decisions/decisions.test.ts` | layers 2 and 3, precedence, reconciliation |
+| `src/parse/parse.test.ts` | manifests, `package.json`, templates, WCS |
+| `src/sources.test.ts` | `sources.yml` loading and schema failures |
+| `src/fetch/fetch.test.ts` | fetch orchestration and git **argv intent**, via a fake runner |
+| `src/fetch/sparse-disk.test.ts` | what the sparse checkout actually puts **on disk**, via real git over `file://` |
+| `src/cli.test.ts` | CLI contract: `--fixtures` parity, fatal exit codes, argument handling |
+| `src/fetch/network.integration.test.ts` | real github.com — **opt-in only**, `WAZUH_CTX_NETWORK=1` |
+
+Only the last one touches the network. The default `bun test` run is hermetic.
+
 ---
 
 # What is left
 
-## P0 — the one real gap
+## No P0 and no P1
 
-**The sparse-checkout scenario has no runtime evidence.** `repo-fetch/spec.md`
-requires that a checked-out tree contains only the SPEC 1.2 paths. The tests
-assert *argv intent* — that `sparse-checkout set <paths>` is issued correctly —
-but nothing has ever inspected an actual directory to confirm what landed there.
-
-Risk is low, because git honours a correct argv. But a scenario is compliant when
-a covering test passes at runtime, and this one has none. This is the last thing
-standing between Phase 1 and an honest "fully verified".
-
-*What to write:* a test that runs a real sparse clone into a temp directory (or
-asserts against the existing `.cache/` tree) and checks that no path outside the
-declared set is present.
-
-## P1 — missing regression coverage
-
-**No `cli.test.ts` exists anywhere.** Two invariants of `src/cli.ts` are proven
-only by manual runs and would not survive a refactor unnoticed:
-
-- `--fixtures` output parity (verified once, by hand, against a worktree),
-- the fatal exit-2 paths: malformed `sources.yml`, and `git` missing from PATH.
+Both former gaps are closed. The sparse-checkout scenario has runtime evidence
+(`src/fetch/sparse-disk.test.ts`), and CLI-level regression coverage exists
+(`src/cli.test.ts`). The SDD change `phase-1-real-data` is archived at
+`openspec/changes/archive/2026-09-15-phase-1-real-data/`, and its three delta
+specs are merged into `openspec/specs/` as the source of truth.
 
 ## P2 — decisions that need a human, not code
 
-These block nothing today but every one of them is a silent wrong answer waiting
-to happen.
+These block nothing, but every one of them is a silent wrong answer waiting to
+happen.
 
 1. **Does a `platform` repository belong in `plugins[]`?**
-   `wazuh-dashboard` resolves a SHA and appears in `resolvedRefs`, but contributes
-   no entry, because `sparsePathsFor("platform")` returns `[]` and the repo has no
-   root manifest. `SPEC.md` 1.5.2 defines `world: "platform"` as a classification,
-   which implies it should surface somewhere. Right now it is classified in theory
-   and absent in practice. Decide, then record it.
+   `wazuh-dashboard` resolves a SHA and appears in `resolvedRefs`, but
+   contributes no entry. The on-disk test now explains exactly why:
+   `sparsePathsFor("platform")` returns `[]`, and with an empty declared path
+   set a cone-mode checkout lands **root files only** — nothing below the root
+   ever appears, so there is no manifest to parse. `SPEC.md` 1.5.2 defines
+   `world: "platform"` as a classification, which implies it should surface
+   somewhere. Decide, then record it.
 
 2. **Reconcile `fixtures/facts.ts` with reality.**
-   It asserts `indexerAccess: []` for `wazuh`; the real manifest declares `data`,
-   so the truth is `["osd-data"]`. No test hardcodes the wrong value, so nothing is
-   broken — but a fixture that disagrees with reality is evidence about the
-   fixture. Either fix it or state in the file that it is shape-only.
+   It asserts `indexerAccess: []` for `wazuh`; the real manifest declares
+   `data`, so the truth is `["osd-data"]`. No test hardcodes the wrong value, so
+   nothing is broken — but a fixture that disagrees with reality is evidence
+   about the fixture. Either fix it or state in the file that it is shape-only.
 
 3. **`wazuh-dashboard-reporting` vs `wazuh-dashboards-reporting`.**
-   Both have a `5.0.0` branch. `sources.yml` currently names the singular form and
-   flags it UNRESOLVED. Open since the first draft (SPEC section 8, item 1).
+   Both have a `5.0.0` branch. `sources.yml` currently names the singular form
+   and flags it UNRESOLVED. Open since the first draft (SPEC section 8, item 1).
 
 4. **Is `wazuh-indexer` worth adding?** SPEC section 8, item 3.
 
@@ -118,6 +119,16 @@ to happen.
    until someone decides *which* of the two identically-named APIs it governs:
    OSD's `core.opensearch.client` (indexer RBAC) or `wazuh-core`'s `api.client`
    (Server API RBAC).
+
+## P3 — a spec wording pass
+
+`openspec/specs/repo-fetch/spec.md` says the checked-out tree contains "only
+the SPEC 1.2 paths". Read literally that is narrower than what git does:
+`sparse-checkout init --cone` **always** materialises the repository's
+top-level files in addition to the directories passed to `sparse-checkout set`.
+The requirement is satisfied in substance — no full plugin source tree is ever
+checked out — and the test encodes the real boundary. The spec sentence should
+be widened to match in a later change.
 
 ## Then: what comes after Phase 1
 
@@ -130,47 +141,46 @@ Phase 3's MCP `schema` resource is what actually makes the dataset consumable by
 an agent. Phase 2 (skills) and the rest of Phase 3 (`docs`, `runtime`) are not on
 the critical path for a usable v1.
 
-## SDD state
+---
 
-Change `phase-1-real-data` is at `verify: done`, ready for `archive`, with the P0
-above outstanding. Artifacts live in `openspec/changes/phase-1-real-data/`:
-`exploration.md`, `proposal.md`, `specs/`, `design.md`, `tasks.md`,
-`apply-progress.md`, `verify-report.md`, `state.yaml`.
+# Notes for the next session
 
-### Runtime attempt ledger — one pending maintainer action
+## The runtime attempt ledger is machine-local
 
-Two attempts ran, both recorded `passed` with their evidence:
+The previous handoff recorded a pending maintainer reset for attempt 2 of the
+earlier cycle. On a fresh machine that turned out to be moot:
+`gentle-ai sdd-attempt status` reported an empty ledger (`attempts: []`,
+`lifetime_attempts: 0`, `next_action: begin`). **The ledger lives in the Git
+common directory, which does not travel with a clone.** Attempt history is
+per-machine, so a "pending maintainer action" recorded in a doc may simply not
+exist where you are reading it. Check `status` before acting on one.
 
-| attempt | work unit | declared budget | real | outcome |
-|---|---|---|---|---|
-| 1 | implement fetch and parse | 1500 | 3092 | passed, reset 2026-09-14 |
-| 2 | verify against specs | 600 | 887 | passed, **reset pending** |
+Both attempts in the 2026-09-15 cycle settled cleanly, because their budgets
+were declared from measurement rather than estimate. That is the lesson the
+previous cycle paid for twice: **declare generously; the budget is a promise,
+and a broken one costs a maintainer round-trip every time.**
 
-**Pending:** attempt 2 is blocked on `maintainer_decision` because the declared
-changed-line budget was exceeded. A reset is a maintainer decision and is never
-automatic, so it was deliberately not run. It adjusts the budget going forward
-and preserves history — `lifetime_changed_lines` keeps the real totals.
+## Two findings from writing the tests
 
-```bash
-gentle-ai sdd-attempt status --cwd . --change phase-1-real-data
-# then, with the revision that prints:
-gentle-ai sdd-attempt reset --cwd . --change phase-1-real-data \
-  --expected-revision <revision> --request-id reset-p1rd-002 \
-  --reason "verify budget declared at 600; real change was 887" \
-  --actor diego.garcia
-```
+1. **Cone mode always checks out root files.** See P3 above. An argv-level test
+   could never have shown this — it took walking a real directory.
 
-Run it from inside the repository — `--cwd .` resolves to wherever you are, and
-from a home directory it fails with an unhelpful suggestion to `git init` there.
-Do not follow that suggestion.
+2. **`PATH=""` does not hide a binary.** An empty or unset `PATH` makes libc
+   fall back to a built-in default (`/bin:/usr/bin`), where git usually lives.
+   The first draft of the "git missing from PATH" test therefore found git,
+   exited 0 instead of 2, and spent 11 seconds on the network inside what was
+   meant to be an offline unit test. Pointing `PATH` at a real, empty directory
+   is what actually makes the lookup fail with ENOENT; the suite then runs in
+   449 ms. **The 24x runtime drop was the signal that the test had been lying.**
+   A passing assertion is not the same as a correct one.
 
-**Lesson worth carrying:** both blocks came from the same mistake — the
-orchestrator declaring `--max-changed-lines` from an estimate rather than from
-measurement. Documentation and generated datasets are easy to forget in a
-forecast. Declare generously; the budget is a promise, and a broken one costs a
-maintainer round-trip every time.
+## Tooling
 
-**Note for the next session:** Engram filed most of this work under a scratch
-project name rather than `wazuh-context-kit`, because the repo has no
-`.engram/config.json`. The `openspec/` files are authoritative and complete;
-do not rely on Engram recall for this change.
+- **SDD child dispatch is refused in Claude Code.** Launching an `sdd-apply` or
+  `sdd-verify` sub-agent fails with "Claude Code hooks do not expose
+  authenticated caller provenance". The phases run inline in the orchestrator
+  thread instead. That is a runtime limitation, not a project problem, but it
+  does mean a "fresh eyes" verify has to come from a separate session.
+- **Engram now resolves this repo correctly** as `wazuh-context-kit` via its git
+  remote. The earlier scratch-project problem is gone. The `openspec/` files are
+  still authoritative; treat Engram as an index over them.

@@ -7,14 +7,29 @@
 
 ## Where it stands
 
-**Phase 1 is complete and closed**, and the OpenSearch Dashboards core is now
-visible to the matrix.
+**Phase 1 is complete and closed.** As of 2026-09-15 that is finally true: the
+crosscheck of SPEC 1.8 exists, and `wazuh-ctx crosscheck` no longer returns
+`notImplemented`.
+
+> An earlier version of this file claimed Phase 1 was complete while 1.8 — a
+> Phase 1 section, and the one SPEC calls "el valor diferencial de la fase" —
+> had never been built. The claim was mine and it was wrong for weeks.
+
+The OpenSearch Dashboards core is visible to the matrix, and the crosscheck
+answers the question no single repository can.
 
 ```
 wazuh-ctx matrix --ref 5.0.0
 
 9 plugins · 64 core plugins · 0 unresolved edges
-20 index templates · 39 WCS modules · 1 repository skipped · 9 resolved SHAs
+40 index templates · 39 WCS modules · 1 repository skipped · 9 resolved SHAs
+
+wazuh-ctx crosscheck --ref 5.0.0
+
+61 index names recovered across 6 repos
+5 declared and never referenced · 3 referenced and never declared
+5 WCS modules with no consumer · 2 competing catalogs
+87 mechanisms the scan cannot see
 cold run 32s (clones) → warm run 1s (cache, no network)
 payloadHash and MATRIX.md byte-identical across runs
 ```
@@ -37,6 +52,7 @@ against a real run. There is now an opt-in guard that does
 | `src/skills/` | Phase 2 — **empty** |
 | `src/mcp/` | Phase 3 — **empty** |
 | `ui/` | Phase 1.5 inspector — **empty** |
+| `src/crosscheck/` | SPEC 1.8, the index crosscheck. Done. |
 | `.github/workflows/` | `ci.yml` + `regenerate.yml` (SPEC 5.4). Done, see below. |
 
 ## Getting running on a new machine
@@ -170,6 +186,40 @@ No YAML can set these, and without them the loop is not closed:
 
 Create a `needs-human-review` label too, or the labelling step logs a warning
 and the PR is left unmerged — still the right outcome, just quieter.
+
+## What the running indexer taught us, and what it costs
+
+The dashboard team's dev stack (`os-dev-360`) has a real indexer on 9200. Every
+number below was checked against it, and checking changed the tool four times.
+
+**The repository is not the territory.** It declares `wazuh-findings-v5*`; the
+running indexer holds sixteen per-category templates expanded from it. It
+declares `wazuh-cve*`, which is not installed at all. A crosscheck comparing two
+repositories can be perfectly implemented and still say false things, because it
+compares two maps and neither is the ground.
+
+**A string's shape proves nothing.** This organisation prefixes everything with
+`wazuh-`: packages, hosts, repositories, environments, test fixtures. Accepting
+every `wazuh-` literal produced 77 distinct names of which **zero existed**. The
+second signal has to be context — an `index:` key, a comparison against
+`.index`, an enclosing map named `*_INDEX` — not the value.
+
+**A test fixture is not a consumer.** Three of six surviving findings came only
+from tests; one was called `wazuh-does-not-matter*`.
+
+**And the first scanner was blind to half the code.** It only recognised
+`export const X_PATTERN = '...'`, a convention that holds in one file of one
+plugin. The threat-intel indices live in an object map and in inline
+comparisons, so six live indices — with data, under security analytics — were
+reported as having no consumer.
+
+### The obvious next step
+
+`wazuh-ctx crosscheck --indexer <url>`, optional. The dataset must stay
+generatable without it (CI has no stack, and `out/` must be deterministic), but
+a developer with the stack up gets a third column: **declared / referenced /
+actually exists**. Then "declared and never referenced" becomes verifiable
+rather than inferred. Scoped as its own change, with today's evidence in it.
 
 ## Known limits of what shipped
 

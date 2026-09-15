@@ -285,9 +285,27 @@ huérfana    → el plugin ya no existe. Se marca, no se borra.
 
 Ese cruce es probablemente la señal más valiosa que emite el sistema.
 
-**Dueño:** el workflow abre el PR, pero una persona tiene que mirar el diff y
-mergear. Hoy esa persona es Diego. **Bus factor de uno**, y queda escrito acá en
-vez de fingir que no.
+**Dueño — ENMENDADO 2026-09-15.** La versión original de este párrafo decía que
+una persona tiene que mirar el diff y mergear, y que esa persona es Diego: bus
+factor de uno, escrito acá en vez de fingir que no.
+
+Se resolvió así, y la resolución es un reparto, no una excepción:
+
+- **Sin conflictos de reconciliación → auto-merge** cuando pasan tests,
+  typecheck, build y el guard de frescura. Ese diff es generado y determinista;
+  nadie lo lee línea por línea y nadie debería tener que hacerlo. Poner a una
+  sola persona como único camino de publicación era el riesgo mayor.
+- **Con al menos un conflicto → el PR espera a un humano**, etiquetado
+  `needs-human-review`, con auto-merge deliberadamente NO habilitado.
+
+La distinción no es cosmética. "Abre PR, nunca auto-commit" existe para que los
+cambios no entren en silencio, y un PR que se mergea solo entra en silencio **si
+nadie garantiza que no traiga la señal que requiere ojos**. Un conflicto de
+reconciliación es exactamente esa señal, y ningún test falla ante uno. Por eso el
+gate es el conflicto y no el CI a secas.
+
+El resto de esta sección sigue vigente: el PR sigue siendo el sistema de
+detección de cambios, y sigue reportando activa / superada / huérfana.
 
 **El dataset avisa cuando envejece.** `matrix.json` lleva `resolvedAt`, y
 `wazuh-ctx mcp` emite una advertencia cuando supera 30 días. No depende de que
@@ -1149,10 +1167,32 @@ antes de escribir una línea de la lógica que importa.
    SHA idéntico `71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a` en `5.0.0`, o sea
    que son espejos y la elección es cosmética. `sources.yml` mantiene la forma
    singular, que es la que usa el checkout de trabajo del mantenedor.
-2. **`wazuh/wazuh` en Fase 1** — recomendación: dejarlo fuera por ahora. La
-   superficie declarativa que se necesita (WCS, templates) está en
-   `wazuh-indexer-plugins`, que es mucho más barato de procesar. Incorporarlo solo
-   si aparece una necesidad concreta que esos artefactos no cubran.
+2. ~~**`wazuh/wazuh` en Fase 1**~~ — **RESUELTA (2026-09-15) por evidencia.**
+   La recomendación era correcta y ahora está verificada contra el repositorio
+   en lugar de asumida.
+
+   En `origin/5.0.0`: **cero** rutas con forma `templates/states`, **cero**
+   `fields.csv`, **cero** directorio `wcs/`. Los únicos JSON con
+   `index_patterns` son 12 fixtures de test de QA bajo
+   `src/shared_modules/indexer_connector/qa/test_data`. El único con contenido
+   real duplica `wazuh-states-vulnerabilities`, que `wazuh-indexer-plugins` ya
+   provee vía `plugins/setup/src/main/resources/templates/states/vulnerabilities.json`,
+   y con mayor fidelidad. `wazuh-indexer-plugins` tiene además 17 templates de
+   estado más y 28 módulos WCS que `wazuh/wazuh` no tiene en ninguna forma.
+
+   Costo si se incorporara: **6.804 archivos / ~160 MB** contra **1.078 / ~13 MB**
+   de `wazuh-indexer-plugins`. Seis veces más archivos por cero información nueva.
+
+   **Queda fuera de Fase 1.** Pero hay un matiz que conviene no perder: el repo
+   sí contiene superficie declarativa que no está en ningún otro lado y que
+   ninguna versión previa de este ítem mencionaba —
+   `api/api/spec/spec.yaml` (OpenAPI del Server API, ~9.700 líneas) y los YAML
+   de RBAC por defecto en `framework/wazuh/rbac/default/` (`policies.yaml`,
+   `roles.yaml`, `relationships.yaml`, `rules.yaml`, `users.yaml`). Nada de eso
+   es índice ni WCS, así que no cambia esta decisión, pero es material directo
+   para la página de `asCurrentUser` y para cualquier trabajo futuro sobre el
+   RBAC del Mundo A. Si `wazuh/wazuh` entra alguna vez, entra por ahí, no por
+   los templates.
 3. ~~**`wazuh-indexer`**~~ — **RESUELTA (2026-09-15) por evidencia.** La premisa
    era incorrecta: el repositorio **no tiene rama `5.0.0`**, solo `main`
    (verificado contra el checkout local). Incluirlo hoy produciría únicamente
@@ -1211,8 +1251,36 @@ antes de escribir una línea de la lógica que importa.
 
    **La página cubre los dos pares**, organizada alrededor de la colisión de
    `asCurrentUser`, con `executor.ts` como caso testigo. Elegir uno solo
-   documentaría media trampa. Sigue necesitando autor humano y dueño, y se
-   entrega como cambio aparte.
-5. **Cadencia de regeneración** — 5.4 propone cron diario con chequeo previo por
-   `ls-remote`. Confirmar, y confirmar quién además de Diego puede mergear el PR
-   de regeneración (hoy bus factor de uno).
+   documentaría media trampa.
+
+   **BORRADOR ESCRITO (2026-09-15):** [`docs/as-current-user.md`](docs/as-current-user.md),
+   redactado contra el código tal como estaba ese día. Vive en `docs/` por ahora;
+   cuando Fase 2 exista, `.claude/standards/` es su lugar natural y a partir de
+   ahí `wazuh-ctx sync` lo distribuye y `wazuh-ctx check` evita que derive.
+
+   **Sigue sin dueño, y eso importa.** Lo que falta de una persona: (a) un dueño
+   nombrado que la relea cuando cambie cualquiera de los dos clientes; (b) una
+   revisión de la lista de usos legítimos de `asInternalUser`, que salió de leer
+   call sites y no de una política que alguien haya acordado — algunos usos
+   actuales podrían estar mal y la página hoy los trata como precedente. Una
+   página exacta y sin dueño tiene vida corta.
+5. ~~**Cadencia de regeneración**~~ — **RESUELTA (2026-09-15).**
+
+   **Cadencia: cron diario con precheck por `ls-remote`**, como proponía 5.4. El
+   workflow resuelve los 10 repos declarados y compara contra los
+   `resolvedRefs` ya registrados en `out/5.0.0/matrix.json`. Si ningún SHA se
+   movió, termina sin clonar nada — que es el punto del precheck, porque la
+   mayoría de los días no se mueve nada. Un repo sin rama `5.0.0`
+   (`wazuh-dashboard-ml-commons`) no cuenta como movimiento y no rompe el job.
+
+   **Bus factor: auto-merge cuando CI queda verde.** El PR de regeneración se
+   mergea solo si pasan tests, typecheck, build y el guard de frescura. El
+   razonamiento: ese diff es generado y determinista, nadie lo revisa línea por
+   línea, y tener a una sola persona como único camino de publicación es un
+   riesgo mayor que el de un merge automático sobre contenido verificado.
+
+   **Queda una dependencia humana que ningún archivo puede resolver.**
+   "Auto-merge si CI queda verde" exige dos ajustes de configuración del
+   repositorio: habilitar *Allow auto-merge*, y protección de rama que **exija**
+   el check de CI. Sin el segundo, auto-merge mergea de inmediato y el gate no
+   existe. Está documentado en `.github/workflows/README.md`.

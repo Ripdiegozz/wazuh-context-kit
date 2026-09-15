@@ -1,0 +1,127 @@
+change: platform-core-plugins
+title: Surface wazuh-dashboard core plugins and repair the committed dataset
+created: 2026-09-15
+artifact_store: openspec
+
+session:
+  pace: auto
+  delivery_strategy: exception-ok   # was single-pr; see size_exception below
+  review_budget_lines: 400
+  size_exception:
+    accepted: true
+    accepted_by: diego.garcia
+    accepted_on: 2026-09-15
+    forecast_authored_lines: 1000
+    forecast_generated_lines: 2500
+    reason: >-
+      The orchestrator recommended splitting into three chained PRs, isolating
+      the payloadHash-changing slice. The maintainer chose one PR with a
+      recorded exception instead. Recorded so the size is a decision on the
+      record, not an accident.
+  # Collected via the SDD session preflight earlier in this session and cached.
+
+phases:
+  explore: done
+  research: unselected     # maintainer declined; gate satisfied
+  propose: done
+  spec: done
+  design: done
+  tasks: done
+  apply: done
+  verify: done
+  archive: done
+
+closed: 2026-09-15
+archived_to: openspec/changes/archive/2026-09-15-platform-core-plugins/
+
+artifacts:
+  exploration: openspec/changes/archive/2026-09-15-platform-core-plugins/exploration.md
+  proposal: openspec/changes/archive/2026-09-15-platform-core-plugins/proposal.md
+  specs:
+    - openspec/changes/archive/2026-09-15-platform-core-plugins/specs/repo-fetch/spec.md
+    - openspec/changes/archive/2026-09-15-platform-core-plugins/specs/source-parse/spec.md
+    - openspec/changes/archive/2026-09-15-platform-core-plugins/specs/matrix-pipeline/spec.md
+  design: openspec/changes/archive/2026-09-15-platform-core-plugins/design.md
+  tasks: openspec/changes/archive/2026-09-15-platform-core-plugins/tasks.md
+  apply_progress: openspec/changes/archive/2026-09-15-platform-core-plugins/apply-progress.md
+  verify_report: openspec/changes/archive/2026-09-15-platform-core-plugins/verify-report.md
+  archive_report: openspec/changes/archive/2026-09-15-platform-core-plugins/archive-report.md
+
+merged_specs:
+  - openspec/specs/repo-fetch/spec.md        # 1 requirement SUPERSEDED, 2 added
+  - openspec/specs/source-parse/spec.md      # additive only
+  - openspec/specs/matrix-pipeline/spec.md   # additive only
+
+forecast:
+  authored_lines_actual: 1312      # 31% over the estimate; concentrated in tests
+  authored_lines_estimate: 1000
+  generated_lines_estimate: 2500
+  budget_risk: high
+  chained_prs_recommended: true
+  decision_needed_before_apply: true
+
+pending_decision: none
+
+# Confirmed BEFORE any proposal work, per the Research and Pre-Proposal Gate.
+# The proposer receives these; it must not re-interview or infer them.
+confirmed_decisions:
+  - id: platform-core-plugin-surfacing
+    answered: separate-section
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      Widen sparsePathsFor("platform") to ["src/plugins"] and surface the 64
+      wazuh-dashboard core plugins in their own matrix section rather than in
+      plugins[], so wazuh-native dependency edges resolve without diluting the
+      9 wazuh plugins among 64 OpenSearch Dashboards ones.
+    evidence: openspec/changes/archive/2026-09-15-platform-core-plugins/exploration.md#finding-2
+
+  - id: ascurrentuser-page-scope
+    answered: both-pairs
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      The prose page covers BOTH asScoped/asInternalUser pairs, organised around
+      the fact that both expose asCurrentUser downstream. Deferred to a
+      follow-up change; recorded here so the decision is not re-litigated.
+    evidence: openspec/changes/archive/2026-09-15-platform-core-plugins/exploration.md#finding-3
+
+  - id: add-indexer-security-analytics
+    answered: add-it
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      Add wazuh-indexer-security-analytics to sources.yml. It has a 5.0.0 branch
+      but holds none of the three declared indexer sparse paths, so it will
+      resolve a SHA and contribute zero facts. The maintainer accepted that
+      outcome knowingly, against the recommendation, as a record that the repo
+      was evaluated. Not a defect if it later reads as one.
+    evidence: openspec/changes/archive/2026-09-15-platform-core-plugins/exploration.md#confirmed-product-decisions
+
+  - id: implementation-route
+    answered: sdd
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      SDD rather than direct implementation, because the platform path set
+      change propagates into repo-fetch and matrix-pipeline specs, the dataset
+      shape, the fixtures, and the tests.
+
+# Carried into this change from the archived phase-1-real-data cycle.
+inherited_findings:
+  - id: reporting-repo-mirrors
+    summary: >-
+      wazuh-dashboard-reporting and wazuh-dashboards-reporting resolve to the
+      identical SHA 71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a at 5.0.0. They are
+      mirrors; the UNRESOLVED flag in sources.yml can be removed. Closes
+      SPEC section 8 open decision 1.
+  - id: fixture-is-shape-only
+    summary: >-
+      fixtures/facts.ts wazuhMain was never a faithful copy (3 requiredPlugins
+      against 15, plus an optionalPlugins entry absent upstream). Label it
+      shape-only rather than syncing it to reality.
+  - id: cone-mode-root-files
+    summary: >-
+      sparse-checkout --cone always materialises top-level files in addition to
+      the declared directories. The repo-fetch spec sentence reads narrower than
+      that and needs a wording pass (was HANDOFF P3).

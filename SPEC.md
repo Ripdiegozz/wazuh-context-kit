@@ -1143,14 +1143,27 @@ antes de escribir una línea de la lógica que importa.
 
 ## 8. Decisiones abiertas para Diego
 
-1. **`wazuh-dashboard-reporting` vs `wazuh-dashboards-reporting`** — ambos con
-   rama `5.0.0`. Hay que confirmar cuál es el vigente antes de fijar `sources.yml`.
+1. ~~**`wazuh-dashboard-reporting` vs `wazuh-dashboards-reporting`**~~ —
+   **RESUELTA (2026-09-15).** La pregunta estaba mal planteada: no son dos
+   repositorios en disputa. `git ls-remote --heads` contra ambos devuelve el
+   SHA idéntico `71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a` en `5.0.0`, o sea
+   que son espejos y la elección es cosmética. `sources.yml` mantiene la forma
+   singular, que es la que usa el checkout de trabajo del mantenedor.
 2. **`wazuh/wazuh` en Fase 1** — recomendación: dejarlo fuera por ahora. La
    superficie declarativa que se necesita (WCS, templates) está en
    `wazuh-indexer-plugins`, que es mucho más barato de procesar. Incorporarlo solo
    si aparece una necesidad concreta que esos artefactos no cubran.
-3. **`wazuh-indexer`** — existe con rama `5.0.0`, no está incluido en `sources.yml`.
-   Confirmar si aporta algo que `wazuh-indexer-plugins` no tenga.
+3. ~~**`wazuh-indexer`**~~ — **RESUELTA (2026-09-15) por evidencia.** La premisa
+   era incorrecta: el repositorio **no tiene rama `5.0.0`**, solo `main`
+   (verificado contra el checkout local). Incluirlo hoy produciría únicamente
+   una entrada en `skipped[]`. Queda fuera hasta que publique la rama.
+
+   Nota relacionada: `wazuh-indexer-security-analytics` **sí** tiene rama
+   `5.0.0` y fue incorporado a `sources.yml` el 2026-09-15 por decisión
+   explícita del mantenedor, aun sabiendo que no contiene ninguno de los tres
+   paths declarados para `kind: indexer` y que por lo tanto resuelve un SHA sin
+   aportar hechos. Está documentado en `sources.yml` para que no se lea como
+   defecto más adelante.
 4. **`asScoped` vs `asInternalUser`** — no es derivable, es la decisión de RBAC más
    importante del contrato y hoy no está documentada en ningún lado. `asInternalUser`
    funciona en dev sin fallar y saltea el RBAC del usuario: compila, los tests pasan,
@@ -1169,9 +1182,37 @@ antes de escribir una línea de la lógica que importa.
    Son dos decisiones distintas con dos modelos de permisos distintos y dos
    superficies de impacto distintas, y hoy comparten nombre. Una página que diga
    "usá `asScoped`" sin decir de cuál habla no arregla el problema: lo vuelve más
-   difícil de ver. **Son dos páginas, o una página con dos secciones explícitas y
-   una tabla de equivalencias.** Decisión previa a escribir: cuál de los dos
-   modelos produce más incidentes hoy, porque ese va primero.
+   difícil de ver.
+
+   **ALCANCE DEFINIDO (2026-09-15).** La desambiguación pedida arriba se
+   resolvió, y el resultado corrige la premisa: el peligro no está en `asScoped`
+   contra `asInternalUser`, sino en que **ambos pares exponen el mismo nombre
+   río abajo, `asCurrentUser`**.
+
+   ```
+   context.core.opensearch.client.asCurrentUser     → RBAC del indexer
+   context.wazuh_core.api.client.asCurrentUser      → RBAC del Server API
+   ```
+
+   Evidencia recogida sobre los checkouts reales:
+
+   - El `asScoped` de `wazuh-core` se invoca **una sola vez** en todo
+     `wazuh-dashboard-plugins`, en `wazuh-core/server/plugin.ts:100`, y es
+     cableado interno. Ningún consumidor lo llama; todos usan `asCurrentUser`.
+     Una página sobre `asScoped` documentaría un método que casi nadie invoca.
+   - Los dos pares conviven en el mismo archivo:
+     `wazuh-ai-assistant/server/tools/executor.ts` usa el cliente del indexer en
+     las líneas 231, 424 y 661, y el del Manager en la 850.
+   - No hay ningún `TODO` ni `FIXME` cerca de ninguno de los dos pares. En
+     cambio, `wazuh-ai-assistant/server/wazuh-core.d.ts:59-70` define tipos
+     locales más angostos a mano en lugar de importar los reales, para poder
+     explicar por qué `executor.ts` omite `token`. La confusión ya obligó a un
+     rodeo silencioso, que es peor que una duda declarada.
+
+   **La página cubre los dos pares**, organizada alrededor de la colisión de
+   `asCurrentUser`, con `executor.ts` como caso testigo. Elegir uno solo
+   documentaría media trampa. Sigue necesitando autor humano y dueño, y se
+   entrega como cambio aparte.
 5. **Cadencia de regeneración** — 5.4 propone cron diario con chequeo previo por
    `ls-remote`. Confirmar, y confirmar quién además de Diego puede mergear el PR
    de regeneración (hoy bus factor de uno).

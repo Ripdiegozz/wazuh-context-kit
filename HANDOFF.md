@@ -1,21 +1,29 @@
 # Handoff — what is done, what is left
 
 > Written 2026-09-15, replacing the 2026-09-14 version.
+> Updated later the same day, after `platform-core-plugins` closed.
 > The authoritative contract is [`SPEC.md`](SPEC.md). This file only says where
 > the work stopped.
 
 ## Where it stands
 
-**Phase 1 is complete and closed.** It runs against the real Wazuh
-repositories, not fixtures, and every requirement now carries runtime evidence.
+**Phase 1 is complete and closed**, and the OpenSearch Dashboards core is now
+visible to the matrix.
 
 ```
 wazuh-ctx matrix --ref 5.0.0
 
-9 plugins · 20 index templates · 39 WCS modules · 1 repository skipped · 8 resolved SHAs
-cold run 30s (clones) → warm run 1.4s (cache, no network)
+9 plugins · 64 core plugins · 0 unresolved edges
+20 index templates · 39 WCS modules · 1 repository skipped · 9 resolved SHAs
+cold run 32s (clones) → warm run 1s (cache, no network)
 payloadHash and MATRIX.md byte-identical across runs
 ```
+
+Until 2026-09-15 the committed `out/5.0.0` was the `--fixtures` build — 5
+plugins, 0 templates, 0 WCS modules — while its commit message described the
+real one. Nothing caught it, because no test compared the committed product
+against a real run. There is now an opt-in guard that does
+(`src/dataset-freshness.integration.test.ts`).
 
 | Layer | State |
 |---|---|
@@ -25,6 +33,7 @@ payloadHash and MATRIX.md byte-identical across runs
 | `src/parse/` | manifests, `package.json`, index templates, WCS. Done. |
 | `src/sources.ts` | `sources.yml` loader. Done. |
 | `src/cli.ts` | real pipeline wired; both hardcodes gone. Done. |
+| core plugin surfacing | `src/parse/core-plugins.ts` + the `core` section. Done. |
 | `src/skills/` | Phase 2 — **empty** |
 | `src/mcp/` | Phase 3 — **empty** |
 | `ui/` | Phase 1.5 inspector — **empty** |
@@ -36,7 +45,7 @@ payloadHash and MATRIX.md byte-identical across runs
 git clone https://github.com/Ripdiegozz/wazuh-context-kit.git
 cd wazuh-context-kit
 bun install                               # required — nothing runs without it
-bun test                                  # expect 104 pass · 1 skip · 0 fail
+bun test                                  # expect 137 pass · 2 skip · 0 fail
 bun run ./src/cli.ts matrix --ref 5.0.0   # first run clones, ~30s
 ```
 
@@ -47,14 +56,14 @@ requirement only, never a consumer one.
 `.cache/` and `decisions.local.yml` are gitignored. `out/` is **not** — the
 dataset is the product and is committed (SPEC 5.1).
 
-## Verified on 2026-09-15
+## Verified on 2026-09-15 (after `platform-core-plugins`)
 
 ```
-bun test                                  104 pass · 1 skip · 0 fail · 281 assertions
+bun test                                  137 pass · 2 skip · 0 fail · 366 assertions
 bun run typecheck                         clean
 bun run build && node dist/cli.js -v      0.1.0
-WAZUH_CTX_NETWORK=1 bun test …integration  1 pass · 5 assertions
-git diff -- src/matrix src/decisions/apply.ts    empty   (purity seam holds)
+WAZUH_CTX_NETWORK=1 bun test              139 pass · 0 fail · 30.6 s
+rg 'node:fs|new Date()' src/matrix/       no matches  (purity seam holds)
 ```
 
 All nine SPEC 1.9 acceptance criteria pass against real data, including
@@ -71,10 +80,14 @@ a hardcode.
 | `src/sources.test.ts` | `sources.yml` loading and schema failures |
 | `src/fetch/fetch.test.ts` | fetch orchestration and git **argv intent**, via a fake runner |
 | `src/fetch/sparse-disk.test.ts` | what the sparse checkout actually puts **on disk**, via real git over `file://` |
+| `src/parse/core-plugins.test.ts` | OSD core manifest parsing, incl. the git-ignored `plugins/` decoy |
+| `src/matrix/core-section.test.ts` | the `core` section and the unresolved-dependency resolver |
+| `src/matrix/render-core.test.ts` | core summary rendering and omitted-when-empty sections |
+| `src/dataset-freshness.integration.test.ts` | committed `out/` vs a real run — **opt-in only** |
 | `src/cli.test.ts` | CLI contract: `--fixtures` parity, fatal exit codes, argument handling |
 | `src/fetch/network.integration.test.ts` | real github.com — **opt-in only**, `WAZUH_CTX_NETWORK=1` |
 
-Only the last one touches the network. The default `bun test` run is hermetic.
+Only the last two touch the network. The default `bun test` run is hermetic.
 
 ---
 
@@ -90,45 +103,56 @@ specs are merged into `openspec/specs/` as the source of truth.
 
 ## P2 — decisions that need a human, not code
 
-These block nothing, but every one of them is a silent wrong answer waiting to
-happen.
+Three of the five closed on 2026-09-15. What remains:
 
-1. **Does a `platform` repository belong in `plugins[]`?**
-   `wazuh-dashboard` resolves a SHA and appears in `resolvedRefs`, but
-   contributes no entry. The on-disk test now explains exactly why:
-   `sparsePathsFor("platform")` returns `[]`, and with an empty declared path
-   set a cone-mode checkout lands **root files only** — nothing below the root
-   ever appears, so there is no manifest to parse. `SPEC.md` 1.5.2 defines
-   `world: "platform"` as a classification, which implies it should surface
-   somewhere. Decide, then record it.
+1. **`wazuh/wazuh` in Phase 1** — SPEC section 8, item 2. Recommendation stands:
+   leave it out until something concrete needs it.
 
-2. **Reconcile `fixtures/facts.ts` with reality.**
-   It asserts `indexerAccess: []` for `wazuh`; the real manifest declares
-   `data`, so the truth is `["osd-data"]`. No test hardcodes the wrong value, so
-   nothing is broken — but a fixture that disagrees with reality is evidence
-   about the fixture. Either fix it or state in the file that it is shape-only.
+2. **Regeneration cadence, and the bus factor** — SPEC section 8, item 5.
+   `.github/workflows/` is still empty, so `out/` is regenerated by hand. Today
+   only Diego can merge a regeneration PR. That is the single-point-of-failure
+   worth fixing before any of the remaining build phases.
 
-3. **`wazuh-dashboard-reporting` vs `wazuh-dashboards-reporting`.**
-   Both have a `5.0.0` branch. `sources.yml` currently names the singular form
-   and flags it UNRESOLVED. Open since the first draft (SPEC section 8, item 1).
+3. **The `asCurrentUser` collision page** — scope is now decided and recorded in
+   SPEC section 8, item 4: it covers **both** pairs, organised around the fact
+   that `core.opensearch.client` and `wazuh-core`'s `api.client` both expose
+   `asCurrentUser`, with `wazuh-ai-assistant/server/tools/executor.ts` as the
+   witness (indexer client at lines 231/424/661, Manager client at 850). It
+   still needs a human author and an owner, and ships as its own change.
 
-4. **Is `wazuh-indexer` worth adding?** SPEC section 8, item 3.
+### Closed on 2026-09-15
 
-5. **The `asScoped` / `asInternalUser` page.** SPEC section 8, item 4 — the
-   highest-return prose in the project, still unwritten. It cannot be written
-   until someone decides *which* of the two identically-named APIs it governs:
-   OSD's `core.opensearch.client` (indexer RBAC) or `wazuh-core`'s `api.client`
-   (Server API RBAC).
+- ~~Does a `platform` repository belong in `plugins[]`?~~ — No. It gets its own
+  `core` section. 64 core plugins now surface and every dependency edge resolves.
+- ~~Reconcile `fixtures/facts.ts` with reality~~ — It was never drift. The
+  fixture is shape-only by construction (3 `requiredPlugins` against 15, plus an
+  `optionalPlugins` entry that does not exist upstream), and the file now says so.
+- ~~`wazuh-dashboard-reporting` vs `wazuh-dashboards-reporting`~~ — Mirrors. Both
+  resolve to `71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a` at `5.0.0`.
+- ~~Is `wazuh-indexer` worth adding?~~ — It has no `5.0.0` branch, only `main`.
+- ~~P3, the `repo-fetch` spec wording~~ — Superseded during the archive merge.
 
-## P3 — a spec wording pass
+### One addition that will look like a bug
 
-`openspec/specs/repo-fetch/spec.md` says the checked-out tree contains "only
-the SPEC 1.2 paths". Read literally that is narrower than what git does:
-`sparse-checkout init --cone` **always** materialises the repository's
-top-level files in addition to the directories passed to `sparse-checkout set`.
-The requirement is satisfied in substance — no full plugin source tree is ever
-checked out — and the test encodes the real boundary. The spec sentence should
-be widened to match in a later change.
+`wazuh-indexer-security-analytics` is in `sources.yml`, resolves a SHA, and
+contributes **zero facts** — it is a Java source repo with none of the declared
+`indexer` paths. That was a deliberate maintainer decision on 2026-09-15,
+against the recommendation, recorded so it is not later filed as a defect. The
+comment in `sources.yml` says the same thing.
+
+## Known limits of what shipped
+
+- **The freshness guard is opt-in.** It makes a stale `out/` *detectable*, not
+  *impossible*. Nothing runs it automatically, because the SPEC 5.4 regeneration
+  workflow does not exist yet. That is the same class of gap that let the stale
+  dataset ship in the first place.
+- **One spec scenario and its implementation disagree slightly.** The
+  `matrix-pipeline` scenario says the guard "names the mismatching hashes"; it
+  fails on shape parity first, so it names counts. Fix the guard or the sentence.
+- **The last verification was not independent.** This runtime refuses SDD child
+  dispatch, so the context that implemented `platform-core-plugins` also
+  verified it. A fresh session re-reading `openspec/specs/` against the diff
+  would be worth its cost.
 
 ## Then: what comes after Phase 1
 

@@ -122,6 +122,51 @@ export function renderMatrixMarkdown(matrix: MatrixJson): string {
     }
   }
 
+  if (matrix.core.length > 0) {
+    lines.push("");
+    lines.push("## Core plugins");
+    lines.push("");
+    lines.push("| repo | version | plugins | depended on |");
+    lines.push("|---|---|---|---|");
+
+    // Only the core plugins something actually depends on. A reader's question
+    // is "does the thing I depend on exist here", and an exhaustive list of 64
+    // answers it worse than a filtered one (design D7).
+    const dependedOn = new Set<string>();
+    for (const plugin of matrix.plugins) {
+      for (const id of plugin.requiredPlugins) dependedOn.add(id);
+      for (const id of plugin.requiredBundles) dependedOn.add(id);
+    }
+
+    for (const repo of matrix.core) {
+      const provided = repo.plugins
+        .map((plugin) => plugin.pluginId)
+        .filter((id) => dependedOn.has(id));
+      lines.push(
+        `| ${cell(repo.repo)} | ${repo.version === null ? "—" : `\`${cell(repo.version)}\``} | ` +
+          `${repo.plugins.length} | ${list(provided)} |`,
+      );
+    }
+  }
+
+  // Omitted entirely when empty. An always-present "none" heading trains a
+  // reader to skip the region where the real signal will eventually appear.
+  if (matrix.unresolvedDependencies.length > 0) {
+    lines.push("");
+    lines.push("## Unresolved dependencies");
+    lines.push("");
+    lines.push("> A declared dependency with no destination in this matrix.");
+    lines.push("");
+    lines.push("| plugin | repo | dependency | field |");
+    lines.push("|---|---|---|---|");
+    for (const entry of matrix.unresolvedDependencies) {
+      lines.push(
+        `| \`${cell(entry.plugin)}\` | ${cell(entry.repo)} | ` +
+          `\`${cell(entry.dependency)}\` | \`${entry.field}\` |`,
+      );
+    }
+  }
+
   if (matrix.indexer.templates.length > 0) {
     lines.push("");
     lines.push(`## Index templates (${matrix.indexer.templates.length})`);

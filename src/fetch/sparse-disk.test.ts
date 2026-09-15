@@ -40,10 +40,14 @@ const ORIGIN_FILES: Readonly<Record<string, string>> = {
   "plugins/setup/src/main/resources/templates/states/agent-config.json": "{}\n",
   "plugins/content-manager/src/main/resources/mappings/alerts.json": "{}\n",
   "wcs/network/docs/fields.csv": "name,type\n",
+  // Inside the declared platform path set.
+  "src/plugins/navigation/opensearch_dashboards.json": '{"id":"navigation"}\n',
+  "src/plugins/data/opensearch_dashboards.json": '{"id":"data"}\n',
   // Outside it: full plugin source, docs, and an unrelated plugin subtree.
   "plugins/setup/src/main/java/Setup.java": "class Setup {}\n",
   "docs/README.md": "docs\n",
   "plugins/unrelated/source.ts": "export const x = 1;\n",
+  "src/core/server/index.ts": "export const core = 1;\n",
   // Top-level files: cone mode always checks these out.
   "build.gradle": "// root\n",
   "package.json": '{"name":"origin"}\n',
@@ -154,7 +158,7 @@ describe("sparse checkout, verified on disk (SPEC 1.2)", () => {
   );
 
   test(
-    "a platform clone checks out root files only, since its declared path set is empty",
+    "a platform clone materialises src/plugins and nothing outside it",
     async () => {
       const root = await mkdtemp(join(tmpdir(), "wazuh-ctx-sparse-platform-"));
       const run = createGitRunner();
@@ -165,16 +169,27 @@ describe("sparse checkout, verified on disk (SPEC 1.2)", () => {
         await mkdir(cacheRoot, { recursive: true });
 
         const sparsePaths = sparsePathsFor("platform");
-        expect(sparsePaths).toEqual([]);
+        expect(sparsePaths).toEqual(["src/plugins"]);
 
         const dir = cacheDirFor(cacheRoot, "wazuh-dashboard", REF);
         const outcome = await cloneRepo(run, cacheRoot, dir, `file://${origin}`, REF, sparsePaths);
         expect(outcome.ok).toBe(true);
 
-        // This is the on-disk explanation for a platform repo resolving a SHA
-        // while contributing no plugin entry: nothing below the root is ever
-        // checked out for it.
-        expect(await filesOnDisk(dir)).toEqual(["build.gradle", "package.json"]);
+        const onDisk = await filesOnDisk(dir);
+
+        // The core plugin manifests are the whole point: without them every
+        // wazuh-native dependency edge into the core has no destination.
+        expect(onDisk).toContain("src/plugins/navigation/opensearch_dashboards.json");
+        expect(onDisk).toContain("src/plugins/data/opensearch_dashboards.json");
+
+        // `src/core` is inside `src/` but outside the declared set, so it
+        // proves the path set is `src/plugins` and not `src`.
+        expect(onDisk.some((path) => path.startsWith("src/core/"))).toBe(false);
+
+        const unexpected = onDisk.filter(
+          (path) => !isRootFile(path) && !sparsePaths.some((allowed) => path.startsWith(`${allowed}/`)),
+        );
+        expect(unexpected).toEqual([]);
       } finally {
         await rm(root, { recursive: true, force: true });
       }

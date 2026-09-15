@@ -6,11 +6,15 @@
 
 | plugin | repo | world | version | server API | indexer access | evidence |
 |---|---|---|---|---|---|---|
-| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `5157de35` |
-| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `5157de35` |
-| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `5157de35` |
-| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `5157de35` |
-| `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `a91c02f1` |
+| `alertingDashboards` | wazuh-dashboard-alerting | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `48b0fc05` |
+| `notificationsDashboards` | wazuh-dashboard-notifications | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `deebf080` |
+| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `83695a6a` |
+| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `83695a6a` |
+| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `83695a6a` |
+| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `83695a6a` |
+| `reportsDashboards` | wazuh-dashboard-reporting | upstream-fork | osd | none | `osd-data`, `osd-data-source` | `71b4b9e2` |
+| `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `295daaac` |
+| `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `4f034db7` |
 
 † Human assertions — not derivable, decided by a person
 
@@ -21,7 +25,6 @@
 
 | plugin | field | reason |
 |---|---|---|
-| `wazuh` | `indexerAccess` | indexer access not derivable from the manifest |
 | `wazuhAiAssistant` | `indexerAccess` | indexer access not derivable from the manifest |
 | `wazuhCheckUpdates` | `indexerAccess` | indexer access not derivable from the manifest |
 | `wazuhCore` | `indexerAccess` | indexer access not derivable from the manifest |
@@ -34,11 +37,47 @@
 
 - `wazuh-dashboard-ml-commons` — no 5.0.0 branch
 
+## Core plugins
+
+| repo | version | plugins | depended on |
+|---|---|---|---|
+| wazuh-dashboard | `3.6.0` | 64 | `charts`, `contentManagement`, `dashboard`, `data`, `discover`, `embeddable`, `expressions`, `inspector`, `navigation`, `opensearchDashboardsLegacy`, `opensearchDashboardsReact`, `opensearchDashboardsUtils`, `savedObjects`, `savedObjectsManagement`, `uiActions`, `visAugmenter`, `visualizations` |
+
+## Index templates (20)
+
+- `agent-config` — `wazuh-agent-config*`
+- `agent-stats` — `wazuh-agent-stats*`
+- `fim-files` — `wazuh-states-fim-files*`
+- `fim-registry-keys` — `wazuh-states-fim-registry-keys*`
+- `fim-registry-values` — `wazuh-states-fim-registry-values*`
+- `inventory-browser-extensions` — `wazuh-states-inventory-browser-extensions*`
+- `inventory-groups` — `wazuh-states-inventory-groups*`
+- `inventory-hardware` — `wazuh-states-inventory-hardware*`
+- `inventory-hotfixes` — `wazuh-states-inventory-hotfixes*`
+- `inventory-interfaces` — `wazuh-states-inventory-interfaces*`
+- `inventory-networks` — `wazuh-states-inventory-networks*`
+- `inventory-packages` — `wazuh-states-inventory-packages*`
+- `inventory-ports` — `wazuh-states-inventory-ports*`
+- `inventory-processes` — `wazuh-states-inventory-processes*`
+- `inventory-protocols` — `wazuh-states-inventory-protocols*`
+- `inventory-services` — `wazuh-states-inventory-services*`
+- `inventory-system` — `wazuh-states-inventory-system*`
+- `inventory-users` — `wazuh-states-inventory-users*`
+- `sca` — `wazuh-states-sca*`
+- `vulnerabilities` — `wazuh-states-vulnerabilities*`
+
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:1f9274f57051dff4dc31b8f03ba38333f1a625896ddadf68f40f3348a9ad2bfe`
-- resolvedAt: `2026-09-14T00:00:00Z`
+- payloadHash: `sha256:5ef7718cbed5104e88bc839af862cce63c12e51690ff77d07736adccb9f3b178`
+- resolvedAt: `2026-09-15T16:21:18.155Z`
 - resolvedRefs:
-  - `wazuh-dashboard-plugins` → `5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d`
-  - `wazuh-dashboard-security-analytics` → `a91c02f1bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e`
+  - `wazuh-dashboard` → `4a07e4289a5866b9c0de5f3d26a97c7205d4d401`
+  - `wazuh-dashboard-alerting` → `48b0fc05d3a9cf67eaf3d829d47992a5398cc310`
+  - `wazuh-dashboard-notifications` → `deebf080ade530eb662ff8599a57ed6e24198554`
+  - `wazuh-dashboard-plugins` → `83695a6a5af487f1fb3140b5082f2b83eef7f7e1`
+  - `wazuh-dashboard-reporting` → `71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a`
+  - `wazuh-dashboard-security-analytics` → `295daaac63d9887ff6d2a5dc85ffeca2015cdfd0`
+  - `wazuh-indexer-plugins` → `e4ba55fcafd8e2c309dc4fc07e01d890463fd895`
+  - `wazuh-indexer-security-analytics` → `c9340eb7b3b6d45cbd9cbd6173cec331b00c9f25`
+  - `wazuh-security-dashboards-plugin` → `4f034db7b9374b81bab48884ebe47e68ce68ad38`

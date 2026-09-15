@@ -1,16 +1,107 @@
 {
   "meta": {
-    "generatedAt": "2026-09-14T00:00:00Z",
+    "generatedAt": "2026-09-15T16:22:33.574Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:1f9274f57051dff4dc31b8f03ba38333f1a625896ddadf68f40f3348a9ad2bfe",
+  "payloadHash": "sha256:5ef7718cbed5104e88bc839af862cce63c12e51690ff77d07736adccb9f3b178",
   "ref": "5.0.0",
-  "resolvedAt": "2026-09-14T00:00:00Z",
+  "resolvedAt": "2026-09-15T16:21:18.155Z",
   "resolvedRefs": {
-    "wazuh-dashboard-plugins": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
-    "wazuh-dashboard-security-analytics": "a91c02f1bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e"
+    "wazuh-dashboard": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401",
+    "wazuh-dashboard-plugins": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1",
+    "wazuh-dashboard-alerting": "48b0fc05d3a9cf67eaf3d829d47992a5398cc310",
+    "wazuh-dashboard-notifications": "deebf080ade530eb662ff8599a57ed6e24198554",
+    "wazuh-dashboard-reporting": "71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a",
+    "wazuh-dashboard-security-analytics": "295daaac63d9887ff6d2a5dc85ffeca2015cdfd0",
+    "wazuh-security-dashboards-plugin": "4f034db7b9374b81bab48884ebe47e68ce68ad38",
+    "wazuh-indexer-plugins": "e4ba55fcafd8e2c309dc4fc07e01d890463fd895",
+    "wazuh-indexer-security-analytics": "c9340eb7b3b6d45cbd9cbd6173cec331b00c9f25"
   },
   "plugins": [
+    {
+      "repo": "wazuh-dashboard-alerting",
+      "pluginId": "alertingDashboards",
+      "pluginDir": ".",
+      "world": "upstream-fork",
+      "versionScheme": "osd",
+      "configPath": [
+        "opensearch_alerting"
+      ],
+      "serverApiAccess": "none",
+      "indexerAccess": [
+        "osd-data",
+        "osd-data-source",
+        "os-plugin-bound"
+      ],
+      "requiredOSDataSourcePlugins": [
+        "opensearch-alerting"
+      ],
+      "requiredPlugins": [
+        "uiActions",
+        "dashboard",
+        "navigation",
+        "embeddable",
+        "opensearchDashboardsReact",
+        "savedObjects",
+        "expressions",
+        "data",
+        "visAugmenter",
+        "opensearchDashboardsUtils",
+        "contentManagement"
+      ],
+      "optionalPlugins": [
+        "dataSource",
+        "dataSourceManagement",
+        "assistantDashboards",
+        "explore"
+      ],
+      "requiredBundles": [],
+      "evidence": {
+        "kind": "derived",
+        "manifestPath": "opensearch_dashboards.json",
+        "packageJsonPath": "package.json",
+        "commit": "48b0fc05d3a9cf67eaf3d829d47992a5398cc310"
+      },
+      "assertions": {},
+      "annotations": []
+    },
+    {
+      "repo": "wazuh-dashboard-notifications",
+      "pluginId": "notificationsDashboards",
+      "pluginDir": ".",
+      "world": "upstream-fork",
+      "versionScheme": "osd",
+      "configPath": [],
+      "serverApiAccess": "none",
+      "indexerAccess": [
+        "osd-data",
+        "osd-data-source",
+        "os-plugin-bound"
+      ],
+      "requiredOSDataSourcePlugins": [
+        "opensearch-notifications"
+      ],
+      "requiredPlugins": [
+        "navigation",
+        "data",
+        "opensearchDashboardsUtils"
+      ],
+      "optionalPlugins": [
+        "share",
+        "managementOverview",
+        "dataSource",
+        "dataSourceManagement"
+      ],
+      "requiredBundles": [],
+      "evidence": {
+        "kind": "derived",
+        "manifestPath": "opensearch_dashboards.json",
+        "packageJsonPath": "package.json",
+        "commit": "deebf080ade530eb662ff8599a57ed6e24198554"
+      },
+      "assertions": {},
+      "annotations": []
+    },
     {
       "repo": "wazuh-dashboard-plugins",
       "pluginId": "wazuh",
@@ -21,22 +112,42 @@
         "wazuh"
       ],
       "serverApiAccess": "wazuh-core",
-      "indexerAccess": [],
+      "indexerAccess": [
+        "osd-data"
+      ],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
         "navigation",
+        "data",
+        "dashboard",
+        "embeddable",
+        "discover",
+        "inspector",
+        "visualizations",
+        "uiActions",
+        "charts",
+        "savedObjects",
         "opensearchDashboardsReact",
+        "opensearchDashboardsUtils",
+        "opensearchDashboardsLegacy",
+        "wazuhCheckUpdates",
         "wazuhCore"
       ],
       "optionalPlugins": [
+        "security",
         "securityDashboards",
-        "usageCollection"
+        "searchguard",
+        "telemetry",
+        "notificationsDashboards",
+        "alertingDashboards",
+        "reportsDashboards"
       ],
+      "requiredBundles": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
+        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
       },
       "assertions": {},
       "annotations": []
@@ -55,14 +166,20 @@
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
         "navigation",
-        "wazuhCore"
+        "savedObjects",
+        "opensearchDashboardsReact",
+        "wazuhCore",
+        "opensearchDashboardsUtils"
       ],
-      "optionalPlugins": [],
+      "optionalPlugins": [
+        "wazuh"
+      ],
+      "requiredBundles": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
+        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
       },
       "assertions": {},
       "annotations": []
@@ -73,22 +190,25 @@
       "pluginDir": "plugins/wazuh-check-updates",
       "world": "wazuh-native",
       "versionScheme": "wazuh",
-      "configPath": [
-        "wazuh_check_updates"
-      ],
+      "configPath": [],
       "serverApiAccess": "wazuh-core",
       "indexerAccess": [],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
         "navigation",
+        "opensearchDashboardsUtils",
+        "opensearchDashboardsReact",
         "wazuhCore"
       ],
-      "optionalPlugins": [],
+      "optionalPlugins": [
+        "securityDashboards"
+      ],
+      "requiredBundles": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
+        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
       },
       "assertions": {},
       "annotations": []
@@ -99,23 +219,23 @@
       "pluginDir": "plugins/wazuh-core",
       "world": "wazuh-native",
       "versionScheme": "wazuh",
-      "configPath": [
-        "wazuh_core"
-      ],
+      "configPath": [],
       "serverApiAccess": "none",
       "indexerAccess": [],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
-        "opensearchDashboardsReact"
+        "navigation",
+        "opensearchDashboardsUtils"
       ],
       "optionalPlugins": [
         "securityDashboards"
       ],
+      "requiredBundles": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
+        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
       },
       "assertions": {
         "world": {
@@ -134,6 +254,42 @@
           "date": "2026-09-14"
         }
       ]
+    },
+    {
+      "repo": "wazuh-dashboard-reporting",
+      "pluginId": "reportsDashboards",
+      "pluginDir": ".",
+      "world": "upstream-fork",
+      "versionScheme": "osd",
+      "configPath": [
+        "opensearch_reporting"
+      ],
+      "serverApiAccess": "none",
+      "indexerAccess": [
+        "osd-data",
+        "osd-data-source"
+      ],
+      "requiredOSDataSourcePlugins": [],
+      "requiredPlugins": [
+        "navigation",
+        "data",
+        "opensearchDashboardsUtils"
+      ],
+      "optionalPlugins": [
+        "share",
+        "dataSource",
+        "dataSourceManagement",
+        "observabilityDashboards"
+      ],
+      "requiredBundles": [],
+      "evidence": {
+        "kind": "derived",
+        "manifestPath": "opensearch_dashboards.json",
+        "packageJsonPath": "package.json",
+        "commit": "71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a"
+      },
+      "assertions": {},
+      "annotations": []
     },
     {
       "repo": "wazuh-dashboard-security-analytics",
@@ -164,19 +320,1752 @@
         "dataSource",
         "dataSourceManagement"
       ],
+      "requiredBundles": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "opensearch_dashboards.json",
         "packageJsonPath": "package.json",
-        "commit": "a91c02f1bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e"
+        "commit": "295daaac63d9887ff6d2a5dc85ffeca2015cdfd0"
+      },
+      "assertions": {},
+      "annotations": []
+    },
+    {
+      "repo": "wazuh-security-dashboards-plugin",
+      "pluginId": "securityDashboards",
+      "pluginDir": ".",
+      "world": "upstream-fork",
+      "versionScheme": "osd",
+      "configPath": [
+        "opensearch_security"
+      ],
+      "serverApiAccess": "none",
+      "indexerAccess": [
+        "osd-data-source",
+        "os-plugin-bound"
+      ],
+      "requiredOSDataSourcePlugins": [
+        "opensearch-security"
+      ],
+      "requiredPlugins": [
+        "navigation",
+        "savedObjectsManagement"
+      ],
+      "optionalPlugins": [
+        "managementOverview",
+        "dataSource",
+        "dataSourceManagement"
+      ],
+      "requiredBundles": [],
+      "evidence": {
+        "kind": "derived",
+        "manifestPath": "opensearch_dashboards.json",
+        "packageJsonPath": "package.json",
+        "commit": "4f034db7b9374b81bab48884ebe47e68ce68ad38"
       },
       "assertions": {},
       "annotations": []
     }
   ],
+  "core": [
+    {
+      "repo": "wazuh-dashboard",
+      "version": "3.6.0",
+      "plugins": [
+        {
+          "pluginId": "advancedSettings",
+          "pluginDir": "src/plugins/advanced_settings",
+          "requiredPlugins": [
+            "management",
+            "navigation",
+            "contentManagement"
+          ],
+          "optionalPlugins": [
+            "home"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "home"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/advanced_settings/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "agentTraces",
+          "pluginDir": "src/plugins/agent_traces",
+          "requiredPlugins": [
+            "charts",
+            "dashboard",
+            "data",
+            "embeddable",
+            "explore",
+            "home",
+            "inspector",
+            "navigation",
+            "opensearchDashboardsLegacy",
+            "savedObjects",
+            "uiActions",
+            "urlForwarding",
+            "usageCollection",
+            "visualizations",
+            "expressions"
+          ],
+          "optionalPlugins": [
+            "home",
+            "share",
+            "contextProvider",
+            "datasetManagement",
+            "dataImporter",
+            "dataSource",
+            "dataSourceManagement"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils",
+            "dataImporter"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/agent_traces/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "apmOss",
+          "pluginDir": "src/plugins/apm_oss",
+          "requiredPlugins": [
+            "home"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/apm_oss/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "applicationConfig",
+          "pluginDir": "src/plugins/application_config",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/application_config/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "banner",
+          "pluginDir": "src/plugins/banner",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/banner/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "bfetch",
+          "pluginDir": "src/plugins/bfetch",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/bfetch/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "charts",
+          "pluginDir": "src/plugins/charts",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/charts/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "chat",
+          "pluginDir": "src/plugins/chat",
+          "requiredPlugins": [
+            "navigation",
+            "opensearchDashboardsReact",
+            "contextProvider",
+            "charts"
+          ],
+          "optionalPlugins": [
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "dataSourceManagement"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/chat/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "console",
+          "pluginDir": "src/plugins/console",
+          "requiredPlugins": [
+            "devTools",
+            "data"
+          ],
+          "optionalPlugins": [
+            "usageCollection",
+            "home",
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchUiShared",
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils",
+            "home"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/console/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "contentManagement",
+          "pluginDir": "src/plugins/content_management",
+          "requiredPlugins": [
+            "embeddable"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/content_management/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "contextProvider",
+          "pluginDir": "src/plugins/context_provider",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/context_provider/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "cspHandler",
+          "pluginDir": "src/plugins/csp_handler",
+          "requiredPlugins": [
+            "applicationConfig"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/csp_handler/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "dashboard",
+          "pluginDir": "src/plugins/dashboard",
+          "requiredPlugins": [
+            "data",
+            "embeddable",
+            "inspector",
+            "opensearchDashboardsLegacy",
+            "urlForwarding",
+            "navigation",
+            "uiActions",
+            "savedObjects"
+          ],
+          "optionalPlugins": [
+            "home",
+            "share",
+            "usageCollection"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "home"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/dashboard/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "data",
+          "pluginDir": "src/plugins/data",
+          "requiredPlugins": [
+            "expressions",
+            "uiActions"
+          ],
+          "optionalPlugins": [
+            "usageCollection",
+            "dataSource",
+            "contextProvider"
+          ],
+          "requiredBundles": [
+            "usageCollection",
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "inspector",
+            "dataSource"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/data/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "dataExplorer",
+          "pluginDir": "src/plugins/data_explorer",
+          "requiredPlugins": [
+            "data",
+            "navigation",
+            "embeddable",
+            "expressions",
+            "usageCollection"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/data_explorer/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "dataImporter",
+          "pluginDir": "src/plugins/data_importer",
+          "requiredPlugins": [
+            "navigation"
+          ],
+          "optionalPlugins": [
+            "dataSource",
+            "dataSourceManagement"
+          ],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/data_importer/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "datasetManagement",
+          "pluginDir": "src/plugins/dataset_management",
+          "requiredPlugins": [
+            "management",
+            "navigation",
+            "data",
+            "urlForwarding"
+          ],
+          "optionalPlugins": [
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/dataset_management/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "dataSource",
+          "pluginDir": "src/plugins/data_source",
+          "requiredPlugins": [
+            "opensearchDashboardsUtils"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/data_source/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "dataSourceManagement",
+          "pluginDir": "src/plugins/data_source_management",
+          "requiredPlugins": [
+            "navigation",
+            "management",
+            "indexPatternManagement"
+          ],
+          "optionalPlugins": [
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "dataSource",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/data_source_management/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "devTools",
+          "pluginDir": "src/plugins/dev_tools",
+          "requiredPlugins": [
+            "urlForwarding",
+            "uiActions"
+          ],
+          "optionalPlugins": [
+            "dataSource",
+            "managementOverview",
+            "dataSourceManagement"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/dev_tools/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "discover",
+          "pluginDir": "src/plugins/discover",
+          "requiredPlugins": [
+            "charts",
+            "data",
+            "dataExplorer",
+            "embeddable",
+            "inspector",
+            "opensearchDashboardsLegacy",
+            "urlForwarding",
+            "navigation",
+            "uiActions",
+            "visualizations",
+            "usageCollection"
+          ],
+          "optionalPlugins": [
+            "home",
+            "share",
+            "explore"
+          ],
+          "requiredBundles": [
+            "home",
+            "opensearchDashboardsUtils",
+            "savedObjects",
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/discover/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "embeddable",
+          "pluginDir": "src/plugins/embeddable",
+          "requiredPlugins": [
+            "inspector",
+            "uiActions"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "savedObjects",
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/embeddable/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "explore",
+          "pluginDir": "src/plugins/explore",
+          "requiredPlugins": [
+            "charts",
+            "data",
+            "embeddable",
+            "home",
+            "inspector",
+            "navigation",
+            "opensearchDashboardsLegacy",
+            "savedObjects",
+            "uiActions",
+            "urlForwarding",
+            "usageCollection",
+            "visualizations",
+            "expressions",
+            "dashboard"
+          ],
+          "optionalPlugins": [
+            "home",
+            "share",
+            "contextProvider",
+            "datasetManagement",
+            "dataImporter",
+            "dataSource",
+            "dataSourceManagement"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils",
+            "dashboard",
+            "dataImporter"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/explore/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "expressions",
+          "pluginDir": "src/plugins/expressions",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "inspector",
+            "data"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/expressions/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "healtcheck",
+          "pluginDir": "src/plugins/healthcheck",
+          "requiredPlugins": [
+            "navigation",
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/healthcheck/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "home",
+          "pluginDir": "src/plugins/home",
+          "requiredPlugins": [
+            "data",
+            "urlForwarding",
+            "savedObjects",
+            "contentManagement",
+            "navigation"
+          ],
+          "optionalPlugins": [
+            "usageCollection",
+            "telemetry",
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/home/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "indexPatternManagement",
+          "pluginDir": "src/plugins/index_pattern_management",
+          "requiredPlugins": [
+            "management",
+            "navigation",
+            "data",
+            "urlForwarding"
+          ],
+          "optionalPlugins": [
+            "dataSource",
+            "datasetManagement"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/index_pattern_management/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "inputControlVis",
+          "pluginDir": "src/plugins/input_control_vis",
+          "requiredPlugins": [
+            "data",
+            "expressions",
+            "visualizations",
+            "visDefaultEditor"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/input_control_vis/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "inspector",
+          "pluginDir": "src/plugins/inspector",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/inspector/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "legacyExport",
+          "pluginDir": "src/plugins/legacy_export",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/legacy_export/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "management",
+          "pluginDir": "src/plugins/management",
+          "requiredPlugins": [
+            "navigation"
+          ],
+          "optionalPlugins": [
+            "home",
+            "managementOverview"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/management/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "managementOverview",
+          "pluginDir": "src/plugins/management_overview",
+          "requiredPlugins": [
+            "navigation"
+          ],
+          "optionalPlugins": [
+            "home"
+          ],
+          "requiredBundles": [
+            "home"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/management_overview/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "mapsLegacy",
+          "pluginDir": "src/plugins/maps_legacy",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "charts"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/maps_legacy/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "navigation",
+          "pluginDir": "src/plugins/navigation",
+          "requiredPlugins": [
+            "data"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "dataSourceManagement"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/navigation/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "opensearchDashboardsLegacy",
+          "pluginDir": "src/plugins/opensearch_dashboards_legacy",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/opensearch_dashboards_legacy/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "opensearchDashboardsOverview",
+          "pluginDir": "src/plugins/opensearch_dashboards_overview",
+          "requiredPlugins": [
+            "navigation",
+            "data",
+            "home"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/opensearch_dashboards_overview/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "opensearchDashboardsReact",
+          "pluginDir": "src/plugins/opensearch_dashboards_react",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/opensearch_dashboards_react/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "opensearchDashboardsUsageCollection",
+          "pluginDir": "src/plugins/opensearch_dashboards_usage_collection",
+          "requiredPlugins": [
+            "usageCollection"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/opensearch_dashboards_usage_collection/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "opensearchDashboardsUtils",
+          "pluginDir": "src/plugins/opensearch_dashboards_utils",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/opensearch_dashboards_utils/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "opensearchUiShared",
+          "pluginDir": "src/plugins/opensearch_ui_shared",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "data"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/opensearch_ui_shared/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "queryEnhancements",
+          "pluginDir": "src/plugins/query_enhancements",
+          "requiredPlugins": [
+            "data",
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils",
+            "savedObjects",
+            "uiActions"
+          ],
+          "optionalPlugins": [
+            "dataSource",
+            "usageCollection"
+          ],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/query_enhancements/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "regionMap",
+          "pluginDir": "src/plugins/region_map",
+          "requiredPlugins": [
+            "visualizations",
+            "expressions",
+            "mapsLegacy",
+            "opensearchDashboardsLegacy",
+            "data",
+            "share",
+            "opensearchDashboardsReact"
+          ],
+          "optionalPlugins": [
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "charts",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/region_map/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "savedObjects",
+          "pluginDir": "src/plugins/saved_objects",
+          "requiredPlugins": [
+            "data"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/saved_objects/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "savedObjectsManagement",
+          "pluginDir": "src/plugins/saved_objects_management",
+          "requiredPlugins": [
+            "management",
+            "data",
+            "uiActions",
+            "navigation"
+          ],
+          "optionalPlugins": [
+            "dashboard",
+            "visualizations",
+            "discover",
+            "explore",
+            "home",
+            "visBuilder",
+            "visAugmenter",
+            "dataSource",
+            "dataSourceManagement",
+            "contentManagement",
+            "datasetManagement"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "home",
+            "contentManagement",
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/saved_objects_management/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "share",
+          "pluginDir": "src/plugins/share",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/share/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "tileMap",
+          "pluginDir": "src/plugins/tile_map",
+          "requiredPlugins": [
+            "visualizations",
+            "expressions",
+            "mapsLegacy",
+            "opensearchDashboardsLegacy",
+            "data",
+            "share"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "charts",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/tile_map/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "uiActions",
+          "pluginDir": "src/plugins/ui_actions",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/ui_actions/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "urlForwarding",
+          "pluginDir": "src/plugins/url_forwarding",
+          "requiredPlugins": [
+            "opensearchDashboardsLegacy"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/url_forwarding/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "usageCollection",
+          "pluginDir": "src/plugins/usage_collection",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/usage_collection/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visAugmenter",
+          "pluginDir": "src/plugins/vis_augmenter",
+          "requiredPlugins": [
+            "data",
+            "savedObjects",
+            "opensearchDashboardsUtils",
+            "expressions",
+            "visualizations",
+            "uiActions",
+            "embeddable"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "savedObjectsManagement"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_augmenter/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visBuilder",
+          "pluginDir": "src/plugins/vis_builder",
+          "requiredPlugins": [
+            "dashboard",
+            "data",
+            "embeddable",
+            "expressions",
+            "navigation",
+            "savedObjects",
+            "visualizations",
+            "uiActions"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "charts",
+            "opensearchDashboardsReact",
+            "opensearchDashboardsUtils",
+            "visDefaultEditor",
+            "visTypeVislib"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_builder/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visDefaultEditor",
+          "pluginDir": "src/plugins/vis_default_editor",
+          "requiredPlugins": [],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "data"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_default_editor/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeMarkdown",
+          "pluginDir": "src/plugins/vis_type_markdown",
+          "requiredPlugins": [
+            "expressions",
+            "visualizations"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "charts",
+            "visualizations",
+            "expressions",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_markdown/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeMetric",
+          "pluginDir": "src/plugins/vis_type_metric",
+          "requiredPlugins": [
+            "data",
+            "visualizations",
+            "charts",
+            "expressions"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_metric/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeTable",
+          "pluginDir": "src/plugins/vis_type_table",
+          "requiredPlugins": [
+            "expressions",
+            "visualizations",
+            "data"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "share",
+            "charts",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_table/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeTagcloud",
+          "pluginDir": "src/plugins/vis_type_tagcloud",
+          "requiredPlugins": [
+            "data",
+            "expressions",
+            "visualizations",
+            "charts"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_tagcloud/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeTimeline",
+          "pluginDir": "src/plugins/vis_type_timeline",
+          "requiredPlugins": [
+            "visualizations",
+            "data",
+            "expressions"
+          ],
+          "optionalPlugins": [
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "visDefaultEditor"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_timeline/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeTimeseries",
+          "pluginDir": "src/plugins/vis_type_timeseries",
+          "requiredPlugins": [
+            "charts",
+            "data",
+            "expressions",
+            "visualizations"
+          ],
+          "optionalPlugins": [
+            "usageCollection",
+            "dataSourceManagement",
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_timeseries/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeVega",
+          "pluginDir": "src/plugins/vis_type_vega",
+          "requiredPlugins": [
+            "data",
+            "visualizations",
+            "mapsLegacy",
+            "expressions",
+            "inspector",
+            "uiActions"
+          ],
+          "optionalPlugins": [
+            "home",
+            "usageCollection",
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "visDefaultEditor",
+            "visAugmenter"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_vega/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeVislib",
+          "pluginDir": "src/plugins/vis_type_vislib",
+          "requiredPlugins": [
+            "charts",
+            "data",
+            "expressions",
+            "visualizations",
+            "opensearchDashboardsLegacy",
+            "visTypeVega"
+          ],
+          "optionalPlugins": [
+            "visTypeXy"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "visDefaultEditor",
+            "visAugmenter"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_vislib/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visTypeXy",
+          "pluginDir": "src/plugins/vis_type_xy",
+          "requiredPlugins": [
+            "charts",
+            "expressions",
+            "visualizations"
+          ],
+          "optionalPlugins": [],
+          "requiredBundles": [],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/vis_type_xy/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visualizations",
+          "pluginDir": "src/plugins/visualizations",
+          "requiredPlugins": [
+            "data",
+            "expressions",
+            "uiActions",
+            "embeddable",
+            "inspector",
+            "dashboard"
+          ],
+          "optionalPlugins": [
+            "usageCollection",
+            "contextProvider"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "discover",
+            "savedObjects",
+            "visAugmenter",
+            "opensearchDashboardsReact"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/visualizations/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "visualize",
+          "pluginDir": "src/plugins/visualize",
+          "requiredPlugins": [
+            "data",
+            "urlForwarding",
+            "navigation",
+            "savedObjects",
+            "visualizations",
+            "embeddable",
+            "dashboard",
+            "uiActions"
+          ],
+          "optionalPlugins": [
+            "home",
+            "share"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsUtils",
+            "opensearchDashboardsReact",
+            "home",
+            "discover",
+            "visDefaultEditor",
+            "savedObjectsManagement"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/visualize/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        },
+        {
+          "pluginId": "workspace",
+          "pluginDir": "src/plugins/workspace",
+          "requiredPlugins": [
+            "savedObjects",
+            "opensearchDashboardsReact",
+            "navigation",
+            "data"
+          ],
+          "optionalPlugins": [
+            "savedObjectsManagement",
+            "management",
+            "dataSourceManagement",
+            "contentManagement",
+            "dataSource"
+          ],
+          "requiredBundles": [
+            "opensearchDashboardsReact",
+            "dataSource",
+            "dataSourceManagement",
+            "contentManagement",
+            "explore"
+          ],
+          "evidence": {
+            "kind": "derived",
+            "manifestPath": "src/plugins/workspace/opensearch_dashboards.json",
+            "packageJsonPath": null,
+            "commit": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401"
+          }
+        }
+      ]
+    }
+  ],
+  "unresolvedDependencies": [],
   "indexer": {
-    "templates": [],
-    "wcsModules": []
+    "templates": [
+      {
+        "name": "agent-config",
+        "path": "plugins/setup/src/main/resources/templates/states/agent-config.json",
+        "indexPatterns": [
+          "wazuh-agent-config*"
+        ]
+      },
+      {
+        "name": "agent-stats",
+        "path": "plugins/setup/src/main/resources/templates/states/agent-stats.json",
+        "indexPatterns": [
+          "wazuh-agent-stats*"
+        ]
+      },
+      {
+        "name": "fim-files",
+        "path": "plugins/setup/src/main/resources/templates/states/fim-files.json",
+        "indexPatterns": [
+          "wazuh-states-fim-files*"
+        ]
+      },
+      {
+        "name": "fim-registry-keys",
+        "path": "plugins/setup/src/main/resources/templates/states/fim-registry-keys.json",
+        "indexPatterns": [
+          "wazuh-states-fim-registry-keys*"
+        ]
+      },
+      {
+        "name": "fim-registry-values",
+        "path": "plugins/setup/src/main/resources/templates/states/fim-registry-values.json",
+        "indexPatterns": [
+          "wazuh-states-fim-registry-values*"
+        ]
+      },
+      {
+        "name": "inventory-browser-extensions",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-browser-extensions.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-browser-extensions*"
+        ]
+      },
+      {
+        "name": "inventory-groups",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-groups.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-groups*"
+        ]
+      },
+      {
+        "name": "inventory-hardware",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-hardware.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-hardware*"
+        ]
+      },
+      {
+        "name": "inventory-hotfixes",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-hotfixes.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-hotfixes*"
+        ]
+      },
+      {
+        "name": "inventory-interfaces",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-interfaces.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-interfaces*"
+        ]
+      },
+      {
+        "name": "inventory-networks",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-networks.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-networks*"
+        ]
+      },
+      {
+        "name": "inventory-packages",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-packages.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-packages*"
+        ]
+      },
+      {
+        "name": "inventory-ports",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-ports.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-ports*"
+        ]
+      },
+      {
+        "name": "inventory-processes",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-processes.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-processes*"
+        ]
+      },
+      {
+        "name": "inventory-protocols",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-protocols.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-protocols*"
+        ]
+      },
+      {
+        "name": "inventory-services",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-services.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-services*"
+        ]
+      },
+      {
+        "name": "inventory-system",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-system.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-system*"
+        ]
+      },
+      {
+        "name": "inventory-users",
+        "path": "plugins/setup/src/main/resources/templates/states/inventory-users.json",
+        "indexPatterns": [
+          "wazuh-states-inventory-users*"
+        ]
+      },
+      {
+        "name": "sca",
+        "path": "plugins/setup/src/main/resources/templates/states/sca.json",
+        "indexPatterns": [
+          "wazuh-states-sca*"
+        ]
+      },
+      {
+        "name": "vulnerabilities",
+        "path": "plugins/setup/src/main/resources/templates/states/vulnerabilities.json",
+        "indexPatterns": [
+          "wazuh-states-vulnerabilities*"
+        ]
+      }
+    ],
+    "wcsModules": [
+      {
+        "name": "ai-assistant/sessions",
+        "fieldsCsv": "wcs/ai-assistant/sessions/docs/fields.csv",
+        "fieldCount": 6
+      },
+      {
+        "name": "content/decoders",
+        "fieldsCsv": "wcs/content/decoders/docs/fields.csv",
+        "fieldCount": 22
+      },
+      {
+        "name": "content/filters",
+        "fieldsCsv": "wcs/content/filters/docs/fields.csv",
+        "fieldCount": 17
+      },
+      {
+        "name": "content/integrations",
+        "fieldsCsv": "wcs/content/integrations/docs/fields.csv",
+        "fieldCount": 22
+      },
+      {
+        "name": "content/ioc",
+        "fieldsCsv": "wcs/content/ioc/docs/fields.csv",
+        "fieldCount": 16
+      },
+      {
+        "name": "content/kvdbs",
+        "fieldsCsv": "wcs/content/kvdbs/docs/fields.csv",
+        "fieldCount": 15
+      },
+      {
+        "name": "content/policies",
+        "fieldsCsv": "wcs/content/policies/docs/fields.csv",
+        "fieldCount": 21
+      },
+      {
+        "name": "content/rules",
+        "fieldsCsv": "wcs/content/rules/docs/fields.csv",
+        "fieldCount": 39
+      },
+      {
+        "name": "content/vulnerabilities",
+        "fieldsCsv": "wcs/content/vulnerabilities/docs/fields.csv",
+        "fieldCount": 3
+      },
+      {
+        "name": "cve",
+        "fieldsCsv": "wcs/cve/docs/fields.csv",
+        "fieldCount": 419
+      },
+      {
+        "name": "internal-state",
+        "fieldsCsv": "wcs/internal-state/docs/fields.csv",
+        "fieldCount": 14
+      },
+      {
+        "name": "settings",
+        "fieldsCsv": "wcs/settings/docs/fields.csv",
+        "fieldCount": 1
+      },
+      {
+        "name": "stateful/agent-config",
+        "fieldsCsv": "wcs/stateful/agent-config/docs/fields.csv",
+        "fieldCount": 397
+      },
+      {
+        "name": "stateful/agent-stats",
+        "fieldsCsv": "wcs/stateful/agent-stats/docs/fields.csv",
+        "fieldCount": 27
+      },
+      {
+        "name": "stateful/fim/files",
+        "fieldsCsv": "wcs/stateful/fim/files/docs/fields.csv",
+        "fieldCount": 32
+      },
+      {
+        "name": "stateful/fim/windows-registry-keys",
+        "fieldsCsv": "wcs/stateful/fim/windows-registry-keys/docs/fields.csv",
+        "fieldCount": 28
+      },
+      {
+        "name": "stateful/fim/windows-registry-values",
+        "fieldsCsv": "wcs/stateful/fim/windows-registry-values/docs/fields.csv",
+        "fieldCount": 28
+      },
+      {
+        "name": "stateful/inventory/browser-extensions",
+        "fieldsCsv": "wcs/stateful/inventory/browser-extensions/docs/fields.csv",
+        "fieldCount": 40
+      },
+      {
+        "name": "stateful/inventory/groups",
+        "fieldsCsv": "wcs/stateful/inventory/groups/docs/fields.csv",
+        "fieldCount": 25
+      },
+      {
+        "name": "stateful/inventory/hardware",
+        "fieldsCsv": "wcs/stateful/inventory/hardware/docs/fields.csv",
+        "fieldCount": 26
+      },
+      {
+        "name": "stateful/inventory/hotfixes",
+        "fieldsCsv": "wcs/stateful/inventory/hotfixes/docs/fields.csv",
+        "fieldCount": 20
+      },
+      {
+        "name": "stateful/inventory/interfaces",
+        "fieldsCsv": "wcs/stateful/inventory/interfaces/docs/fields.csv",
+        "fieldCount": 32
+      },
+      {
+        "name": "stateful/inventory/networks",
+        "fieldsCsv": "wcs/stateful/inventory/networks/docs/fields.csv",
+        "fieldCount": 25
+      },
+      {
+        "name": "stateful/inventory/packages",
+        "fieldsCsv": "wcs/stateful/inventory/packages/docs/fields.csv",
+        "fieldCount": 31
+      },
+      {
+        "name": "stateful/inventory/ports",
+        "fieldsCsv": "wcs/stateful/inventory/ports/docs/fields.csv",
+        "fieldCount": 29
+      },
+      {
+        "name": "stateful/inventory/processes",
+        "fieldsCsv": "wcs/stateful/inventory/processes/docs/fields.csv",
+        "fieldCount": 28
+      },
+      {
+        "name": "stateful/inventory/protocols",
+        "fieldsCsv": "wcs/stateful/inventory/protocols/docs/fields.csv",
+        "fieldCount": 23
+      },
+      {
+        "name": "stateful/inventory/services",
+        "fieldsCsv": "wcs/stateful/inventory/services/docs/fields.csv",
+        "fieldCount": 50
+      },
+      {
+        "name": "stateful/inventory/system",
+        "fieldsCsv": "wcs/stateful/inventory/system/docs/fields.csv",
+        "fieldCount": 34
+      },
+      {
+        "name": "stateful/inventory/users",
+        "fieldsCsv": "wcs/stateful/inventory/users/docs/fields.csv",
+        "fieldCount": 50
+      },
+      {
+        "name": "stateful/sca",
+        "fieldsCsv": "wcs/stateful/sca/docs/fields.csv",
+        "fieldCount": 52
+      },
+      {
+        "name": "stateful/vulnerabilities",
+        "fieldsCsv": "wcs/stateful/vulnerabilities/docs/fields.csv",
+        "fieldCount": 87
+      },
+      {
+        "name": "stateless/active-responses",
+        "fieldsCsv": "wcs/stateless/active-responses/docs/fields.csv",
+        "fieldCount": 536
+      },
+      {
+        "name": "stateless/events/findings",
+        "fieldsCsv": "wcs/stateless/events/findings/docs/fields.csv",
+        "fieldCount": 2412
+      },
+      {
+        "name": "stateless/events/main",
+        "fieldsCsv": "wcs/stateless/events/main/docs/fields.csv",
+        "fieldCount": 2362
+      },
+      {
+        "name": "stateless/events/raw",
+        "fieldsCsv": "wcs/stateless/events/raw/docs/fields.csv",
+        "fieldCount": 78
+      },
+      {
+        "name": "stateless/metrics/agents",
+        "fieldsCsv": "wcs/stateless/metrics/agents/docs/fields.csv",
+        "fieldCount": 19
+      },
+      {
+        "name": "stateless/metrics/comms",
+        "fieldsCsv": "wcs/stateless/metrics/comms/docs/fields.csv",
+        "fieldCount": 21
+      },
+      {
+        "name": "stateless/metrics/engine",
+        "fieldsCsv": "wcs/stateless/metrics/engine/docs/fields.csv",
+        "fieldCount": 11
+      }
+    ]
   },
   "skipped": [
     {
@@ -185,11 +2074,6 @@
     }
   ],
   "unknowns": [
-    {
-      "plugin": "wazuh",
-      "field": "indexerAccess",
-      "reason": "indexer access not derivable from the manifest"
-    },
     {
       "plugin": "wazuhAiAssistant",
       "field": "indexerAccess",

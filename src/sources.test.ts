@@ -34,14 +34,22 @@ describe("loadSources", () => {
     await expect(loadSources(missingRoot)).rejects.toThrow(/sources\.yml/);
   });
 
-  test("the project's real sources.yml loads with 9 repos", async () => {
+  test("the project's real sources.yml loads with 10 repos", async () => {
     const projectRoot = join(import.meta.dir, "..");
 
     const result = await loadSources(projectRoot);
 
-    expect(result.repos).toHaveLength(9);
+    expect(result.repos).toHaveLength(10);
     expect(result.repos.some((r) => r.name === "wazuh-dashboard-ml-commons" && r.kind === "dashboard")).toBe(
       true,
     );
+    // Declared on purpose despite contributing no facts -- see the comment in
+    // sources.yml. Pinned here so removing it is a deliberate act.
+    expect(
+      result.repos.some((r) => r.name === "wazuh-indexer-security-analytics" && r.kind === "indexer"),
+    ).toBe(true);
+    // The singular spelling. Both spellings mirror the same SHA at 5.0.0.
+    expect(result.repos.some((r) => r.name === "wazuh-dashboard-reporting")).toBe(true);
+    expect(result.repos.some((r) => r.name === "wazuh-dashboards-reporting")).toBe(false);
   });
 });

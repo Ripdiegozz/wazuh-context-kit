@@ -179,8 +179,15 @@ describe("resolveRemoteRef", () => {
 });
 
 describe("sparsePathsFor", () => {
-  test("platform -> []", () => {
-    expect(sparsePathsFor("platform")).toEqual([]);
+  test("platform -> [src/plugins], the OSD core plugin tree", () => {
+    expect(sparsePathsFor("platform")).toEqual(["src/plugins"]);
+  });
+
+  test("platform does NOT declare the git-ignored root-level plugins/", () => {
+    // `wazuh-dashboard` has both `src/plugins` (real content) and a root
+    // `plugins/` that is git-ignored and empty. Matching on "plugins" alone
+    // picks the wrong one and yields a silently empty parse.
+    expect(sparsePathsFor("platform")).not.toContain("plugins");
   });
 
   test("dashboard -> [plugins]", () => {

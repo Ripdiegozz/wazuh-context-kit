@@ -94,3 +94,100 @@ The crosscheck itself, the catalog scanner, uncoverage detection, and the
 `out/5.0.0` is regenerated here because the template count is part of the
 dataset, and shipping code that finds 40 while the published product still says
 20 would leave the defect half-fixed.
+
+---
+
+## Slice 2 — the catalog scanner and uncoverage detection
+
+Phases 3 and 4 of `tasks.md`. Reads source; compares nothing yet, so the
+product output is unchanged and the slice is provably additive.
+
+### Observed against the real repository
+
+```
+distinct index names        49
+references                  579
+  catalog-literal            51
+  import                    110
+  saved-object              418
+uncovered mechanisms         88
+  computed-expression        80
+  runtime-configuration       7
+  regex-allowlist             1
+```
+
+`guardrails.ts:199` is found at exactly the line the exploration reported, and
+all three known findings — `wazuh-metrics-comms-v4*`, `wazuh-agent-stats*`,
+`wazuh-agent-config*` — are recovered.
+
+### A bug my own tests could not find
+
+The `.ndjson` pass recovered **zero** references from the real checkout while
+every test passed.
+
+Index patterns are not top-level saved objects. Every line in those files is a
+`visualization` or a `dashboard` — 384 and 78 of them — and the index it reads
+sits inside its `references` array:
+
+```json
+{"name": "kibanaSavedObjectMeta.searchSourceJSON.index",
+ "type": "index-pattern", "id": "wazuh-findings-v5*"}
+```
+
+There are **zero** objects whose own `type` is `index-pattern`. My scanner
+checked the top level, found nothing, and reported success.
+
+The test passed because **the fixture encoded the same assumption the code
+did**. A test written from an assumption validates the assumption, not reality.
+What caught it was running the scanner against the real cache and noticing a
+zero that should not have been a zero. Both the fixture and the implementation
+now carry a comment saying what the real shape is, so the next reader does not
+re-derive it.
+
+After the fix: 418 saved-object references.
+
+### The dual-signal filter, measured before it was written
+
+Neither signal works alone, against the real `constants.ts`:
+
+| filter | hits | wrong |
+|---|---|---|
+| value looks like an index | 52 | 5 |
+| identifier ends `_PATTERN` / `_INDEX` | 48 | 1 |
+| **both** | **47** | 0 |
+
+Value-only admits `PLUGIN_PLATFORM_INSTALLATION_USER = 'wazuh-dashboard'`, an
+operating-system user. Identifier-only admits
+`NOT_TIME_FIELD_NAME_INDEX_PATTERN`, a field name. Two real indices —
+`WAZUH_SAMPLE_INVENTORY_AGENT` and `WAZUH_SAMPLE_VULNERABILITIES` — break the
+convention and are admitted by a named exceptions list rather than silently
+dropped.
+
+### One regex replaced by subtraction
+
+Detecting "an `export const` that is not a literal" as
+`=\s*(?:\n\s*)?(?!')(.+)$` matched every literal too: `\s*` backtracks to zero
+and the lookahead then tests the space rather than the quote. Expressions are
+now computed by subtracting the literal matches from all declarations, which has
+no such failure mode.
+
+### The drift alarm
+
+`WAZUH_CTX_NETWORK=1` runs a real clone and asserts a **floor** of 40 distinct
+names plus four specific ones, and that all three recovery routes still
+contribute. A floor rather than an equality: a new upstream pattern must not
+break the build, but losing the known ones must. A silent drop to zero would
+otherwise make the crosscheck report all 40 declared indices as unconsumed.
+
+### Observed verification
+
+| Command | Observed |
+|---|---|
+| `bun test` | 160 pass · 2 skip · 0 fail · 410 assertions · 14 files |
+| `bun run typecheck` | clean |
+| `WAZUH_CTX_NETWORK=1 bun test src/parse/index-references.test.ts` | 15 pass · 0 fail · 5.3 s |
+
+### Not in this slice
+
+The comparison itself, `crosscheck.json`, `CROSSCHECK.md`, the CLI subcommand,
+and the SPEC 1.9 walk. Slice 3.

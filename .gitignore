@@ -1,0 +1,13 @@
+# Clones. Rebuildable, large, never committed.
+.cache/
+
+# Local escape hatch (SPEC 5.3). Never shared.
+decisions.local.yml
+
+node_modules/
+dist/
+ui/dist/
+*.log
+
+# NOTE: out/ is intentionally NOT ignored.
+# The dataset is the product and is committed (SPEC 5.1).

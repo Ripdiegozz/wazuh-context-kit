@@ -1,0 +1,34 @@
+{
+  "name": "wazuh-context-kit",
+  "version": "0.1.0",
+  "description": "Generated, verifiable domain-context layer for the Wazuh dashboard and indexer repositories.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "wazuh-ctx": "./dist/cli.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "out",
+    "sources.yml",
+    "decisions.yml",
+    "annotations.yml"
+  ],
+  "scripts": {
+    "cli": "bun run ./src/cli.ts",
+    "build": "bun build ./src/cli.ts --target node --outdir dist",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "yaml": "2.9.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.2",
+    "typescript": "7.0.2"
+  }
+}

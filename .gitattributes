@@ -1,0 +1,7 @@
+# Byte-identical output across platforms is a core property of this project
+# (SPEC 1.6.1): MATRIX.md must render the same on Windows and in Linux CI.
+# Line endings are normalised to LF in the repository, always.
+* text=auto eol=lf
+
+# Generated dataset. Never normalised, never diffed as text by accident.
+out/**/matrix.json -text diff

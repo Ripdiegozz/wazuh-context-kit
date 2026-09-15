@@ -1,0 +1,33 @@
+# Explicit repository list. NEVER derived by naming convention (SPEC 1.3).
+#
+# The organisation's naming is inconsistent and there are real collisions:
+#   - wazuh-dashboard-reporting AND wazuh-dashboards-reporting both exist
+#     with a 5.0.0 branch. Which one is current is a human decision.
+#     See SPEC section 8, open decision 1 -- UNRESOLVED.
+#   - The security plugin is wazuh-security-dashboards-plugin,
+#     not wazuh-dashboard-security.
+#   - wazuh-dashboard-ml-commons exists but has no 5.0.0 branch.
+
+refs:
+  - "5.0.0"
+
+repos:
+  - { name: wazuh-dashboard, kind: platform }
+  - { name: wazuh-dashboard-plugins, kind: dashboard }
+  - { name: wazuh-dashboard-alerting, kind: dashboard }
+  - { name: wazuh-dashboard-notifications, kind: dashboard }
+  # UNRESOLVED (open decision 1): confirm which reporting repo is current
+  # before relying on this entry.
+  - { name: wazuh-dashboard-reporting, kind: dashboard }
+  - { name: wazuh-dashboard-security-analytics, kind: dashboard }
+  - { name: wazuh-security-dashboards-plugin, kind: dashboard }
+  - { name: wazuh-indexer-plugins, kind: indexer }
+
+# Code-branch -> documentation-path mapping (SPEC 3.1).
+# Hand-maintained prose. It has an owner and a review date, by rule.
+docsVersionMap:
+  owner: diego.garcia
+  lastReviewed: "2026-09-14"
+  map:
+    "5.0.0": "5.0"
+    "4.14.0": "4.14"

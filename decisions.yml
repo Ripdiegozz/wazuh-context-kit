@@ -1,0 +1,27 @@
+# Layer 2 — human decisions (SPEC 1.7.1, 5.2).
+#
+# Resolves fields that cannot be derived from a versioned artefact. Every entry
+# carries an author, a date and a reason, and is reviewed like code. Applied as
+# an explicit overlay and emitted with evidence.kind "human-assertion" -- never
+# disguised as a derivation.
+#
+# Lifecycle (SPEC 5.4) is reconciled on every regeneration:
+#   active     — the field is still not derivable
+#   superseded — the field became derivable; retire the entry
+#   orphaned   — the plugin no longer exists
+
+- plugin: wazuhCore
+  field: world
+  value: wazuh-native
+  author: diego.garcia
+  date: 2026-09-14
+  reason: >-
+    The classification rule in SPEC 1.5.2 detects a wazuh-native plugin by its
+    dependency on wazuhCore. wazuh-core is the plugin that PROVIDES that
+    contract, so it does not and cannot declare itself as a dependency, and the
+    rule returns unknown. Recorded as a human assertion rather than adding a
+    fourth rule keyed on a specific plugin id: special-casing one name inside
+    the classifier would make the rule describe an instance instead of a
+    property, and every future provider plugin would need its own branch.
+  evidence: plugins/wazuh-core/opensearch_dashboards.json
+  status: active

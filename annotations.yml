@@ -1,0 +1,21 @@
+# Layer 3 — annotations (SPEC 1.7.2, 5.2).
+#
+# Additive human knowledge: warnings, ownership, context no generator can
+# produce. Friction is deliberately low -- this is the layer that stops being
+# written when writing it becomes paperwork.
+#
+# HARD RULE: annotations may ADD, never REPLACE. An entry that changes a
+# derived value is not an annotation, it is a layer-2 decision and belongs in
+# decisions.yml.
+
+- plugin: wazuhCore
+  kind: warning
+  text: >-
+    wazuh-core exposes Server API surface only: serverAPIClient, manageHosts,
+    api.client. It carries no OpenSearch client, so it is never an indexer
+    access path. Note that asScoped/asInternalUser exist on BOTH
+    core.opensearch.client (OSD, indexer RBAC) and wazuh-core api.client
+    (Server API RBAC). Any statement about asScoped that does not say which of
+    the two it means is ambiguous. See SPEC section 8, open decision 4.
+  author: diego.garcia
+  date: 2026-09-14

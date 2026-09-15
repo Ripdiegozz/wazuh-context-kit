@@ -22,9 +22,29 @@ import type { ParseTarget } from "./types.ts";
 export interface ScanResult {
   references: IndexReference[];
   uncovered: UncoveredMechanism[];
+  /** Excluded from the reference set: a fixture is not a consumer. */
+  testFilesSkipped: number;
 }
 
 const SOURCE_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx"];
+
+/**
+ * Test files are not consumers.
+ *
+ * A fixture naming an index is evidence that somebody knows the name, not that
+ * the product reads it. Measured: three of six findings came only from tests —
+ * `wazuh-does-not-matter*`, `wazuh-alerts-*`, `wazuh-agents-index-*`. The first
+ * is self-describing.
+ *
+ * A name that appears in BOTH a test and production still counts, because
+ * production is where it was found.
+ */
+function isTestFile(path: string): boolean {
+  return (
+    /\.(test|spec|fixture|fixtures|mock|mocks)\.[jt]sx?$/.test(path) ||
+    /(^|\/)(test|tests|__tests__|__mocks__|__fixtures__|fixture|fixtures|mocks)\//.test(path)
+  );
+}
 
 /**
  * Real indices whose identifier breaks the naming convention.
@@ -38,13 +58,32 @@ const IDENTIFIER_EXCEPTIONS = new Set([
   "WAZUH_SAMPLE_VULNERABILITIES",
 ]);
 
+/**
+ * Index-shaped strings that are not indices.
+ *
+ * Outside a catalog there is no identifier to corroborate the value, so these
+ * have to be named. All three were found in the real code: two are the
+ * operating-system user and group the platform installs as, one is a
+ * saved-object template name.
+ */
+const VALUE_DENYLIST = new Set(["wazuh-dashboard", "wazuh-kibana"]);
+
 function toPosix(path: string): string {
   return path.split("\\").join("/");
 }
 
 /** A value shaped like an index: `wazuh-…` or a dot-prefixed system index. */
 function looksLikeIndex(value: string): boolean {
-  return /^\.?wazuh-/.test(value) || /^\.opendistro-/.test(value);
+  if (VALUE_DENYLIST.has(value)) return false;
+  if (!/^\.?wazuh-/.test(value) && !/^\.opendistro-/.test(value)) return false;
+
+  // A leading dot marks a system index; an INTERNAL dot means this is not an
+  // index at all. Without this, the prefix test alone admits every package
+  // filename in the repository -- `wazuh-agent-5.0.0.aarch64.rpm`,
+  // `wazuh-agent_5.0.0_amd64.deb`, `wazuh-agent-5.0.0.msi`. Measured against
+  // the running indexer, none of the 94 names the prefix test alone produced
+  // existed; this is what separates a name from a filename.
+  return !value.slice(1).includes(".");
 }
 
 /** An identifier the codebase uses for index names. */
@@ -106,7 +145,9 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
   /** identifier -> index name, from every catalog in the tree. */
   const catalog = new Map<string, string>();
 
-  const sourceFiles = entries.filter((e) => SOURCE_EXTENSIONS.some((x) => e.endsWith(x)));
+  const allSource = entries.filter((e) => SOURCE_EXTENSIONS.some((x) => e.endsWith(x)));
+  const sourceFiles = allSource.filter((e) => !isTestFile(e));
+  const testFilesSkipped = allSource.length - sourceFiles.length;
   const ndjsonFiles = entries.filter((e) => e.endsWith(".ndjson"));
 
   // Pass 1: catalogs. Identifiers must be known before an import can mean anything.
@@ -146,6 +187,14 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
       for (const m of text.matchAll(CONST_ANY)) {
         const identifier = (m as unknown as string[])[1]!;
         if (literalNames.has(identifier)) continue;
+        // A catalog file also holds shard counts, intervals and UI constants.
+        // Reporting every one of them as uncovered inflated the count to 80
+        // and buried the handful that actually name an index.
+        // Substring, not suffix: `SAMPLE_INDICES` and
+        // `WAZUH_SAMPLE_DATA_CATEGORIES` are assembled index names, while
+        // `..._SHARDS`, `..._INTERVAL` and UI constants are not. A suffix test
+        // drops the first group with the second.
+        if (!/INDEX|INDICES|PATTERN/i.test(identifier)) continue;
         uncovered.push({
           kind: "computed-expression",
           file,
@@ -174,6 +223,75 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
         note: "the index name comes from the deployed instance's configuration",
       });
     }
+  }
+
+  // Pass 1b: index-shaped literals the code itself marks as indices.
+  //
+  // The catalog convention holds in `plugins/main` and nowhere else: the
+  // threat-intel indices live in an object map keyed `decoders`/`kvdbs`, and
+  // the single-plugin forks compare inline. Requiring an identifier suffix made
+  // six live indices look unconsumed.
+  //
+  // But the value alone discriminates nothing. Accepting every `wazuh-`
+  // literal produced 77 distinct names of which ZERO existed in the running
+  // indexer — packages, hosts, repositories, environments, test fixtures. This
+  // organisation prefixes everything.
+  //
+  // So the second signal is CONTEXT: the surrounding code has to say the string
+  // is an index. That is what both real shapes provide.
+  for (const file of sourceFiles) {
+    let text: string;
+    try {
+      text = await readFile(join(target.dir, file), "utf8");
+    } catch {
+      continue;
+    }
+
+    const lines = text.split("\n");
+    // Depth inside an enclosing `const SOMETHING_INDEX... = {` block, so a map
+    // of index names counts even though its keys are `decoders`, not
+    // `DECODERS_PATTERN`.
+    let indexMapDepth = 0;
+
+    lines.forEach((line, i) => {
+      const opensMap =
+        indexMapDepth === 0 &&
+        /\b(?:const|let|var)\s+[A-Za-z_0-9]*(?:INDEX|PATTERN|Index|Pattern)[A-Za-z_0-9]*\b[^=]*=\s*\{/.test(line);
+      // Set to 0, not 1: this line's own opening brace is counted by the
+      // balance below. Setting 1 here counted it twice, so depth never
+      // returned to 0 and the map swallowed every literal after it.
+      if (opensMap) indexMapDepth = 0;
+
+      // Whether this line is in map context is decided BEFORE its own braces
+      // are counted, and the balance is applied after. A one-line map —
+      // `const FOO_INDEX = { value: "wazuh-foo*" };` — opens and closes here,
+      // so counting first would miss its literal and counting never would
+      // leave the map open forever, swallowing unrelated literals below.
+      const inMapContext = opensMap || indexMapDepth > 0;
+
+      const sameLineContext =
+        /\bindex\s*:/.test(line) ||
+        /\.index\b/.test(line) ||
+        /\bindexName\b/.test(line) ||
+        /\bindex_patterns?\b/.test(line) ||
+        /\bindexPattern\b/.test(line);
+
+      if (!inMapContext && !sameLineContext) return;
+
+      for (const m of line.matchAll(/['"`](\.?[a-z][a-z0-9.*_-]*)['"`]/g)) {
+        const value = m[1]!;
+        if (!looksLikeIndex(value)) continue;
+        const alreadyCatalogued = references.some(
+          (r) => r.via === "catalog-literal" && r.file === file && r.name === value,
+        );
+        if (alreadyCatalogued) continue;
+        references.push({ name: value, file, line: i + 1, via: "inline-literal" });
+      }
+
+      if (inMapContext) {
+        indexMapDepth += (line.match(/\{/g)?.length ?? 0) - (line.match(/\}/g)?.length ?? 0);
+      }
+    });
   }
 
   // Pass 2: import edges. A consumer naming a known identifier consumes it.
@@ -238,5 +356,5 @@ export async function scanIndexReferences(target: ParseTarget): Promise<ScanResu
     (a, b) => a.file.localeCompare(b.file) || a.line - b.line || a.kind.localeCompare(b.kind),
   );
 
-  return { references, uncovered };
+  return { references, uncovered, testFilesSkipped };
 }

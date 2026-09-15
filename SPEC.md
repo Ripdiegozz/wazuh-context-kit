@@ -790,20 +790,32 @@ inversa quedó sin cubrir. Lo que no se hace, se dice.
 
 ## 1.9 Criterios de aceptación — Fase 1
 
-- [ ] `wazuh-ctx matrix --ref 5.0.0` genera `out/5.0.0/matrix.json` y `MATRIX.md`.
-- [ ] Se detectan los 4 plugins de `wazuh-dashboard-plugins` con sus ids reales:
+> **Verificados el 2026-09-15**, al cerrar Fase 1 con el crosscheck.
+>
+> Evidencia común, ejecutada en primer plano:
+> `bun test` → 196 tests, 0 fail · `bun run typecheck` limpio ·
+> `bun run build` + `node dist/cli.js --version` → `0.1.0` ·
+> `WAZUH_CTX_NETWORK=1 bun test` → suites de red en verde ·
+> `bun run ./src/cli.ts matrix --ref 5.0.0` y `crosscheck --ref 5.0.0` contra
+> los repos reales.
+>
+> Un criterio tildado cita una suite que lo cubre o una corrida observada.
+> Ninguno se tildó por inspección.
+
+- [x] `wazuh-ctx matrix --ref 5.0.0` genera `out/5.0.0/matrix.json` y `MATRIX.md`.
+- [x] Se detectan los 4 plugins de `wazuh-dashboard-plugins` con sus ids reales:
       `wazuh`, `wazuhCore`, `wazuhCheckUpdates`, `wazuhAiAssistant`.
-- [ ] `wazuh` clasifica `wazuh-native`; `securityAnalyticsDashboards` clasifica
+- [x] `wazuh` clasifica `wazuh-native`; `securityAnalyticsDashboards` clasifica
       `upstream-fork` con `configPath: ["opensearch_security_analytics"]`.
-- [ ] Ningún plugin emite `serverApiAccess` e `indexerAccess` con el mismo valor.
+- [x] Ningún plugin emite `serverApiAccess` e `indexerAccess` con el mismo valor.
       Test explícito: **ningún** `indexerAccess` contiene `"wazuh-core"`, en
       ningún repo. Ese valor no existe en el dominio del campo.
-- [ ] `securityAnalyticsDashboards` emite `indexerAccess` con los tres valores
+- [x] `securityAnalyticsDashboards` emite `indexerAccess` con los tres valores
       simultáneos: `osd-data`, `osd-data-source`, `os-plugin-bound`.
-- [ ] Todo plugin con `indexerAccess: []` aparece en `unknowns[]`.
-- [ ] `pluginId` sale siempre de `manifest.id`. Test que falla si el generador
+- [x] Todo plugin con `indexerAccess: []` aparece en `unknowns[]`.
+- [x] `pluginId` sale siempre de `manifest.id`. Test que falla si el generador
       cae al nombre del directorio cuando el manifiesto no declara `id`.
-- [ ] `wazuh-dashboard-ml-commons` aparece en `skipped` con motivo. No crashea.
+- [x] `wazuh-dashboard-ml-commons` aparece en `skipped` con motivo. No crashea.
 - [x] Se listan **todos** los index templates bajo `templates/`, sea cual sea su
       subdirectorio, y cada uno declara de qué grupo salió. **Verificado
       2026-09-15: 40 templates — 20 `states`, 8 `streams`, 8 `content`, 4 en la
@@ -815,33 +827,63 @@ inversa quedó sin cubrir. Lo que no se hace, se dice.
       criterio que nombra un directorio no puede notar un directorio hermano.
       Este cuenta el total y reporta el grupo, así que una cuarta carpeta
       apareciendo upstream se ve sola.
-- [ ] Segunda corrida consecutiva funciona **sin red** (cache).
-- [ ] Dos corridas consecutivas sobre el mismo cache producen **idéntico**
+- [x] Segunda corrida consecutiva funciona **sin red** (cache).
+- [x] Dos corridas consecutivas sobre el mismo cache producen **idéntico**
       `payloadHash`. Si difieren, falla.
-- [ ] Toda entrada de `plugins[]` declara `evidence.kind`. Las `derived` tienen
+- [x] Toda entrada de `plugins[]` declara `evidence.kind`. Las `derived` tienen
       `commit` no vacío; las `human-assertion` apuntan a `decisions.yml` y **no**
       llevan commit.
-- [ ] `MATRIX.md` se regenera byte-idéntico desde el mismo `matrix.json`, y
+- [x] `MATRIX.md` se regenera byte-idéntico desde el mismo `matrix.json`, y
       también entre dos corridas distintas sobre el mismo cache.
-- [ ] `resolvedRefs` tiene un SHA por cada repo no salteado.
-- [ ] Test que falla si algún campo derivado se emite sin evidencia.
-- [ ] `--strict` sale con código ≠ 0 cuando `unknowns[]` no está vacío.
-- [ ] Una decisión de `decisions.yml` cuyo campo pasó a ser derivable se reporta
+- [x] `resolvedRefs` tiene un SHA por cada repo no salteado.
+- [x] Test que falla si algún campo derivado se emite sin evidencia.
+- [x] `--strict` sale con código ≠ 0 cuando `unknowns[]` no está vacío.
+- [x] Una decisión de `decisions.yml` cuyo campo pasó a ser derivable se reporta
       como `superseded`, y si el valor difiere, el reporte lo marca como hallazgo.
-- [ ] Una decisión `superseded` **no se aplica**: el valor derivado gana.
-- [ ] Una decisión para un plugin ausente se reporta `orphaned`, no se descarta.
-- [ ] Un campo resuelto por decisión desaparece de `unknowns[]` y aparece en
+- [x] Una decisión `superseded` **no se aplica**: el valor derivado gana.
+- [x] Una decisión para un plugin ausente se reporta `orphaned`, no se descarta.
+- [x] Un campo resuelto por decisión desaparece de `unknowns[]` y aparece en
       `assertions` con autor, fecha y motivo.
-- [ ] Un plugin con una celda aseverada conserva su `evidence.kind: "derived"`
+- [x] Un plugin con una celda aseverada conserva su `evidence.kind: "derived"`
       a nivel registro: la aserción no borra de dónde salió el plugin.
-- [ ] `indexerAccess: ["wazuh-core"]` en `decisions.yml` es error fatal.
-- [ ] Un valor fuera del dominio de su campo es error fatal.
-- [ ] Una anotación no cambia ningún valor derivado. Test comparando el plugin
+- [x] `indexerAccess: ["wazuh-core"]` en `decisions.yml` es error fatal.
+- [x] Un valor fuera del dominio de su campo es error fatal.
+- [x] Una anotación no cambia ningún valor derivado. Test comparando el plugin
       con y sin anotaciones.
-- [ ] `wazuhCore.world` se resuelve por `decisions.yml` y `MATRIX.md` lo marca
+- [x] `wazuhCore.world` se resuelve por `decisions.yml` y `MATRIX.md` lo marca
       con `†` junto a su motivo.
 
 ---
+
+## 1.10 Criterios de aceptación — el cruce (1.8)
+
+> Añadidos el 2026-09-15. La sección 1.8 no tenía criterios propios, que es
+> parte de por qué pasó una fase entera sin construirse.
+
+- [x] `wazuh-ctx crosscheck --ref 5.0.0` genera `out/5.0.0/crosscheck.json` y
+      `CROSSCHECK.md`. **Verificado**: 61 nombres recuperados sobre 6 repos.
+- [x] El `payloadHash` de `matrix.json` no depende de la existencia del cruce.
+      Son artefactos separados.
+- [x] El reporte **abre** con lo que no puede ver, antes de cualquier hallazgo.
+      Un lector que confunda "no se encontró consumidor" con "no hay consumidor"
+      borra un índice vivo.
+- [x] Los mecanismos no cubiertos son datos —archivo, línea, tipo—, no prosa.
+      **87 detectados**, incluido el allowlist por regex de `guardrails.ts:199`.
+- [x] El matching compara globs, no strings. Un template `wazuh-findings-v5*`
+      cubre `wazuh-findings-v5-cloud-services*`.
+- [x] Un módulo WCS se liga a su índice por su propio
+      `fields/template-settings.json`, nunca infiriendo desde el nombre de la
+      ruta: una regla literal acierta 2 de 39.
+- [x] Dos catálogos declarando el mismo nombre se reportan como hallazgo y la
+      corrida termina en 0. **Verificado**: `plugins/main/common/constants.ts` y
+      `plugins/wazuh-core/common/constants.ts` comparten `.wazuh-settings` y
+      `wazuh-events-v5*`.
+- [ ] **NO cumplido, y queda escrito.** El cruce compara dos repositorios, no el
+      sistema corriendo. Un índice puede estar declarado, tener datos y ser
+      consultado, y aun así aparecer sin consumidor si el código lo nombra de un
+      modo que el scanner no reconoce. Pasó: seis índices vivos se reportaron
+      muertos antes de arreglar el scanner. Cerrarlo de verdad requiere contrastar
+      contra un indexer levantado —`--indexer <url>`— y eso es un cambio aparte.
 
 # FASE 1.5 — Inspector (`wazuh-ctx serve`)
 

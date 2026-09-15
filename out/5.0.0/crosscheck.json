@@ -1,0 +1,299 @@
+{
+  "meta": {
+    "generatedAt": "2026-09-15T22:01:46.303Z",
+    "tool": "wazuh-ctx@0.1.0"
+  },
+  "ref": "5.0.0",
+  "coverage": {
+    "recoveredNames": 61,
+    "scannedRepos": [
+      "wazuh-dashboard-alerting",
+      "wazuh-dashboard-notifications",
+      "wazuh-dashboard-plugins",
+      "wazuh-dashboard-reporting",
+      "wazuh-dashboard-security-analytics",
+      "wazuh-security-dashboards-plugin"
+    ],
+    "uncovered": [
+      {
+        "kind": "computed-expression",
+        "file": "plugins/main/common/constants.ts",
+        "line": 236,
+        "note": "WAZUH_SAMPLE_ALERTS_INDEX_SHARDS is assembled, not a literal; folding it needs a type checker"
+      },
+      {
+        "kind": "computed-expression",
+        "file": "plugins/main/common/constants.ts",
+        "line": 237,
+        "note": "WAZUH_SAMPLE_ALERTS_INDEX_REPLICAS is assembled, not a literal; folding it needs a type checker"
+      },
+      {
+        "kind": "computed-expression",
+        "file": "plugins/main/common/constants.ts",
+        "line": 1026,
+        "note": "INDEX_PATTERN_EVENTS_REQUIRED_FIELDS is assembled, not a literal; folding it needs a type checker"
+      },
+      {
+        "kind": "runtime-configuration",
+        "file": "plugins/main/public/components/settings/api/api-table.js",
+        "line": 121,
+        "note": "the index name comes from the deployed instance's configuration"
+      },
+      {
+        "kind": "runtime-configuration",
+        "file": "plugins/main/public/react-services/generic-request.js",
+        "line": 36,
+        "note": "the index name comes from the deployed instance's configuration"
+      },
+      {
+        "kind": "runtime-configuration",
+        "file": "plugins/main/public/react-services/wz-api-check.js",
+        "line": 20,
+        "note": "the index name comes from the deployed instance's configuration"
+      },
+      {
+        "kind": "runtime-configuration",
+        "file": "plugins/main/public/react-services/wz-request.ts",
+        "line": 261,
+        "note": "the index name comes from the deployed instance's configuration"
+      },
+      {
+        "kind": "runtime-configuration",
+        "file": "plugins/main/server/controllers/wazuh-elastic.ts",
+        "line": 88,
+        "note": "the index name comes from the deployed instance's configuration"
+      },
+      {
+        "kind": "regex-allowlist",
+        "file": "plugins/wazuh-ai-assistant/server/tools/guardrails.ts",
+        "line": 199,
+        "note": "indices are accepted by shape; no name exists here as a string"
+      },
+      {
+        "kind": "runtime-configuration",
+        "file": "plugins/wazuh-core/server/services/manage-hosts.ts",
+        "line": 132,
+        "note": "the index name comes from the deployed instance's configuration"
+      }
+    ]
+  },
+  "declaredUnreferenced": [
+    {
+      "pattern": ".opendistro-ism-config",
+      "template": "plugins/setup/src/main/resources/templates/ism-config.json",
+      "group": ""
+    },
+    {
+      "pattern": ".wazuh-setup-status*",
+      "template": "plugins/setup/src/main/resources/templates/setup-status.json",
+      "group": ""
+    },
+    {
+      "pattern": ".wazuh-threatintel-vulnerabilities*",
+      "template": "plugins/setup/src/main/resources/templates/content/vulnerabilities.json",
+      "group": "content"
+    },
+    {
+      "pattern": "wazuh-ai-assistant-sessions*",
+      "template": "plugins/setup/src/main/resources/templates/streams/ai-assistant-sessions.json",
+      "group": "streams"
+    },
+    {
+      "pattern": "wazuh-cve*",
+      "template": "plugins/setup/src/main/resources/templates/cve.json",
+      "group": ""
+    }
+  ],
+  "referencedUndeclared": [
+    {
+      "name": ".wazuh-cti-consumers",
+      "file": "plugins/wazuh-ai-assistant/server/tools/catalog/get-cti-status.ts",
+      "line": 125,
+      "via": "inline-literal"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/common/constants.ts",
+      "line": 246,
+      "via": "catalog-literal",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/add-modules-data/sample-data.tsx",
+      "line": 29,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/dashboards/dashboard.tsx",
+      "line": 12,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/networks/inventories/interfaces/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/networks/inventories/networks/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/networks/inventories/protocols/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/networks/inventories/services/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/networks/inventories/traffic/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/packages/inventories/hotfixes/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/packages/inventories/packages/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/packages/inventories/web-browsers/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/processes/inventory.tsx",
+      "line": 9,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/services/inventory.tsx",
+      "line": 9,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/system/inventories/hardware/inventory.tsx",
+      "line": 9,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/system/inventories/system/inventory.tsx",
+      "line": 9,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/users/inventories/groups/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/public/components/overview/it-hygiene/users/inventories/users/inventory.tsx",
+      "line": 10,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-inventory-agent",
+      "file": "plugins/main/server/routes/wazuh-elastic.ts",
+      "line": 15,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_INVENTORY_AGENT"
+    },
+    {
+      "name": "wazuh-vulnerabilities",
+      "file": "plugins/main/common/constants.ts",
+      "line": 247,
+      "via": "catalog-literal",
+      "identifier": "WAZUH_SAMPLE_VULNERABILITIES"
+    },
+    {
+      "name": "wazuh-vulnerabilities",
+      "file": "plugins/main/public/components/add-modules-data/sample-data.tsx",
+      "line": 29,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_VULNERABILITIES"
+    },
+    {
+      "name": "wazuh-vulnerabilities",
+      "file": "plugins/main/public/components/overview/vulnerabilities/dashboards/inventory/inventory.tsx",
+      "line": 59,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_VULNERABILITIES"
+    },
+    {
+      "name": "wazuh-vulnerabilities",
+      "file": "plugins/main/public/components/overview/vulnerabilities/dashboards/overview/dashboard.tsx",
+      "line": 9,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_VULNERABILITIES"
+    },
+    {
+      "name": "wazuh-vulnerabilities",
+      "file": "plugins/main/server/routes/wazuh-elastic.ts",
+      "line": 15,
+      "via": "import",
+      "identifier": "WAZUH_SAMPLE_VULNERABILITIES"
+    }
+  ],
+  "wcsWithoutConsumer": [
+    "ai-assistant/sessions",
+    "content/ioc",
+    "content/vulnerabilities",
+    "cve",
+    "internal-state"
+  ],
+  "competingCatalogs": [
+    {
+      "name": ".wazuh-settings",
+      "files": [
+        "plugins/main/common/constants.ts",
+        "plugins/wazuh-core/common/constants.ts"
+      ]
+    },
+    {
+      "name": "wazuh-events-v5*",
+      "files": [
+        "plugins/main/common/constants.ts",
+        "plugins/wazuh-core/common/constants.ts"
+      ]
+    }
+  ]
+}

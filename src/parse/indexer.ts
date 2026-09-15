@@ -94,6 +94,25 @@ async function findWcsModules(dir: string): Promise<WcsModule[]> {
   const fieldsCsvEntries = entries.filter((entry) => toPosix(entry).endsWith("/docs/fields.csv"));
   const modules: WcsModule[] = [];
 
+  /** The module's own declared index, from fields/template-settings.json. */
+  async function declaredIndexOf(moduleDir: string): Promise<string[]> {
+    try {
+      const raw = await readFile(join(wcsDir, moduleDir, "fields", "template-settings.json"), "utf8");
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return Array.isArray(parsed.index_patterns)
+        ? parsed.index_patterns.filter((p): p is string => typeof p === "string")
+        : [];
+    } catch (error) {
+      // A module with no template-settings.json declares nothing, and that is
+      // a fact. A module whose template-settings.json will not parse is a
+      // module we could not read, and returning [] there would make it look
+      // consumed -- hiding the breakage behind a clean result. Same
+      // distinction the template discovery makes, for the same reason.
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+  }
+
   for (const entry of fieldsCsvEntries) {
     const posixEntry = toPosix(entry);
     const moduleName = posixEntry.slice(0, -("/docs/fields.csv".length));
@@ -108,7 +127,7 @@ async function findWcsModules(dir: string): Promise<WcsModule[]> {
       fieldCount = 0;
     }
 
-    modules.push({ name: moduleName, fieldsCsv, fieldCount });
+    modules.push({ name: moduleName, fieldsCsv, fieldCount, indexPatterns: await declaredIndexOf(moduleName) });
   }
 
   modules.sort((a, b) => a.name.localeCompare(b.name));

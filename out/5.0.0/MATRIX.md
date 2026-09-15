@@ -89,7 +89,7 @@
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:68a0570ea06797523018fa612a9101cb16ce3d0551c44fe1065d6032e0ed5d36`
+- payloadHash: `sha256:eb45d6fb62e8a97f51a84170bbadd9fe73876eb06375ceda5440079259b10019`
 - resolvedAt: `2026-09-15T20:01:45.643Z`
 - resolvedRefs:
   - `wazuh-dashboard` → `4a07e4289a5866b9c0de5f3d26a97c7205d4d401`

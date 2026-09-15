@@ -1,5 +1,71 @@
 # Apply Progress: Complete Phase 1 — real data through `fetch/` and `parse/`
 
+## Status: DONE — verified and committed by the orchestrator
+
+> The `sdd-apply` agent reported PARTIAL for the right reason: it had no shell,
+> so it could not observe a single command. The orchestrator ran the
+> verification afterwards. The original caveat is preserved below unaltered, as
+> the record of what that session could and could not establish.
+
+### Verification actually observed (orchestrator, 2026-09-14)
+
+```
+bun run typecheck                          clean
+bun test                                   94 pass · 1 skip · 0 fail (95 across 6 files)
+git diff --stat HEAD -- src/matrix src/decisions/apply.ts    empty  (D1 holds)
+wazuh-ctx matrix --ref 5.0.0               exit 0, 30s cold
+wazuh-ctx matrix --ref 5.0.0  (2nd run)    exit 0, 1.4s warm
+```
+
+**One real defect found and fixed.** Two tests in `src/fetch/fetch.test.ts`
+failed. The cause was in the test, not the implementation: the fake runner
+stubbed *every* `rev-parse` to exit 128 in order to simulate a cold cache, which
+also killed the `-C <dir> rev-parse HEAD` that `cloneRepo` uses to read the
+commit after a successful clone. A clone that worked therefore looked like a
+clone that failed, and the repo landed in `skipped[]` instead of `fetched[]`.
+
+The fix models reality instead: `coldCacheScript` fails `rev-parse` for a
+directory until a `clone` has created it, and succeeds afterwards. `fetchRepos`
+itself was already correct — it accumulates per repo, so one repository failing
+never drops the others.
+
+### SPEC 1.9 acceptance criteria against real repositories
+
+| Criterion | Result |
+|---|---|
+| 4 plugins of `wazuh-dashboard-plugins` with real ids | `wazuh`, `wazuhCore`, `wazuhCheckUpdates`, `wazuhAiAssistant` |
+| `wazuh` is `wazuh-native` | yes |
+| `securityAnalyticsDashboards` is `upstream-fork` | yes |
+| `wazuh-dashboard-ml-commons` in `skipped[]` **by discovery** | yes — "no 5.0.0 branch", no hardcode |
+| ≥ 18 templates under `templates/states/` | **20** |
+| `resolvedRefs` carries a real SHA per non-skipped repo | 8 repositories |
+| No `indexerAccess` contains `"wazuh-core"` | holds |
+| Second run offline | 30s → 1.4s, cache hit |
+| Determinism on real data | `payloadHash` and `MATRIX.md` byte-identical across runs |
+
+Also produced: 39 WCS modules, 9 plugins total.
+
+### A fixture assumption the real data disproved
+
+`fixtures/facts.ts` asserted `indexerAccess: []` for `wazuh`. The real manifest
+declares `data`, so the correct value is `["osd-data"]`. The exploration flagged
+the fixture-vs-reality gap as a risk; this is that risk realised, and it is
+exactly why a hand-written fixture is evidence about the fixture and not about
+the repository. Worth a follow-up to reconcile `fixtures/facts.ts` with reality.
+
+### Open observation, not fixed here
+
+`wazuh-dashboard` (`kind: platform`) resolves a SHA and appears in
+`resolvedRefs`, but contributes no entry to `plugins[]` — `sparsePathsFor`
+returns `[]` for `platform`, so nothing is checked out and no manifest is found.
+SPEC 1.5.2 defines `world: "platform"` as a classification, which implies such a
+repository should surface somewhere. Left as a finding for a follow-up change
+rather than patched silently.
+
+---
+
+## Original agent report (unmodified)
+
 ## Status: PARTIAL — code complete for all 51 tasks, verification NOT performed
 
 **Critical caveat, read first:** this apply session had no shell/Bash execution

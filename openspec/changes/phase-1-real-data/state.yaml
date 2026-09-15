@@ -24,8 +24,8 @@ phases:
   spec: done
   design: done
   tasks: done
-  apply: in-progress   # code written for all 51 tasks; bun test/typecheck/build NOT run (no shell tool this session) — see apply-progress.md
-  verify: blocked
+  apply: done
+  verify: ready
   archive: blocked
 
 artifacts:

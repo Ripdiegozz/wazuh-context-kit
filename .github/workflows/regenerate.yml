@@ -161,10 +161,27 @@ jobs:
         if: steps.diff.outputs.changed == 'true'
         run: WAZUH_CTX_NETWORK=1 bun test
 
+      # A PR opened with GITHUB_TOKEN does not start workflow runs: the run is
+      # created and held as `action_required`, so the required `CI` check never
+      # reports and auto-merge waits forever on something that cannot arrive.
+      # A PAT-authored PR triggers workflows normally. Falling back to
+      # GITHUB_TOKEN would silently reproduce that deadlock, so this fails
+      # instead -- and only on the days a PR is actually warranted.
+      - name: Require the regeneration PAT
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          REGEN_PAT: ${{ secrets.REGEN_PAT }}
+        run: |
+          if [ -z "${REGEN_PAT}" ]; then
+            echo "::error::secrets.REGEN_PAT is not set. out/ was regenerated but no PR will be opened."
+            echo "See .github/workflows/README.md for how to create and scope it."
+            exit 1
+          fi
+
       - name: Open regeneration PR
         if: steps.diff.outputs.changed == 'true'
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.REGEN_PAT }}
           MOVED_SUMMARY: ${{ steps.precheck.outputs.summary }}
           BEFORE_PLUGINS: ${{ steps.before.outputs.plugins }}
           AFTER_PLUGINS: ${{ steps.after.outputs.plugins }}

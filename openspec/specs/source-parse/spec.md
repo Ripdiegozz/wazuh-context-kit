@@ -59,21 +59,6 @@ Note: `src/matrix/build.ts` branches its unknown-reason text on
 present file is absent. This is a recorded limitation, not remediated inside
 the pure core (D1, D5).
 
-### Requirement: Index templates discovered under templates/states
-
-The system MUST recursively list
-`plugins/setup/src/main/resources/templates/states/*.json` under a fetched
-`wazuh-indexer-plugins` checkout and emit one `IndexTemplate` per file, with
-`name` as the filename stem and `indexPatterns` from the JSON's
-`index_patterns` field when present (SPEC 1.2, 1.9).
-
-#### Scenario: At least 18 templates discovered
-
-- GIVEN a fetched `wazuh-indexer-plugins` checkout matching the SPEC 1.2
-  fixture layout
-- WHEN parse enumerates `templates/states/`
-- THEN the emitted `IndexTemplate[]` has at least 18 entries
-
 ### Requirement: WCS modules discovered from fields.csv
 
 The system MUST enumerate `wcs/<module>/docs/fields.csv` per module and emit
@@ -101,6 +86,7 @@ anywhere in `src/matrix/` (SPEC 6.1, D2).
 - WHEN `buildMatrix` runs
 - THEN `MatrixJson.indexer.templates` and `.wcsModules` are the same values
   parse emitted, unmodified
+
 ### Requirement: Core plugin manifests parse without a sibling package.json
 
 The system MUST parse an `opensearch_dashboards.json` manifest under a
@@ -165,3 +151,100 @@ Wazuh Server API relationship, and forcing one would be a fabricated fact.
 - WHEN its fact is produced
 - THEN it carries id, directory, dependency fields, and evidence
 - AND it carries no `serverApiAccess`, `world`, or `versionScheme`
+
+### Requirement: Every template directory is parsed, not only `states/`
+
+The system MUST discover index templates under **every** subdirectory of the
+indexer's `templates/` path, and MUST NOT restrict discovery to
+`templates/states/` (SPEC 1.2, 1.8).
+
+At `5.0.0` the tree holds `states/` (20), `streams/` (8), `content/` (8), and
+four JSON files directly under `templates/`. Reading only `states/` declares
+**20 of 40**.
+
+> This **replaced** a requirement titled "Index templates discovered under
+> `templates/states`", which mandated exactly the defect: recursing
+> `templates/states/*.json` and nothing else. Its acceptance scenario asked for
+> "at least 18 templates", which the 20 in that one directory satisfied while
+> the other 20 stayed invisible. The superseded text is preserved in
+> `openspec/changes/archive/2026-09-15-close-phase-1/`.
+>
+> The collision was invisible by title — the new requirement is called
+> something else — which is why an archive check that compares headings is not
+> enough.
+
+This matters beyond completeness: seven index patterns referenced by dashboard
+code are declared in `streams/` and `content/`. A crosscheck built on the
+narrower parse would report all seven as undeclared.
+
+#### Scenario: Templates from sibling directories
+
+- GIVEN an indexer checkout with `templates/states/`, `templates/streams/` and `templates/content/`, each holding JSON with `index_patterns`
+- WHEN parse completes
+- THEN templates from all three directories are present
+- AND each records which directory it came from
+
+#### Scenario: An unknown future subdirectory is included
+
+- GIVEN a `templates/` subdirectory whose name the implementation has never seen
+- WHEN parse completes
+- THEN its templates with `index_patterns` are discovered
+- AND no directory name is hardcoded as an allowlist
+
+### Requirement: Index references are recovered from plugin source
+
+The system MUST recover index names referenced by dashboard plugin source, by
+resolving identifiers to their string literals within catalog modules and
+following import edges, and MUST do so without a type checker.
+
+The project pins `typescript@7.0.2`, which ships no JS-callable compiler API.
+Acquiring one would mean a second copy of TypeScript or moving the project's
+toolchain; neither is in scope.
+
+#### Scenario: A literal in a catalog module
+
+- GIVEN `export const WAZUH_VULNERABILITIES_PATTERN = 'wazuh-states-vulnerabilities*'`
+- WHEN the scanner reads that module
+- THEN `wazuh-states-vulnerabilities*` is recovered, attributed to that file and line
+
+#### Scenario: A consumer importing the identifier
+
+- GIVEN a file importing `WAZUH_VULNERABILITIES_PATTERN` from a catalog module and using it
+- WHEN the scanner runs
+- THEN that file is recorded as a consumer of `wazuh-states-vulnerabilities*`
+- AND the index is not reported as unconsumed
+
+#### Scenario: Saved-object index patterns
+
+- GIVEN an `.ndjson` asset containing an object of `"type":"index-pattern"`
+- WHEN the scanner reads it
+- THEN the index title is recovered as a reference
+
+### Requirement: What the scan cannot see is recorded as data
+
+The system MUST emit, as structured output, every site where an index name is
+determined by a mechanism the scanner cannot resolve, identifying the file, the
+line and the mechanism.
+
+Three mechanisms are known: a regex allowlist accepting names by shape
+(`guardrails.ts:199`), a name read from runtime configuration
+(`wazuh-elastic.ts:87-91`), and entries assembled by `.map()` spreads or string
+concatenation.
+
+A report claiming an index has no consumer is **false** when a consumer reaches
+it through one of these. Uncoverage is therefore part of the result, not a
+caveat in prose.
+
+#### Scenario: A regex allowlist is reported
+
+- GIVEN a module that matches index names against a regular expression instead of listing them
+- WHEN the scanner runs
+- THEN an uncovered-mechanism entry names that file, line and kind
+- AND the entry is present in the machine-readable output, not only in rendered text
+
+#### Scenario: Recovered count is pinned
+
+- GIVEN the catalog modules at a known revision
+- WHEN the scanner runs
+- THEN the number of recovered names is asserted against a pinned expectation
+- AND a silent drop to zero fails rather than passing as "nothing referenced"

@@ -47,7 +47,12 @@ const ORIGIN_FILES: Readonly<Record<string, string>> = {
   "plugins/setup/src/main/java/Setup.java": "class Setup {}\n",
   "docs/README.md": "docs\n",
   "plugins/unrelated/source.ts": "export const x = 1;\n",
+  "plugins/main/opensearch_dashboards.json": '{"id":"wazuh"}\n',
   "src/core/server/index.ts": "export const core = 1;\n",
+  // Single-plugin shape: code at the root, no plugins/ directory.
+  "server/routes/index.ts": "export const routes = [];\n",
+  "public/components/app.tsx": "export const App = () => null;\n",
+  "common/constants.ts": "export const X = 'wazuh-x*';\n",
   // Top-level files: cone mode always checks these out.
   "build.gradle": "// root\n",
   "package.json": '{"name":"origin"}\n',
@@ -190,6 +195,80 @@ describe("sparse checkout, verified on disk (SPEC 1.2)", () => {
           (path) => !isRootFile(path) && !sparsePaths.some((allowed) => path.startsWith(`${allowed}/`)),
         );
         expect(unexpected).toEqual([]);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+});
+
+describe("dashboard checkouts cover both repository shapes (SPEC 1.2)", () => {
+  test(
+    "a single-plugin repo lands server/ and public/, not just root files",
+    async () => {
+      // This is the gap being closed. `sparsePathsFor("dashboard")` used to be
+      // ["plugins"], which the five single-plugin forks do not have — so cone
+      // mode left them ~20 root files and no source at all, and a declared path
+      // matching nothing looked exactly like a repository containing nothing.
+      const root = await mkdtemp(join(tmpdir(), "wazuh-ctx-sparse-dash-"));
+      const run = createGitRunner();
+
+      try {
+        const origin = await createOrigin(run, root);
+        const cacheRoot = join(root, "cache");
+        await mkdir(cacheRoot, { recursive: true });
+
+        const sparsePaths = sparsePathsFor("dashboard");
+        const dir = cacheDirFor(cacheRoot, "wazuh-dashboard-alerting", REF);
+
+        const outcome = await cloneRepo(run, cacheRoot, dir, `file://${origin}`, REF, sparsePaths);
+        expect(outcome.ok).toBe(true);
+
+        const onDisk = await filesOnDisk(dir);
+        expect(onDisk).toContain("server/routes/index.ts");
+        expect(onDisk).toContain("public/components/app.tsx");
+        expect(onDisk).toContain("common/constants.ts");
+
+        // And the monorepo path still works from the same set.
+        expect(onDisk).toContain("plugins/main/opensearch_dashboards.json");
+
+        // Still nothing outside the declared set, root files aside.
+        const unexpected = onDisk.filter(
+          (path) => !isRootFile(path) && !sparsePaths.some((allowed) => path.startsWith(`${allowed}/`)),
+        );
+        expect(unexpected).toEqual([]);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "a declared path the repository does not have is simply absent, not an error",
+    async () => {
+      // Cone mode ignores a path a repo lacks. That is what lets one path set
+      // serve both shapes — and it is also how the original gap stayed hidden,
+      // so it is pinned rather than assumed.
+      const root = await mkdtemp(join(tmpdir(), "wazuh-ctx-sparse-absent-"));
+      const run = createGitRunner();
+
+      try {
+        const origin = await createOrigin(run, root);
+        const cacheRoot = join(root, "cache");
+        await mkdir(cacheRoot, { recursive: true });
+
+        const dir = cacheDirFor(cacheRoot, "declares-nothing", REF);
+        const outcome = await cloneRepo(run, cacheRoot, dir, `file://${origin}`, REF, [
+          "does-not-exist",
+          "server",
+        ]);
+
+        expect(outcome.ok).toBe(true);
+        const onDisk = await filesOnDisk(dir);
+        expect(onDisk).toContain("server/routes/index.ts");
+        expect(onDisk.some((p) => p.startsWith("does-not-exist/"))).toBe(false);
       } finally {
         await rm(root, { recursive: true, force: true });
       }

@@ -190,8 +190,12 @@ describe("sparsePathsFor", () => {
     expect(sparsePathsFor("platform")).not.toContain("plugins");
   });
 
-  test("dashboard -> [plugins]", () => {
-    expect(sparsePathsFor("dashboard")).toEqual(["plugins"]);
+  test("dashboard covers both repository shapes", () => {
+    // `wazuh-dashboard-plugins` is a monorepo: its code is under plugins/<name>/.
+    // The other five dashboard repos ARE each one plugin, with server/ and
+    // public/ at the root and no plugins/ directory at all -- cone mode left
+    // them ~20 root files and no source. One path set, both shapes.
+    expect(sparsePathsFor("dashboard")).toEqual(["plugins", "server", "public", "common"]);
   });
 
   test("indexer -> SPEC 1.2 verified paths", () => {

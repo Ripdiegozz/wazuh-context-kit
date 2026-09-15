@@ -1,0 +1,159 @@
+change: close-phase-1
+title: Build the crosscheck and close Phase 1 for real
+created: 2026-09-15
+artifact_store: openspec
+
+session:
+  pace: auto
+  delivery_strategy: auto-chain   # was single-pr; maintainer chose to split
+  review_budget_lines: 400
+  # Cached from the SDD session preflight earlier in this session.
+
+phases:
+  explore: done
+  research: done           # ran under a generic agent; sdd-* dispatch is refused here
+  propose: done
+  spec: done
+  design: done
+  tasks: done
+  apply: pending
+  verify: pending
+  archive: pending
+
+artifacts:
+  exploration: openspec/changes/close-phase-1/exploration.md
+  research: openspec/changes/close-phase-1/research.md
+  proposal: openspec/changes/close-phase-1/proposal.md
+  specs:
+    - openspec/changes/close-phase-1/specs/repo-fetch/spec.md
+    - openspec/changes/close-phase-1/specs/source-parse/spec.md
+    - openspec/changes/close-phase-1/specs/crosscheck/spec.md
+  design: openspec/changes/close-phase-1/design.md
+  tasks: openspec/changes/close-phase-1/tasks.md
+
+forecast:
+  authored_lines_estimate: 2000
+  budget_risk: high
+  chained_prs_recommended: true
+  decision_needed_before_apply: true
+  chain_strategy: stacked-to-main
+  slices:
+    - id: 1
+      name: template undercount + sparse widening
+      phases: [1, 2]
+      estimate: 300
+      rationale: two defects, no feature; mergeable on its own merit
+    - id: 2
+      name: catalog scanner + uncoverage detection
+      phases: [3, 4]
+      estimate: 730
+      rationale: reads but does not compare; output unchanged, provably additive
+    - id: 3
+      name: comparison, output, Phase 1 close
+      phases: [5, 6, 7]
+      estimate: 970
+      rationale: where the findings appear
+  bias_correction: >-
+    Naive slice sum is ~1500. Stated as 2000 because the previous change missed
+    by 31% and the one before it by 2x, both in tests.
+
+pending_decision: none
+
+# Persisted BEFORE prompting, per the Research and Pre-Proposal Gate.
+open_decisions:
+
+  - id: single-plugin-repo-scope
+    question: >-
+      Widen the dashboard sparse paths to cover the five single-plugin repos in
+      this change, or defer.
+  - id: crosscheck-output-location
+    question: Own output file, or a section inside matrix.json.
+
+confirmed_decisions:
+  - id: constant-resolution-depth
+    answered: one-import-hop-no-checker-revisit-at-ts-7-1
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      Full constant folding was chosen first, on the belief the TypeScript
+      compiler API would supply it. Research established that TypeScript 7.0
+      ships no JS-callable compiler API and that the team's guidance is to pin
+      the classic 6.x package in parallel for tooling. The maintainer rejected
+      that outright: "de ninguna manera meter 2 versiones del mismo package."
+      So the scanner resolves identifiers to literals within the catalog modules
+      and follows import edges syntactically, with NO type checker and NO new
+      copy of TypeScript. Entries assembled by .map() spreads and string
+      concatenation are declared uncovered alongside the regex allowlist and
+      the runtime-configuration cases.
+
+      REVIEW TRIGGER: TypeScript 7.1 is expected to publish a public compiler
+      API. When it ships, revisit whether the .map()-assembled entries can be
+      recovered without adding a package. This is debt with a date, not a
+      permanent limit, and the design must say so where an implementer will
+      read it.
+
+      Rejected and why: adding the classic typescript package alongside 7.0.2
+      (two versions of one package, refused by the maintainer), and moving the
+      project's own typescript down to the classic 6.x line (one package and a
+      real API, but moving a whole project's toolchain so an analysis tool can
+      read two files is the tail wagging the dog).
+    evidence: openspec/changes/close-phase-1/research.md#what-this-means-for-the-decision
+
+  - id: single-plugin-repo-scope
+    answered: include-them
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      Widen the dashboard sparse paths so the five single-plugin forks
+      contribute source. Without it the reverse direction only covers the
+      monorepo.
+
+  - id: crosscheck-output-location
+    answered: own-file
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      out/<ref>/crosscheck.json plus CROSSCHECK.md. A different graph from
+      unresolvedDependencies, carrying a coverage caveat matrix.json does not,
+      and it keeps the dataset payloadHash still.
+
+  - id: build-crosscheck-fully
+    answered: full-bidirectional
+    answered_by: diego.garcia
+    answered_on: 2026-09-15
+    summary: >-
+      Build SPEC 1.8 with source scanning rather than a one-directional report,
+      then finish Phase 1 entirely.
+
+findings:
+  - id: template-undercount
+    severity: defect
+    summary: >-
+      parseIndexerArtifacts reads templates/states/ only. templates/streams/ (8), templates/content/ (8) and four at the templates/ root
+      and templates/content/ (8) are invisible, so the dataset declares 20 of 40
+      index templates. Prerequisite for the crosscheck: seven dashboard
+      constants are declared in those directories and would be false positives.
+  - id: sparse-covers-one-repo-of-six
+    severity: gap
+    summary: >-
+      sparsePathsFor("dashboard") = ["plugins"] gives full source for the
+      wazuh-dashboard-plugins monorepo (2,642 files) and root files only for the
+      five single-plugin forks (~20 files each), whose code lives in server/ and
+      public/.
+  - id: two-unrecoverable-mechanisms
+    severity: design-constraint
+    summary: >-
+      A regex allowlist (guardrails.ts:199) accepts indices by shape, and
+      wazuh-elastic.ts:87-91 reads the name from runtime configuration. Neither
+      can be recovered by a static scan; the report must say so.
+  - id: three-live-mismatches
+    severity: product-finding
+    summary: >-
+      Found during exploration, before any code: wazuh-metrics-comms-v4* vs the
+      indexer's wazuh-metrics-comms*, and wazuh-agent-stats* / wazuh-agent-config*
+      declared by no template at all. All three are live imported constants.
+  - id: handoff-overclaimed-phase-1
+    severity: doc-defect
+    summary: >-
+      HANDOFF.md states "Phase 1 is complete and closed" while SPEC 1.8, a
+      Phase 1 section, was never built. To be corrected in this change.

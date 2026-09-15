@@ -1,0 +1,73 @@
+change: phase-1-real-data
+title: Complete Phase 1 — implement src/fetch/ and src/parse/
+created: 2026-09-14
+artifact_store: openspec
+
+session:
+  pace: auto
+  delivery_strategy: exception-ok   # was single-pr; see resolved_decisions below
+  review_budget_lines: 400
+  size_exception:
+    accepted: true
+    accepted_by: diego.garcia
+    accepted_on: 2026-09-14
+    forecast_lines: 1350
+    reason: >-
+      Solo-maintainer prototype repository. The author and the reviewer are the
+      same person, so the 400-line budget protects little here, and the work
+      splits poorly: even the smallest honest slice (src/fetch/ plus its tests)
+      is already about 540 lines.
+
+phases:
+  explore: done
+  propose: done
+  spec: done
+  design: done
+  tasks: done
+  apply: ready
+  verify: blocked
+  archive: blocked
+
+artifacts:
+  exploration: openspec/changes/phase-1-real-data/exploration.md
+  proposal: openspec/changes/phase-1-real-data/proposal.md
+  specs:
+    - openspec/changes/phase-1-real-data/specs/repo-fetch/spec.md
+    - openspec/changes/phase-1-real-data/specs/source-parse/spec.md
+    - openspec/changes/phase-1-real-data/specs/matrix-pipeline/spec.md
+  design: openspec/changes/phase-1-real-data/design.md
+  tasks: openspec/changes/phase-1-real-data/tasks.md
+
+pending_decision: none
+
+# Persisted BEFORE prompting, per the Research and Pre-Proposal Gate,
+# then resolved by an explicit human answer.
+resolved_decisions:
+- id: delivery-size-conflict
+  raised_by: sdd-explore
+  answered: size-exception
+  answered_by: diego.garcia
+  answered_on: 2026-09-14
+  blocked: [propose, spec, design, tasks, apply]
+  summary: >-
+    The exploration size forecast for src/fetch/ + src/parse/ + tests + fixtures +
+    CLI rewiring is approximately 1350 changed lines. The session delivery strategy
+    is single-pr with a fixed 400-line review budget, so the forecast exceeds the
+    budget by roughly 3.4x. The delivery strategy contract states that single-pr
+    proceeds as one PR only if the size is within budget; it is not.
+  evidence: openspec/changes/phase-1-real-data/exploration.md#7-size-forecast
+  options:
+    - token: size-exception
+      effect: >-
+        Keep single-pr. Record size:exception and proceed as one oversized PR of
+        roughly 1350 lines. delivery_strategy becomes exception-ok.
+    - token: chained-prs
+      effect: >-
+        Change delivery_strategy from single-pr to auto-chain and split into three
+        slices (fetch + tests, parse + tests, CLI rewiring + fixtures + integration).
+        Requires a chain_strategy answer as well.
+    - token: shrink-scope
+      effect: >-
+        Keep single-pr and single-PR size by narrowing this change to src/fetch/
+        only, deferring src/parse/ and the CLI rewiring to a follow-up change.
+  status: resolved

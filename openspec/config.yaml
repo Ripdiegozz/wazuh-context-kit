@@ -1,0 +1,57 @@
+schema: spec-driven
+
+context: |
+  Tech: Bun 1.4.0 runtime, TypeScript 7.0.2 (native Go port), Node >=22 dist target only.
+  Arch: pure matrix core (src/matrix, no fs/network/clock) + decisions overlay (src/decisions,
+  load.ts is the only I/O) + CLI entry (src/cli.ts, node:util parseArgs).
+  Testing: bun test (34 passing / 0 failing, 2 files); tsc --noEmit clean.
+  Deps: yaml@2.9.1, zod@4.6.5 (prod only). Unimplemented: fetch/, parse/, skills/, mcp/, ui/.
+  Spec: SPEC.md at project root is the authoritative contract.
+
+strict_tdd: true
+
+testing:
+  test_command: "bun test"
+  typecheck_command: "bun run typecheck"
+  build_command: "bun run build"
+  projects:
+    - path: "."
+      stack: "TypeScript 7.0.2 (native Go port) on Bun 1.4.0 runtime"
+      test_command: "bun test"
+      framework: "bun:test"
+      unit: true
+      integration: false
+      e2e: false
+      coverage_command: null
+      linter_command: null
+      type_checker_command: "bun run typecheck"
+      formatter_command: null
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+    - Preserve the purity seam (src/matrix, src/decisions/apply.ts) — no fs, network, or clock access inside pure modules
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+    - Cross-reference the relevant SPEC.md section number
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+    - Respect SPEC.md section 6.1 (the purity seam) and section 7 (build order)
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+    - Follow strict TDD: write a failing `bun test` case before implementation code
+  apply:
+    guidelines:
+      - Follow existing patterns: pure core, injected clock via BuildInput, zod input-side validation
+      - Never add fs, network, or clock access inside src/matrix or src/decisions/apply.ts
+    tdd: true
+    test_command: "bun test"
+  verify:
+    test_command: "bun test"
+    build_command: "bun run build"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas

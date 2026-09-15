@@ -30,8 +30,8 @@ created.
 If it passes: opens a PR against `master` from an `automation/regenerate-*`
 branch, committing only `out/`, with a commit message and PR body that name
 which repos moved and how the plugin/core/template/WCS/unknowns counts
-changed. Then it either enables auto-merge or deliberately withholds it — see
-"The auto-merge gate is narrower than CI is green" below.
+changed. Then it waits for the required checks and merges — or deliberately
+refuses to, see "The merge gate is narrower than CI is green" below.
 
 ## The `REGEN_PAT` secret is required
 
@@ -137,7 +137,7 @@ WAZUH_CTX_NETWORK=1 bun test  # optional, matches the freshness gate above
 ```
 
 
-## The auto-merge gate is narrower than "CI is green"
+## The merge gate is narrower than "CI is green"
 
 `regenerate.yml` does **not** auto-merge every PR it opens.
 
@@ -146,10 +146,26 @@ the regenerated `matrix.json`. That means a field became derivable and the
 derived value disagrees with a human decision in `decisions.yml` — either the
 rule is wrong or the decision was.
 
-- **Zero conflicts** → `gh pr merge --auto --squash`. The diff is generated and
-  deterministic, nobody reads it line by line, and nobody should have to.
-- **One or more** → auto-merge is deliberately withheld, the PR is labelled
+- **Zero conflicts** → wait for the required checks, then merge. The diff is
+  generated and deterministic, nobody reads it line by line, and nobody should
+  have to.
+- **One or more** → the merge is deliberately withheld, the PR is labelled
   `needs-human-review`, and its body says why.
+
+### Why it waits instead of using GitHub's auto-merge
+
+`gh pr merge --auto` enables auto-merge through the `enablePullRequestAutoMerge`
+GraphQL mutation, and a fine-grained PAT cannot call it:
+
+    GraphQL: Resource not accessible by personal access token
+
+Observed in run 35012830351 — the PR itself was created fine, so this is a
+limitation of that one mutation, not of the token generally. Watching the checks
+and merging needs only permissions the token already has and has already used.
+
+`--required` watches the checks the ruleset actually gates on, so a slow
+third-party app cannot hold the regeneration hostage. The step is bounded at 20
+minutes: a check that never reports should fail the job, not occupy a runner.
 
 SPEC 5.4 calls that cross-check "probably the most valuable signal this system
 emits" and requires explicit human review for it. **No test fails on a

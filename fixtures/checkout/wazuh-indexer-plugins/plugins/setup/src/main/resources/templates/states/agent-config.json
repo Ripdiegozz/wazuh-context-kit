@@ -1,0 +1,6 @@
+{
+  "index_patterns": ["wazuh-states-agent-config-*"],
+  "template": {
+    "settings": { "number_of_shards": 1 }
+  }
+}

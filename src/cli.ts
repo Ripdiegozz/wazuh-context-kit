@@ -7,13 +7,18 @@
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { allFacts } from "../fixtures/facts.ts";
 import { loadHumanLayers } from "./decisions/load.ts";
+import { cacheDirFor } from "./fetch/clone.ts";
+import { createFetchIo } from "./fetch/git-runner.ts";
+import { fetchRepos } from "./fetch/index.ts";
 import { buildMatrix } from "./matrix/build.ts";
 import { renderMatrixMarkdown } from "./matrix/render.ts";
 import type { BuildInput } from "./matrix/types.ts";
+import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
+import { loadSources } from "./sources.ts";
 
 const VERSION = "0.1.0";
 const TOOL = `wazuh-ctx@${VERSION}`;
@@ -40,6 +45,7 @@ COMMANDS
 OPTIONS
   --ref <ref>           Branch to target (default: 5.0.0)
   --fixtures            Build from bundled fixtures; no clone, no network
+  --refresh             Refresh cached checkouts in place instead of reusing them
   --strict              Exit non-zero when unknowns[] is non-empty
   --frozen-time <iso>   Pin meta.generatedAt for reproducible runs
   --out <dir>           Output directory (default: out)
@@ -51,46 +57,120 @@ interface CommandResult {
   code: number;
 }
 
-async function runMatrix(values: Record<string, unknown>): Promise<CommandResult> {
-  const ref = (values.ref as string | undefined) ?? "5.0.0";
-  const outDir = (values.out as string | undefined) ?? "out";
-  const frozenTime = values["frozen-time"] as string | undefined;
-  const useFixtures = values.fixtures === true;
+/** Oldest wins: staleness must be conservative (design decision, resolvedAt). */
+function oldestIso(values: readonly string[]): string | null {
+  if (values.length === 0) return null;
+  return values.reduce((oldest, current) => (current < oldest ? current : oldest));
+}
 
-  if (!useFixtures) {
-    console.error(
-      "wazuh-ctx matrix: fetch/ and parse/ are not implemented yet.\n" +
-        "This is the documented build order (SPEC 7): matrix/ is built first\n" +
-        "against fixtures, then the inspector, then fetch/parse.\n\n" +
-        "Run with --fixtures to exercise the pure core today.",
-    );
-    return { code: 2 };
-  }
-
-  const layers = await loadHumanLayers(process.cwd());
-
-  const now = new Date().toISOString();
-  const input: BuildInput = {
+async function buildFromFixtures(
+  layers: Awaited<ReturnType<typeof loadHumanLayers>>,
+  ref: string,
+  generatedAt: string,
+): Promise<BuildInput> {
+  return {
     decisions: layers.decisions,
     annotations: layers.annotations,
     ref,
     facts: allFacts,
-    // Synthetic until fetch/ lands; the shape is what matters here.
     resolvedRefs: Object.fromEntries(
       [...new Set(allFacts.map((f) => f.repo))].map((repo) => [
         repo,
         allFacts.find((f) => f.repo === repo)!.commit,
       ]),
     ),
-    // resolvedAt describes when the SHAs were resolved, NOT when this ran.
-    // --frozen-time pins generatedAt only (SPEC 1.6.1). Conflating the two
-    // leaks wall-clock into the payload and breaks byte-identical MATRIX.md.
     // Fixture SHAs are constants, so their resolution instant is one too.
-    resolvedAt: useFixtures ? FIXTURE_RESOLVED_AT : now,
-    generatedAt: frozenTime ?? now,
+    resolvedAt: FIXTURE_RESOLVED_AT,
+    generatedAt,
     tool: TOOL,
     skipped: [{ repo: "wazuh-dashboard-ml-commons", reason: "no 5.0.0 branch" }],
   };
+}
+
+async function buildFromRealData(
+  layers: Awaited<ReturnType<typeof loadHumanLayers>>,
+  ref: string,
+  generatedAt: string,
+  refresh: boolean,
+): Promise<BuildInput | { fatal: string }> {
+  let sources: Awaited<ReturnType<typeof loadSources>>;
+  try {
+    sources = await loadSources(process.cwd());
+  } catch (error) {
+    return { fatal: (error as Error).message };
+  }
+
+  const cacheRoot = resolve(process.cwd(), ".cache");
+  const io = createFetchIo();
+
+  let fetchOutcome: Awaited<ReturnType<typeof fetchRepos>>;
+  try {
+    fetchOutcome = await fetchRepos({ repos: sources.repos, ref, cacheRoot, refresh, io });
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      return { fatal: `git not found on PATH (${err.message})` };
+    }
+    throw error;
+  }
+
+  const targets = toParseTargets(sources, fetchOutcome.fetched);
+  const parsed = await parseFetchedRepos(targets);
+
+  // resolvedAt lives inside the hashed payload (build.ts) and must never come
+  // from the wall clock (design finding 1): read it back from the cache
+  // stamp fetch/ already wrote, oldest across all fetched repos.
+  const stampResolvedAts = await Promise.all(
+    fetchOutcome.fetched.map(async (repo) => {
+      const stampPath = `${cacheDirFor(cacheRoot, repo.repo, ref)}.fetch.json`;
+      const raw = await io.readStamp(stampPath);
+      if (raw === null) return null;
+      try {
+        return (JSON.parse(raw) as { resolvedAt: string }).resolvedAt;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  const validResolvedAts = stampResolvedAts.filter((value): value is string => value !== null);
+  // Edge case: nothing fetched at all (every repo skipped) — nothing to be
+  // deterministic about, so the clock is the only reasonable source left.
+  const resolvedAt = oldestIso(validResolvedAts) ?? io.now();
+
+  return {
+    decisions: layers.decisions,
+    annotations: layers.annotations,
+    ref,
+    facts: parsed.facts,
+    templates: parsed.templates,
+    wcsModules: parsed.wcsModules,
+    resolvedRefs: Object.fromEntries(fetchOutcome.fetched.map((f) => [f.repo, f.commit])),
+    resolvedAt,
+    generatedAt,
+    tool: TOOL,
+    skipped: fetchOutcome.skipped,
+  };
+}
+
+async function runMatrix(values: Record<string, unknown>): Promise<CommandResult> {
+  const ref = (values.ref as string | undefined) ?? "5.0.0";
+  const outDir = (values.out as string | undefined) ?? "out";
+  const frozenTime = values["frozen-time"] as string | undefined;
+  const useFixtures = values.fixtures === true;
+  const useRefresh = values.refresh === true;
+
+  const layers = await loadHumanLayers(process.cwd());
+  const now = new Date().toISOString();
+  const generatedAt = frozenTime ?? now;
+
+  const input = useFixtures
+    ? await buildFromFixtures(layers, ref, generatedAt)
+    : await buildFromRealData(layers, ref, generatedAt, useRefresh);
+
+  if ("fatal" in input) {
+    console.error(`wazuh-ctx matrix: ${input.fatal}`);
+    return { code: 2 };
+  }
 
   const matrix = buildMatrix(input);
   const markdown = renderMatrixMarkdown(matrix);
@@ -182,6 +262,7 @@ async function main(): Promise<number> {
         out: { type: "string" },
         "frozen-time": { type: "string" },
         fixtures: { type: "boolean" },
+        refresh: { type: "boolean" },
         strict: { type: "boolean" },
         help: { type: "boolean", short: "h" },
       },

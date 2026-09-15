@@ -1,0 +1,6 @@
+{
+  "id": "wazuhCheckUpdates",
+  "configPath": ["wazuh_check_updates"],
+  "requiredPlugins": ["navigation", "wazuhCore"],
+  "optionalPlugins": []
+}

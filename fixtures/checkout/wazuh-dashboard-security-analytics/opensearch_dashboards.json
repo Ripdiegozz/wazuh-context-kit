@@ -1,0 +1,14 @@
+{
+  "id": "securityAnalyticsDashboards",
+  "configPath": ["opensearch_security_analytics"],
+  "opensearchDashboardsVersion": "3.6.0",
+  "requiredPlugins": [
+    "data",
+    "navigation",
+    "opensearchDashboardsUtils",
+    "contentManagement",
+    "opensearchDashboardsReact"
+  ],
+  "optionalPlugins": ["dataSource", "dataSourceManagement"],
+  "requiredOSDataSourcePlugins": ["opensearch-security-analytics"]
+}

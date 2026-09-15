@@ -1,0 +1,6 @@
+{
+  "id": "wazuhAiAssistant",
+  "configPath": ["wazuh_ai_assistant"],
+  "requiredPlugins": ["navigation", "wazuhCore"],
+  "optionalPlugins": []
+}

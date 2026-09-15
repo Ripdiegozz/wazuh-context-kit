@@ -1,0 +1,4 @@
+field,type,description
+data.id,keyword,Unique identifier
+data.name,keyword,Name of the decoder
+data.timestamp,date,Timestamp of the event

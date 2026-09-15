@@ -24,7 +24,7 @@ phases:
   spec: done
   design: done
   tasks: done
-  apply: ready
+  apply: in-progress   # code written for all 51 tasks; bun test/typecheck/build NOT run (no shell tool this session) — see apply-progress.md
   verify: blocked
   archive: blocked
 
@@ -37,6 +37,7 @@ artifacts:
     - openspec/changes/phase-1-real-data/specs/matrix-pipeline/spec.md
   design: openspec/changes/phase-1-real-data/design.md
   tasks: openspec/changes/phase-1-real-data/tasks.md
+  apply_progress: openspec/changes/phase-1-real-data/apply-progress.md
 
 pending_decision: none
 

@@ -1,0 +1,6 @@
+{
+  "id": "wazuhCore",
+  "configPath": ["wazuh_core"],
+  "requiredPlugins": ["opensearchDashboardsReact"],
+  "optionalPlugins": ["securityDashboards"]
+}

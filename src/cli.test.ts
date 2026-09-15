@@ -32,7 +32,11 @@ const FROZEN_TIME = "2026-01-01T00:00:00Z";
  * commit, and an unintentional one fails review instead of passing silently.
  */
 const FIXTURES_PAYLOAD_HASH =
-  "sha256:1f9274f57051dff4dc31b8f03ba38333f1a625896ddadf68f40f3348a9ad2bfe";
+  "sha256:ad56451d4204d72292b55b7f8667b779aa3791e836216398a603186e1a435277";
+// Moved from sha256:1f9274f5… when `core` and `unresolvedDependencies` entered
+// the hashed payload (design D5). The old value is kept in this comment on
+// purpose: the pin exists so a payload change is a deliberate edit in the same
+// commit, and a reviewer can see exactly which change moved it.
 
 interface RunResult {
   readonly code: number;

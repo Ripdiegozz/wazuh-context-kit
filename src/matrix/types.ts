@@ -42,6 +42,13 @@ export interface RawManifest {
   configPath?: string[];
   opensearchDashboardsVersion?: string;
   requiredOSDataSourcePlugins?: string[];
+  /**
+   * Bundles a plugin loads at runtime. Present on every core manifest
+   * inspected. Recorded and reported as a dependency edge; deliberately NOT
+   * consulted by any classifier -- widening a rule on a field we have not
+   * studied is how a rule stops describing a property.
+   */
+  requiredBundles?: string[];
 }
 
 /**
@@ -57,6 +64,32 @@ export interface RawPluginFacts {
   manifest: RawManifest;
   /** `version` from the sibling package.json. Null when absent from checkout. */
   packageVersion: string | null;
+}
+
+/**
+ * What `parse/` emits for one OpenSearch Dashboards core plugin.
+ *
+ * Deliberately narrower than `RawPluginFacts`: no `packageJsonPath`, no
+ * `packageVersion`, no `repoKind`. Only 2 of the 64 core plugins at 5.0.0 have
+ * a sibling package.json, so reusing that type would mean setting
+ * `packageVersion: null` 62 times and then teaching `build.ts` to suppress the
+ * `unknowns[]` entry it emits for exactly that case. Suppressing a rule for one
+ * caller is how a pure function stops being one (design D3).
+ */
+export interface RawCoreFacts {
+  pluginId: string;
+  pluginDir: string;
+  manifestPath: string;
+  manifest: RawManifest;
+}
+
+/** Repository-level core facts. Version and commit live here, not per plugin. */
+export interface RawCoreRepo {
+  repo: string;
+  commit: string;
+  /** From the repository root package.json. Null when absent -- not an unknown. */
+  version: string | null;
+  facts: RawCoreFacts[];
 }
 
 export interface DerivedEvidence {
@@ -89,6 +122,8 @@ export interface MatrixPlugin {
   requiredOSDataSourcePlugins: string[];
   requiredPlugins: string[];
   optionalPlugins: string[];
+  /** Runtime bundle edges. Reported by the resolver, never classified on. */
+  requiredBundles: string[];
   /** Where this plugin record came from. Always present. */
   evidence: Evidence;
   /**
@@ -102,6 +137,47 @@ export interface MatrixPlugin {
   assertions: Record<string, AssertedEvidence>;
   /** Layer 3. Additive only; never changes a value above (SPEC 1.7.2). */
   annotations: PluginAnnotation[];
+}
+
+/**
+ * A core plugin as it appears in the matrix.
+ *
+ * Carries identity, dependency edges, and evidence -- nothing else. It has no
+ * `world`, `versionScheme`, or `serverApiAccess`: those describe a
+ * Wazuh-native or fork plugin, and assigning them here would fabricate facts.
+ */
+export interface CorePlugin {
+  pluginId: string;
+  pluginDir: string;
+  requiredPlugins: string[];
+  optionalPlugins: string[];
+  requiredBundles: string[];
+  evidence: DerivedEvidence;
+}
+
+/** One platform repository's core plugins, with its single repo-level version. */
+export interface CoreRepo {
+  repo: string;
+  version: string | null;
+  plugins: CorePlugin[];
+}
+
+/**
+ * A declared dependency that resolves to no plugin the matrix knows.
+ *
+ * This is the question the core section exists to answer. `optionalPlugins` is
+ * deliberately not checked: an absent optional dependency is the feature
+ * working as designed, and reporting it would be noise indistinguishable from
+ * signal (design D4).
+ */
+export interface UnresolvedDependency {
+  /** The depending plugin's id. */
+  plugin: string;
+  /** The depending plugin's repository. */
+  repo: string;
+  /** The id that resolves to nothing. */
+  dependency: string;
+  field: "requiredPlugins" | "requiredBundles";
 }
 
 export interface PluginAnnotation {
@@ -160,6 +236,10 @@ export interface MatrixJson {
   resolvedAt: string;
   resolvedRefs: Record<string, string>;
   plugins: MatrixPlugin[];
+  /** Platform repositories' core plugins. Additive: never merged into plugins[]. */
+  core: CoreRepo[];
+  /** Declared dependencies with no destination, sorted deterministically. */
+  unresolvedDependencies: UnresolvedDependency[];
   indexer: { templates: IndexTemplate[]; wcsModules: WcsModule[] };
   skipped: Skipped[];
   unknowns: Unknown[];
@@ -175,6 +255,8 @@ export interface BuildInput {
   generatedAt: string;
   tool: string;
   skipped?: Skipped[];
+  /** Optional so every existing caller and test compiles unchanged. */
+  coreRepos?: RawCoreRepo[];
   templates?: IndexTemplate[];
   wcsModules?: WcsModule[];
   /** Layer 2, already parsed. Loading the YAML is I/O and lives outside. */

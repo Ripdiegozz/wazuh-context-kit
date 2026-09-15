@@ -137,9 +137,38 @@ above outstanding. Artifacts live in `openspec/changes/phase-1-real-data/`:
 `exploration.md`, `proposal.md`, `specs/`, `design.md`, `tasks.md`,
 `apply-progress.md`, `verify-report.md`, `state.yaml`.
 
-The runtime attempt ledger was reset on 2026-09-14 (budget declared at 1500
-lines, real change was 3092 including the dataset). History is preserved:
-`lifetime_changed_lines: 3092`.
+### Runtime attempt ledger — one pending maintainer action
+
+Two attempts ran, both recorded `passed` with their evidence:
+
+| attempt | work unit | declared budget | real | outcome |
+|---|---|---|---|---|
+| 1 | implement fetch and parse | 1500 | 3092 | passed, reset 2026-09-14 |
+| 2 | verify against specs | 600 | 887 | passed, **reset pending** |
+
+**Pending:** attempt 2 is blocked on `maintainer_decision` because the declared
+changed-line budget was exceeded. A reset is a maintainer decision and is never
+automatic, so it was deliberately not run. It adjusts the budget going forward
+and preserves history — `lifetime_changed_lines` keeps the real totals.
+
+```bash
+gentle-ai sdd-attempt status --cwd . --change phase-1-real-data
+# then, with the revision that prints:
+gentle-ai sdd-attempt reset --cwd . --change phase-1-real-data \
+  --expected-revision <revision> --request-id reset-p1rd-002 \
+  --reason "verify budget declared at 600; real change was 887" \
+  --actor diego.garcia
+```
+
+Run it from inside the repository — `--cwd .` resolves to wherever you are, and
+from a home directory it fails with an unhelpful suggestion to `git init` there.
+Do not follow that suggestion.
+
+**Lesson worth carrying:** both blocks came from the same mistake — the
+orchestrator declaring `--max-changed-lines` from an estimate rather than from
+measurement. Documentation and generated datasets are easy to forget in a
+forecast. Declare generously; the budget is a promise, and a broken one costs a
+maintainer round-trip every time.
 
 **Note for the next session:** Engram filed most of this work under a scratch
 project name rather than `wazuh-context-kit`, because the repo has no

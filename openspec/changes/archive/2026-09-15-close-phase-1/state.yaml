@@ -17,19 +17,30 @@ phases:
   design: done
   tasks: done
   apply: pending
-  verify: pending
-  archive: pending
+  verify: done
+  archive: done
+
+closed: 2026-09-15
+archived_to: openspec/changes/archive/2026-09-15-close-phase-1/
 
 artifacts:
-  exploration: openspec/changes/close-phase-1/exploration.md
-  research: openspec/changes/close-phase-1/research.md
-  proposal: openspec/changes/close-phase-1/proposal.md
+  exploration: openspec/changes/archive/2026-09-15-close-phase-1/exploration.md
+  research: openspec/changes/archive/2026-09-15-close-phase-1/research.md
+  proposal: openspec/changes/archive/2026-09-15-close-phase-1/proposal.md
   specs:
-    - openspec/changes/close-phase-1/specs/repo-fetch/spec.md
-    - openspec/changes/close-phase-1/specs/source-parse/spec.md
-    - openspec/changes/close-phase-1/specs/crosscheck/spec.md
-  design: openspec/changes/close-phase-1/design.md
-  tasks: openspec/changes/close-phase-1/tasks.md
+    - openspec/changes/archive/2026-09-15-close-phase-1/specs/repo-fetch/spec.md
+    - openspec/changes/archive/2026-09-15-close-phase-1/specs/source-parse/spec.md
+    - openspec/changes/archive/2026-09-15-close-phase-1/specs/crosscheck/spec.md
+  design: openspec/changes/archive/2026-09-15-close-phase-1/design.md
+  tasks: openspec/changes/archive/2026-09-15-close-phase-1/tasks.md
+  apply_progress: openspec/changes/archive/2026-09-15-close-phase-1/apply-progress.md
+  verify_report: openspec/changes/archive/2026-09-15-close-phase-1/verify-report.md
+  archive_report: openspec/changes/archive/2026-09-15-close-phase-1/archive-report.md
+
+merged_specs:
+  - openspec/specs/repo-fetch/spec.md      # additive
+  - openspec/specs/source-parse/spec.md    # 1 SUPERSEDED, invisible by title
+  - openspec/specs/crosscheck/spec.md      # new capability
 
 forecast:
   authored_lines_estimate: 2000
@@ -97,7 +108,7 @@ confirmed_decisions:
       project's own typescript down to the classic 6.x line (one package and a
       real API, but moving a whole project's toolchain so an analysis tool can
       read two files is the tail wagging the dog).
-    evidence: openspec/changes/close-phase-1/research.md#what-this-means-for-the-decision
+    evidence: openspec/changes/archive/2026-09-15-close-phase-1/research.md#what-this-means-for-the-decision
 
   - id: single-plugin-repo-scope
     answered: include-them

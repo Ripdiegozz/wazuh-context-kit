@@ -216,6 +216,39 @@ export interface Skipped {
   reason: string;
 }
 
+/**
+ * An index name referenced by plugin source.
+ *
+ * `via` says how it was recovered, because the three routes carry different
+ * confidence: a catalog literal is the declaration, an import is a real
+ * consumer, and a saved-object title is an asset that names an index without
+ * any code reading it.
+ */
+export interface IndexReference {
+  name: string;
+  /** Repo-relative, POSIX. */
+  file: string;
+  line: number;
+  via: "catalog-literal" | "import" | "saved-object";
+  /** The constant's name, when the reference came through one. */
+  identifier?: string;
+}
+
+/**
+ * A site where an index name is decided by something a syntactic scan cannot
+ * resolve.
+ *
+ * This is data, not a caveat in prose. A report claiming an index has no
+ * consumer is FALSE when a consumer reaches it through one of these, so the
+ * limits travel with the result.
+ */
+export interface UncoveredMechanism {
+  kind: "regex-allowlist" | "runtime-configuration" | "computed-expression";
+  file: string;
+  line: number;
+  note: string;
+}
+
 export interface IndexTemplate {
   name: string;
   path: string;

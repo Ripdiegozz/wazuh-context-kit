@@ -26,7 +26,19 @@ export function sparsePathsFor(kind: RepoKind): string[] {
       // a local dev mount point rather than repository content.
       return ["src/plugins"];
     case "dashboard":
-      return ["plugins"];
+      // Two repository shapes, one path set.
+      //
+      // `wazuh-dashboard-plugins` is a monorepo: its plugins live under
+      // `plugins/<name>/`, so `plugins` brings the whole source tree. The other
+      // five dashboard repos ARE each a single plugin -- their code sits in
+      // `server/`, `public/` and `common/` and they have no `plugins/` at all,
+      // so that one path left them ~20 root files and not a line of source.
+      //
+      // Cone mode ignores a declared path a repository does not have, so
+      // listing all four covers both shapes with no per-repo special-casing.
+      // The hazard this replaces: a declared path matching nothing is
+      // indistinguishable from a repository containing nothing.
+      return ["plugins", "server", "public", "common"];
     case "indexer":
       return [
         "plugins/setup/src/main/resources/templates",

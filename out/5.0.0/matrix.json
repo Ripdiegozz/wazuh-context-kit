@@ -1,14 +1,14 @@
 {
   "meta": {
-    "generatedAt": "2026-09-15T19:18:43.026Z",
+    "generatedAt": "2026-09-15T20:01:39.616Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:3e69354d131d9fd84772c8fa5ee8abd20d8d590ec8e6d8d2ab651a0890e5d5ab",
+  "payloadHash": "sha256:68a0570ea06797523018fa612a9101cb16ce3d0551c44fe1065d6032e0ed5d36",
   "ref": "5.0.0",
-  "resolvedAt": "2026-09-15T19:18:47.762Z",
+  "resolvedAt": "2026-09-15T20:01:45.643Z",
   "resolvedRefs": {
     "wazuh-dashboard": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401",
-    "wazuh-dashboard-plugins": "a36f332a8f104a55f52e28460a94951c85dae694",
+    "wazuh-dashboard-plugins": "89abfb7cb84ed71d07b82df654bf880d5661b46b",
     "wazuh-dashboard-alerting": "48b0fc05d3a9cf67eaf3d829d47992a5398cc310",
     "wazuh-dashboard-notifications": "deebf080ade530eb662ff8599a57ed6e24198554",
     "wazuh-dashboard-reporting": "71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a",
@@ -147,7 +147,7 @@
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
+        "commit": "89abfb7cb84ed71d07b82df654bf880d5661b46b"
       },
       "assertions": {},
       "annotations": []
@@ -179,7 +179,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
+        "commit": "89abfb7cb84ed71d07b82df654bf880d5661b46b"
       },
       "assertions": {},
       "annotations": []
@@ -208,7 +208,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
+        "commit": "89abfb7cb84ed71d07b82df654bf880d5661b46b"
       },
       "assertions": {},
       "annotations": []
@@ -235,7 +235,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
+        "commit": "89abfb7cb84ed71d07b82df654bf880d5661b46b"
       },
       "assertions": {
         "world": {
@@ -1729,8 +1729,105 @@
   "indexer": {
     "templates": [
       {
+        "name": "decoders",
+        "path": "plugins/setup/src/main/resources/templates/content/decoders.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-decoders*"
+        ]
+      },
+      {
+        "name": "filters",
+        "path": "plugins/setup/src/main/resources/templates/content/filters.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-filters"
+        ]
+      },
+      {
+        "name": "integrations",
+        "path": "plugins/setup/src/main/resources/templates/content/integrations.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-integrations*"
+        ]
+      },
+      {
+        "name": "ioc",
+        "path": "plugins/setup/src/main/resources/templates/content/ioc.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-enrichments*"
+        ]
+      },
+      {
+        "name": "kvdbs",
+        "path": "plugins/setup/src/main/resources/templates/content/kvdbs.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-kvdbs*"
+        ]
+      },
+      {
+        "name": "policies",
+        "path": "plugins/setup/src/main/resources/templates/content/policies.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-policies*"
+        ]
+      },
+      {
+        "name": "rules",
+        "path": "plugins/setup/src/main/resources/templates/content/rules.json",
+        "group": "content",
+        "indexPatterns": [
+          "wazuh-threatintel-rules*"
+        ]
+      },
+      {
+        "name": "vulnerabilities",
+        "path": "plugins/setup/src/main/resources/templates/content/vulnerabilities.json",
+        "group": "content",
+        "indexPatterns": [
+          ".wazuh-threatintel-vulnerabilities*"
+        ]
+      },
+      {
+        "name": "cve",
+        "path": "plugins/setup/src/main/resources/templates/cve.json",
+        "group": "",
+        "indexPatterns": [
+          "wazuh-cve*"
+        ]
+      },
+      {
+        "name": "ism-config",
+        "path": "plugins/setup/src/main/resources/templates/ism-config.json",
+        "group": "",
+        "indexPatterns": [
+          ".opendistro-ism-config"
+        ]
+      },
+      {
+        "name": "settings",
+        "path": "plugins/setup/src/main/resources/templates/settings.json",
+        "group": "",
+        "indexPatterns": [
+          ".wazuh-settings*"
+        ]
+      },
+      {
+        "name": "setup-status",
+        "path": "plugins/setup/src/main/resources/templates/setup-status.json",
+        "group": "",
+        "indexPatterns": [
+          ".wazuh-setup-status*"
+        ]
+      },
+      {
         "name": "agent-config",
         "path": "plugins/setup/src/main/resources/templates/states/agent-config.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-agent-config*"
         ]
@@ -1738,6 +1835,7 @@
       {
         "name": "agent-stats",
         "path": "plugins/setup/src/main/resources/templates/states/agent-stats.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-agent-stats*"
         ]
@@ -1745,6 +1843,7 @@
       {
         "name": "fim-files",
         "path": "plugins/setup/src/main/resources/templates/states/fim-files.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-fim-files*"
         ]
@@ -1752,6 +1851,7 @@
       {
         "name": "fim-registry-keys",
         "path": "plugins/setup/src/main/resources/templates/states/fim-registry-keys.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-fim-registry-keys*"
         ]
@@ -1759,6 +1859,7 @@
       {
         "name": "fim-registry-values",
         "path": "plugins/setup/src/main/resources/templates/states/fim-registry-values.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-fim-registry-values*"
         ]
@@ -1766,6 +1867,7 @@
       {
         "name": "inventory-browser-extensions",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-browser-extensions.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-browser-extensions*"
         ]
@@ -1773,6 +1875,7 @@
       {
         "name": "inventory-groups",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-groups.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-groups*"
         ]
@@ -1780,6 +1883,7 @@
       {
         "name": "inventory-hardware",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-hardware.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-hardware*"
         ]
@@ -1787,6 +1891,7 @@
       {
         "name": "inventory-hotfixes",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-hotfixes.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-hotfixes*"
         ]
@@ -1794,6 +1899,7 @@
       {
         "name": "inventory-interfaces",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-interfaces.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-interfaces*"
         ]
@@ -1801,6 +1907,7 @@
       {
         "name": "inventory-networks",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-networks.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-networks*"
         ]
@@ -1808,6 +1915,7 @@
       {
         "name": "inventory-packages",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-packages.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-packages*"
         ]
@@ -1815,6 +1923,7 @@
       {
         "name": "inventory-ports",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-ports.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-ports*"
         ]
@@ -1822,6 +1931,7 @@
       {
         "name": "inventory-processes",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-processes.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-processes*"
         ]
@@ -1829,6 +1939,7 @@
       {
         "name": "inventory-protocols",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-protocols.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-protocols*"
         ]
@@ -1836,6 +1947,7 @@
       {
         "name": "inventory-services",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-services.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-services*"
         ]
@@ -1843,6 +1955,7 @@
       {
         "name": "inventory-system",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-system.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-system*"
         ]
@@ -1850,6 +1963,7 @@
       {
         "name": "inventory-users",
         "path": "plugins/setup/src/main/resources/templates/states/inventory-users.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-inventory-users*"
         ]
@@ -1857,6 +1971,7 @@
       {
         "name": "sca",
         "path": "plugins/setup/src/main/resources/templates/states/sca.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-sca*"
         ]
@@ -1864,8 +1979,73 @@
       {
         "name": "vulnerabilities",
         "path": "plugins/setup/src/main/resources/templates/states/vulnerabilities.json",
+        "group": "states",
         "indexPatterns": [
           "wazuh-states-vulnerabilities*"
+        ]
+      },
+      {
+        "name": "active-responses",
+        "path": "plugins/setup/src/main/resources/templates/streams/active-responses.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-active-responses*"
+        ]
+      },
+      {
+        "name": "ai-assistant-sessions",
+        "path": "plugins/setup/src/main/resources/templates/streams/ai-assistant-sessions.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-ai-assistant-sessions*"
+        ]
+      },
+      {
+        "name": "events",
+        "path": "plugins/setup/src/main/resources/templates/streams/events.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-events-v5*"
+        ]
+      },
+      {
+        "name": "findings",
+        "path": "plugins/setup/src/main/resources/templates/streams/findings.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-findings-v5*"
+        ]
+      },
+      {
+        "name": "metrics-agents",
+        "path": "plugins/setup/src/main/resources/templates/streams/metrics-agents.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-metrics-agents*"
+        ]
+      },
+      {
+        "name": "metrics-comms",
+        "path": "plugins/setup/src/main/resources/templates/streams/metrics-comms.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-metrics-comms-v4*"
+        ]
+      },
+      {
+        "name": "metrics-normalization",
+        "path": "plugins/setup/src/main/resources/templates/streams/metrics-normalization.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-metrics-normalization*"
+        ]
+      },
+      {
+        "name": "raw",
+        "path": "plugins/setup/src/main/resources/templates/streams/raw.json",
+        "group": "streams",
+        "indexPatterns": [
+          "wazuh-events-raw-v5*"
         ]
       }
     ],

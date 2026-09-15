@@ -804,7 +804,17 @@ inversa quedó sin cubrir. Lo que no se hace, se dice.
 - [ ] `pluginId` sale siempre de `manifest.id`. Test que falla si el generador
       cae al nombre del directorio cuando el manifiesto no declara `id`.
 - [ ] `wazuh-dashboard-ml-commons` aparece en `skipped` con motivo. No crashea.
-- [ ] Se listan ≥ 18 templates bajo `templates/states/`.
+- [x] Se listan **todos** los index templates bajo `templates/`, sea cual sea su
+      subdirectorio, y cada uno declara de qué grupo salió. **Verificado
+      2026-09-15: 40 templates — 20 `states`, 8 `streams`, 8 `content`, 4 en la
+      raíz de `templates/`.**
+
+      El criterio anterior decía "≥ 18 templates bajo `templates/states/`" y era
+      infalsificable contra el defecto real: el parser leía solo `states/`, los
+      20 que encontraba cumplían "≥ 18", y los otros 20 quedaban invisibles. Un
+      criterio que nombra un directorio no puede notar un directorio hermano.
+      Este cuenta el total y reporta el grupo, así que una cuarta carpeta
+      apareciendo upstream se ve sola.
 - [ ] Segunda corrida consecutiva funciona **sin red** (cache).
 - [ ] Dos corridas consecutivas sobre el mismo cache producen **idéntico**
       `payloadHash`. Si difieren, falla.

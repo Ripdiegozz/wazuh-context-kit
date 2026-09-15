@@ -37,7 +37,7 @@ against a real run. There is now an opt-in guard that does
 | `src/skills/` | Phase 2 — **empty** |
 | `src/mcp/` | Phase 3 — **empty** |
 | `ui/` | Phase 1.5 inspector — **empty** |
-| `.github/workflows/` | regeneration workflow (SPEC 5.4) — **empty** |
+| `.github/workflows/` | `ci.yml` + `regenerate.yml` (SPEC 5.4). Done, see below. |
 
 ## Getting running on a new machine
 

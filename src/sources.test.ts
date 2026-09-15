@@ -28,6 +28,16 @@ describe("loadSources", () => {
     await expect(loadSources(join(FIXTURES_ROOT, "bad"))).rejects.toThrow(/kind/);
   });
 
+  /**
+   * SPEC: credentials come from the environment, never from committed
+   * configuration. `sources.yml` is committed, so a username or password
+   * field in it is a credential in git -- it must be rejected outright, not
+   * silently stripped and quietly ignored.
+   */
+  test("rejects a repo entry carrying a username or password field, rather than honouring it", async () => {
+    await expect(loadSources(join(FIXTURES_ROOT, "creds"))).rejects.toThrow();
+  });
+
   test("throws naming the path when sources.yml is missing", async () => {
     const missingRoot = join(FIXTURES_ROOT, "does-not-exist");
 

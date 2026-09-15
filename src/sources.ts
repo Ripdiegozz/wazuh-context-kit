@@ -20,11 +20,24 @@ export interface RepoSource {
 
 const repoKindSchema = z.enum(["platform", "dashboard", "indexer"]);
 
-const repoSourceSchema = z.object({
-  name: z.string().min(1),
-  kind: repoKindSchema,
-});
+/**
+ * `.strict()` on purpose (SPEC: "credentials come from the environment,
+ * never from committed configuration"). `sources.yml` is committed; a plain
+ * `z.object()` here would silently STRIP an unknown `username` or `password`
+ * field and validate anyway, which quietly honours exactly the shape this
+ * requirement forbids. Rejecting it outright is the only way a stray
+ * credential field in a committed file gets noticed instead of ignored.
+ */
+const repoSourceSchema = z
+  .object({
+    name: z.string().min(1),
+    kind: repoKindSchema,
+  })
+  .strict();
 
+// NOT `.strict()` at this level: the real `sources.yml` carries a hand-
+// maintained `docsVersionMap` block (SPEC 3.1) this loader does not read.
+// The credential boundary is per-repo-entry, not "no unknown top-level key".
 const sourcesFileSchema = z.object({
   refs: z.array(z.string().min(1)).min(1),
   repos: z.array(repoSourceSchema).min(1),

@@ -1,0 +1,6 @@
+refs:
+  - "5.0.0"
+
+repos:
+  - { name: wazuh-dashboard, kind: platform }
+  - { name: wazuh-indexer-plugins, kind: indexer, username: admin, password: hunter2 }

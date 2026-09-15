@@ -18,7 +18,12 @@ import { buildMatrix } from "./matrix/build.ts";
 import { renderMatrixMarkdown } from "./matrix/render.ts";
 import type { BuildInput } from "./matrix/types.ts";
 import { buildCrosscheck } from "./crosscheck/build.ts";
+import { buildLiveComparison, declaredFromWcsModules } from "./crosscheck/live.ts";
 import { renderCrosscheckMarkdown } from "./crosscheck/render.ts";
+import { renderLiveComparisonJson, renderLiveComparisonText } from "./crosscheck/render-live.ts";
+import { fetchClusterState } from "./indexer/client.ts";
+import { IndexerError } from "./indexer/types.ts";
+import type { FetchLike, HttpResponseLike } from "./indexer/types.ts";
 import { scanIndexReferences } from "./parse/index-references.ts";
 import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
 import { loadSources } from "./sources.ts";
@@ -52,8 +57,16 @@ OPTIONS
   --strict              Exit non-zero when unknowns[] is non-empty
   --frozen-time <iso>   Pin meta.generatedAt for reproducible runs
   --out <dir>           Output directory (default: out)
+  --indexer <url>       crosscheck: also compare against a running indexer (read-only)
+  --indexer-skip-tls-verify
+                        crosscheck: accept a certificate that does not validate
+  --format <text|json>  crosscheck: format of the --indexer comparison on stdout (default: text)
   -h, --help            Show this message
   -v, --version         Show version
+
+ENVIRONMENT (crosscheck --indexer only)
+  WAZUH_CTX_INDEXER_USERNAME, WAZUH_CTX_INDEXER_PASSWORD
+                        Indexer credentials. Never read from sources.yml.
 `;
 
 interface CommandResult {
@@ -347,6 +360,48 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
   console.log(`written                ${join(target, "crosscheck.json")}`);
   console.log(`                       ${join(target, "CROSSCHECK.md")}`);
 
+  // The live comparison, strictly after both writeFile calls above. This is
+  // what makes the byte-identical guarantee (SPEC: "runtime data never
+  // enters the committed artifact") hold BY CONSTRUCTION: nothing below this
+  // line can reach the values already written to out/<ref>/, because by the
+  // time it runs they are already on disk.
+  const indexerUrl = values.indexer as string | undefined;
+  if (indexerUrl !== undefined) {
+    const username = process.env.WAZUH_CTX_INDEXER_USERNAME;
+    const password = process.env.WAZUH_CTX_INDEXER_PASSWORD;
+    // Never both guessed at: either both are present, or none are sent. A
+    // 401 already covers "missing or wrong"; there is no third message to
+    // invent for "half-supplied".
+    const credentials = username !== undefined && password !== undefined ? { username, password } : undefined;
+    const skipTlsVerify = values["indexer-skip-tls-verify"] === true;
+    const format = (values.format as string | undefined) ?? "text";
+
+    // Bun's `fetch` already accepts the per-request `tls` override this
+    // client needs (design decision 5); this closure is the one place that
+    // touches the real network for the whole command.
+    const transport: FetchLike = (url, init) =>
+      fetch(url, init as RequestInit) as unknown as Promise<HttpResponseLike>;
+
+    try {
+      const state = await fetchClusterState(transport, indexerUrl, credentials, { skipTlsVerify });
+      // The live comparison's declared set is templates PLUS WCS modules: a
+      // WCS module's own template-settings.json declares patterns exactly
+      // like an indexer template does, and `declared` above (used for the
+      // OFFLINE crosscheck) deliberately does not carry them -- see
+      // declaredFromWcsModules's docblock for the defect this fixes.
+      const liveDeclared = [...declared, ...declaredFromWcsModules(parsed.wcsModules)];
+      const live = buildLiveComparison(state, liveDeclared);
+      console.log("");
+      console.log(format === "json" ? renderLiveComparisonJson(live) : renderLiveComparisonText(live));
+    } catch (error) {
+      if (error instanceof IndexerError) {
+        console.error(`wazuh-ctx crosscheck: ${error.message}`);
+        return { code: 2 };
+      }
+      throw error;
+    }
+  }
+
   return { code: 0 };
 }
 
@@ -384,6 +439,9 @@ async function main(): Promise<number> {
         fixtures: { type: "boolean" },
         refresh: { type: "boolean" },
         strict: { type: "boolean" },
+        indexer: { type: "string" },
+        "indexer-skip-tls-verify": { type: "boolean" },
+        format: { type: "string" },
         help: { type: "boolean", short: "h" },
       },
     });

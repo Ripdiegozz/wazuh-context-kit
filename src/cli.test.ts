@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -80,6 +80,25 @@ async function pathWithoutGit(): Promise<string> {
 async function workdirWithSources(fixture: "ok" | "bad"): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), `wazuh-ctx-cli-${fixture}-`));
   await copyFile(join(REPO_ROOT, "fixtures", "sources", fixture, "sources.yml"), join(dir, "sources.yml"));
+  return dir;
+}
+
+/**
+ * A throwaway working directory that reaches NO network at all, by reusing
+ * this checkout's own warm `.cache/` through a symlink.
+ *
+ * `fetchRepos` without `--refresh` cache-hits on `git -C <dir> rev-parse
+ * HEAD`, which is a fully local git invocation -- no `git ls-remote`, no
+ * clone. Symlinking (rather than copying) the 264 MB cache keeps this cheap.
+ * This is what makes a REAL, full `crosscheck` run usable as a test fixture
+ * without either touching the network or violating "no test may depend on a
+ * fixture file that encodes the same assumption as the code" -- the content
+ * here is a real repository checkout, not a fixture anyone wrote by hand.
+ */
+async function workdirWithWarmCache(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "wazuh-ctx-cli-warm-"));
+  await copyFile(join(REPO_ROOT, "fixtures", "sources", "ok", "sources.yml"), join(dir, "sources.yml"));
+  await symlink(join(REPO_ROOT, ".cache"), join(dir, ".cache"));
   return dir;
 }
 
@@ -248,4 +267,106 @@ describe("wazuh-ctx argument handling", () => {
       await rm(emptyPath, { recursive: true, force: true });
     }
   }, 60_000);
+});
+
+describe("wazuh-ctx crosscheck --indexer (crosscheck-live-indexer)", () => {
+  test(
+    "an unreachable --indexer produces out/<ref> byte-identical to running without it",
+    async () => {
+      const cwdWithout = await workdirWithWarmCache();
+      const cwdWith = await workdirWithWarmCache();
+      try {
+        const without = await runCli(
+          ["crosscheck", "--ref", REF, "--frozen-time", FROZEN_TIME, "--out", join(cwdWithout, "out")],
+          { cwd: cwdWithout },
+        );
+        expect(without.code).toBe(0);
+
+        // Port 1 refuses the connection immediately and needs no cluster:
+        // the point is exercising the ordering (writeFile happens BEFORE the
+        // indexer is ever contacted), not reaching a real indexer.
+        const withIndexer = await runCli(
+          [
+            "crosscheck",
+            "--ref",
+            REF,
+            "--frozen-time",
+            FROZEN_TIME,
+            "--out",
+            join(cwdWith, "out"),
+            "--indexer",
+            "https://127.0.0.1:1",
+          ],
+          { cwd: cwdWith },
+        );
+        // The tool failed to reach the indexer -- that is a real failure,
+        // not drift -- but both committed artifacts must already be on disk
+        // by the time that failure happens.
+        expect(withIndexer.code).not.toBe(0);
+
+        const readBoth = (file: string) =>
+          Promise.all([
+            readFile(join(cwdWithout, "out", REF, file), "utf8"),
+            readFile(join(cwdWith, "out", REF, file), "utf8"),
+          ]);
+
+        const [jsonWithout, jsonWith] = await readBoth("crosscheck.json");
+        const [mdWithout, mdWith] = await readBoth("CROSSCHECK.md");
+
+        expect(jsonWith).toBe(jsonWithout);
+        expect(mdWith).toBe(mdWithout);
+      } finally {
+        await rm(cwdWithout, { recursive: true, force: true });
+        await rm(cwdWith, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "an unreachable indexer exits non-zero and names the URL",
+    async () => {
+      const cwd = await workdirWithWarmCache();
+      try {
+        const result = await runCli(
+          [
+            "crosscheck",
+            "--ref",
+            REF,
+            "--frozen-time",
+            FROZEN_TIME,
+            "--out",
+            join(cwd, "out"),
+            "--indexer",
+            "https://127.0.0.1:1",
+          ],
+          { cwd },
+        );
+        expect(result.code).not.toBe(0);
+        expect(result.stderr).toContain("127.0.0.1:1");
+        expect(result.stderr).not.toContain("disagreement");
+      } finally {
+        await rm(cwd, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  test(
+    "absent --indexer leaves behaviour unchanged: no live section, exit 0",
+    async () => {
+      const cwd = await workdirWithWarmCache();
+      try {
+        const result = await runCli(
+          ["crosscheck", "--ref", REF, "--frozen-time", FROZEN_TIME, "--out", join(cwd, "out")],
+          { cwd },
+        );
+        expect(result.code).toBe(0);
+        expect(result.stdout).not.toContain("Live comparison");
+      } finally {
+        await rm(cwd, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
 });

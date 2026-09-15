@@ -472,7 +472,18 @@ repos:
   - { name: wazuh-dashboard-security-analytics, kind: dashboard }
   - { name: wazuh-security-dashboards-plugin,   kind: dashboard }
   - { name: wazuh-indexer-plugins,              kind: indexer }
+  - { name: wazuh-dashboard-ml-commons,         kind: dashboard }
 ```
+
+**Un repo sin rama vigente se lista igual.** `wazuh-dashboard-ml-commons` no tiene
+rama `5.0.0`, y por eso mismo tiene que estar en `sources.yml`: `fetch/` solo
+puede sondear repos que este archivo nombre. Si se omite, el criterio de 1.9
+—"aparece en `skipped` con motivo, no crashea"— es **imposible de probar**,
+porque no hay nada sobre lo cual `git ls-remote` pueda volver vacío.
+
+La lista enumera lo que se **consulta**, no lo que se espera encontrar. Un repo
+ausente del listado no produce un `skipped`: produce un silencio, que es
+precisamente lo que esta spec no admite en ningún lado.
 
 ## 1.4 Estrategia de fetch — obligatoria
 

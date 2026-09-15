@@ -22,6 +22,11 @@ repos:
   - { name: wazuh-dashboard-security-analytics, kind: dashboard }
   - { name: wazuh-security-dashboards-plugin, kind: dashboard }
   - { name: wazuh-indexer-plugins, kind: indexer }
+  # Listed ON PURPOSE even though it has no 5.0.0 branch. fetch/ can only probe
+  # a repository this file names, so leaving it out would make the "lands in
+  # skipped[] by discovery" criterion (SPEC 1.9) impossible to prove: there
+  # would be nothing for git ls-remote to come back empty about.
+  - { name: wazuh-dashboard-ml-commons, kind: dashboard }
 
 # Code-branch -> documentation-path mapping (SPEC 3.1).
 # Hand-maintained prose. It has an owner and a review date, by rule.

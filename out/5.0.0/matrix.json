@@ -1,14 +1,14 @@
 {
   "meta": {
-    "generatedAt": "2026-09-15T16:22:33.574Z",
+    "generatedAt": "2026-09-15T19:18:43.026Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:5ef7718cbed5104e88bc839af862cce63c12e51690ff77d07736adccb9f3b178",
+  "payloadHash": "sha256:3e69354d131d9fd84772c8fa5ee8abd20d8d590ec8e6d8d2ab651a0890e5d5ab",
   "ref": "5.0.0",
-  "resolvedAt": "2026-09-15T16:21:18.155Z",
+  "resolvedAt": "2026-09-15T19:18:47.762Z",
   "resolvedRefs": {
     "wazuh-dashboard": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401",
-    "wazuh-dashboard-plugins": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1",
+    "wazuh-dashboard-plugins": "a36f332a8f104a55f52e28460a94951c85dae694",
     "wazuh-dashboard-alerting": "48b0fc05d3a9cf67eaf3d829d47992a5398cc310",
     "wazuh-dashboard-notifications": "deebf080ade530eb662ff8599a57ed6e24198554",
     "wazuh-dashboard-reporting": "71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a",
@@ -147,7 +147,7 @@
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
+        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
       },
       "assertions": {},
       "annotations": []
@@ -179,7 +179,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
+        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
       },
       "assertions": {},
       "annotations": []
@@ -208,7 +208,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
+        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
       },
       "assertions": {},
       "annotations": []
@@ -235,7 +235,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "83695a6a5af487f1fb3140b5082f2b83eef7f7e1"
+        "commit": "a36f332a8f104a55f52e28460a94951c85dae694"
       },
       "assertions": {
         "world": {

@@ -219,6 +219,15 @@ export interface Skipped {
 export interface IndexTemplate {
   name: string;
   path: string;
+  /**
+   * The subdirectory under `templates/` this came from -- `states`, `streams`,
+   * `content`, or "" for the four that sit directly at the root.
+   *
+   * Recorded so a reader can tell a state index from a stream index without
+   * parsing the path, and so a group appearing upstream is visible as a group
+   * rather than as an unexplained new row.
+   */
+  group: string;
   indexPatterns: string[];
 }
 

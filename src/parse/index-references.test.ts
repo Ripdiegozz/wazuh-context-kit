@@ -419,3 +419,142 @@ describe("the recovered count, against the real repository", () => {
     600_000,
   );
 });
+
+describe("index names that live outside a catalog constant", () => {
+  test("recovers a literal used as an object value", async () => {
+    // The real shape in wazuh-ai-assistant/server/tools/catalog/
+    // get-threat-intel-components.ts. Its own comment says the map exists so
+    // "the reachable index set stays statically greppable" — and the first
+    // scanner still could not see it, because the keys are `decoders`, not
+    // `DECODERS_PATTERN`.
+    const dir = await makeCheckout({
+      "plugins/wazuh-ai-assistant/server/tools/catalog/components.ts": [
+        "const COMPONENT_INDEX: Record<ComponentType, string> = {",
+        "  decoders: 'wazuh-threatintel-decoders*',",
+        "  kvdbs: 'wazuh-threatintel-kvdbs*',",
+        "};",
+        "const UNRELATED = { host: 'wazuh-cluster-node-01' };",
+      ].join("\n"),
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references.map((r) => r.name).sort()).toEqual([
+        "wazuh-threatintel-decoders*",
+        "wazuh-threatintel-kvdbs*",
+      ]);
+      expect(references.every((r) => r.via === "inline-literal")).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("recovers a literal used in a comparison at a call site", async () => {
+    // How the single-plugin forks do it, e.g. security-analytics:
+    //   params.index === 'wazuh-threatintel-decoders'
+    const dir = await makeCheckout({
+      "server/services/DecodersService.ts": [
+        "export function isDecoders(params: { index: string }) {",
+        "  return params.index === 'wazuh-threatintel-decoders';",
+        "}",
+      ].join("\n"),
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references.map((r) => r.name)).toEqual(["wazuh-threatintel-decoders"]);
+      expect(references[0]!.line).toBe(2);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a catalog constant keeps its stronger provenance", async () => {
+    // The two routes carry different confidence and must stay distinguishable:
+    // a catalog constant passed BOTH the identifier and the value test, an
+    // inline literal only the value test.
+    const dir = await makeCheckout({
+      "plugins/main/common/constants.ts":
+        "export const WAZUH_ALERTS_PATTERN = 'wazuh-alerts*';",
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references[0]!.via).toBe("catalog-literal");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("an index-shaped string with no index context is NOT a reference", async () => {
+    // Measured against the running indexer: accepting every `wazuh-`-prefixed
+    // literal produced 77 distinct names of which ZERO existed. This
+    // organisation prefixes everything — packages, hosts, repositories,
+    // services, test fixtures — so the value alone discriminates nothing.
+    const dir = await makeCheckout({
+      "plugins/main/server/setup.ts": [
+        "const pkg = 'wazuh-agent-amd64';",
+        "const host = 'wazuh-cluster-node-01';",
+        "const repo = 'wazuh-indexer-plugins';",
+        "const env = 'wazuh-prod';",
+        "const fixture = 'wazuh-does-not-matter';",
+      ].join("\n"),
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a literal under an `index:` key IS a reference", async () => {
+    const dir = await makeCheckout({
+      "plugins/main/server/query.ts": [
+        "const res = await client.search({",
+        "  index: 'wazuh-states-sca*',",
+        "});",
+      ].join("\n"),
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references.map((r) => r.name)).toEqual(["wazuh-states-sca*"]);
+      expect(references[0]!.via).toBe("inline-literal");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("a literal compared against `.index` IS a reference", async () => {
+    // How the single-plugin forks do it.
+    const dir = await makeCheckout({
+      "server/services/DecodersService.ts":
+        "const isDecoders = params.index === 'wazuh-threatintel-decoders';",
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references.map((r) => r.name)).toEqual(["wazuh-threatintel-decoders"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("the same name from a catalog and inline is recorded once per site", async () => {
+    const dir = await makeCheckout({
+      "plugins/main/common/constants.ts":
+        "export const WAZUH_SCA_PATTERN = 'wazuh-states-sca*';",
+      "plugins/other/server/query.ts": "const r = client.search({ index: 'wazuh-states-sca*' });",
+    });
+
+    try {
+      const { references } = await scanIndexReferences(targetFor(dir));
+      expect(references).toHaveLength(2);
+      expect(references.map((r) => r.via).sort()).toEqual(["catalog-literal", "inline-literal"]);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});

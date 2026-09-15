@@ -8,10 +8,10 @@
 |---|---|---|---|---|---|---|
 | `alertingDashboards` | wazuh-dashboard-alerting | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `48b0fc05` |
 | `notificationsDashboards` | wazuh-dashboard-notifications | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `deebf080` |
-| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `a36f332a` |
-| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `a36f332a` |
-| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `a36f332a` |
-| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `a36f332a` |
+| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `89abfb7c` |
+| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `89abfb7c` |
+| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `89abfb7c` |
+| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `89abfb7c` |
 | `reportsDashboards` | wazuh-dashboard-reporting | upstream-fork | osd | none | `osd-data`, `osd-data-source` | `71b4b9e2` |
 | `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `295daaac` |
 | `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `4f034db7` |
@@ -43,8 +43,20 @@
 |---|---|---|---|
 | wazuh-dashboard | `3.6.0` | 64 | `charts`, `contentManagement`, `dashboard`, `data`, `discover`, `embeddable`, `expressions`, `inspector`, `navigation`, `opensearchDashboardsLegacy`, `opensearchDashboardsReact`, `opensearchDashboardsUtils`, `savedObjects`, `savedObjectsManagement`, `uiActions`, `visAugmenter`, `visualizations` |
 
-## Index templates (20)
+## Index templates (40)
 
+- `decoders` — `wazuh-threatintel-decoders*`
+- `filters` — `wazuh-threatintel-filters`
+- `integrations` — `wazuh-threatintel-integrations*`
+- `ioc` — `wazuh-threatintel-enrichments*`
+- `kvdbs` — `wazuh-threatintel-kvdbs*`
+- `policies` — `wazuh-threatintel-policies*`
+- `rules` — `wazuh-threatintel-rules*`
+- `vulnerabilities` — `.wazuh-threatintel-vulnerabilities*`
+- `cve` — `wazuh-cve*`
+- `ism-config` — `.opendistro-ism-config`
+- `settings` — `.wazuh-settings*`
+- `setup-status` — `.wazuh-setup-status*`
 - `agent-config` — `wazuh-agent-config*`
 - `agent-stats` — `wazuh-agent-stats*`
 - `fim-files` — `wazuh-states-fim-files*`
@@ -65,17 +77,25 @@
 - `inventory-users` — `wazuh-states-inventory-users*`
 - `sca` — `wazuh-states-sca*`
 - `vulnerabilities` — `wazuh-states-vulnerabilities*`
+- `active-responses` — `wazuh-active-responses*`
+- `ai-assistant-sessions` — `wazuh-ai-assistant-sessions*`
+- `events` — `wazuh-events-v5*`
+- `findings` — `wazuh-findings-v5*`
+- `metrics-agents` — `wazuh-metrics-agents*`
+- `metrics-comms` — `wazuh-metrics-comms-v4*`
+- `metrics-normalization` — `wazuh-metrics-normalization*`
+- `raw` — `wazuh-events-raw-v5*`
 
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:3e69354d131d9fd84772c8fa5ee8abd20d8d590ec8e6d8d2ab651a0890e5d5ab`
-- resolvedAt: `2026-09-15T19:18:47.762Z`
+- payloadHash: `sha256:68a0570ea06797523018fa612a9101cb16ce3d0551c44fe1065d6032e0ed5d36`
+- resolvedAt: `2026-09-15T20:01:45.643Z`
 - resolvedRefs:
   - `wazuh-dashboard` → `4a07e4289a5866b9c0de5f3d26a97c7205d4d401`
   - `wazuh-dashboard-alerting` → `48b0fc05d3a9cf67eaf3d829d47992a5398cc310`
   - `wazuh-dashboard-notifications` → `deebf080ade530eb662ff8599a57ed6e24198554`
-  - `wazuh-dashboard-plugins` → `a36f332a8f104a55f52e28460a94951c85dae694`
+  - `wazuh-dashboard-plugins` → `89abfb7cb84ed71d07b82df654bf880d5661b46b`
   - `wazuh-dashboard-reporting` → `71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a`
   - `wazuh-dashboard-security-analytics` → `295daaac63d9887ff6d2a5dc85ffeca2015cdfd0`
   - `wazuh-indexer-plugins` → `e4ba55fcafd8e2c309dc4fc07e01d890463fd895`

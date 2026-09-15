@@ -33,6 +33,39 @@ which repos moved and how the plugin/core/template/WCS/unknowns counts
 changed. Then it either enables auto-merge or deliberately withholds it — see
 "The auto-merge gate is narrower than CI is green" below.
 
+## The `REGEN_PAT` secret is required
+
+`regenerate.yml` opens its PR with a personal access token, not with
+`GITHUB_TOKEN`, and that is not a stylistic choice.
+
+**A pull request opened with `GITHUB_TOKEN` does not start workflow runs.** The
+run is created and immediately held as `action_required`, waiting for someone to
+click "Approve and run". The required `CI` check therefore never reports, and
+auto-merge sits forever waiting for a result that cannot arrive. This was
+observed, not predicted: run 35009075886 on PR #6.
+
+A GitHub App bypass on the ruleset would be the other way out, but GitHub
+refuses it on a user-owned repository — `Actor GitHub Actions integration must
+be part of the ruleset source or owner organization`. There is no organization
+here, so a PAT is what is left.
+
+Create it as a **fine-grained** token, scoped as narrowly as this:
+
+- Repository access: only `Ripdiegozz/wazuh-context-kit`
+- Repository permissions: **Contents: Read and write**, **Pull requests: Read and write**
+- Nothing else. It does not need workflow, admin, or org scopes.
+
+Then add it at Settings → Secrets and variables → Actions → New repository
+secret, named exactly **`REGEN_PAT`**.
+
+If it is missing, the job fails loudly on the days a PR would have been opened,
+and says so. It deliberately does **not** fall back to `GITHUB_TOKEN`, because
+that fallback would look like it worked and then deadlock.
+
+A fine-grained PAT expires. When it does, the regeneration stops opening PRs and
+starts failing — which is the correct failure direction, but put the expiry in a
+calendar anyway.
+
 ## Repository settings a maintainer must enable
 
 0. **Settings → Actions → General → Workflow permissions →

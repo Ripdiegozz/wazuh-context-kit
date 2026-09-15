@@ -1279,8 +1279,16 @@ antes de escribir una línea de la lógica que importa.
    línea, y tener a una sola persona como único camino de publicación es un
    riesgo mayor que el de un merge automático sobre contenido verificado.
 
-   **Queda una dependencia humana que ningún archivo puede resolver.**
-   "Auto-merge si CI queda verde" exige dos ajustes de configuración del
-   repositorio: habilitar *Allow auto-merge*, y protección de rama que **exija**
-   el check de CI. Sin el segundo, auto-merge mergea de inmediato y el gate no
-   existe. Está documentado en `.github/workflows/README.md`.
+   **Quedan dependencias humanas que ningún archivo puede resolver.**
+   "Auto-merge si CI queda verde" exige: habilitar *Allow auto-merge*;
+   protección de rama que **exija** el check de CI (sin eso, auto-merge mergea
+   de inmediato y el gate no existe); permitir que Actions cree PRs; y un PAT
+   fine-grained en el secreto `REGEN_PAT`.
+
+   Ese último no es opcional ni cosmético, y se descubrió corriéndolo: **un PR
+   abierto con `GITHUB_TOKEN` no dispara workflows.** El run se crea y queda
+   retenido en `action_required`, así que el check requerido nunca reporta y el
+   auto-merge espera para siempre algo que no puede llegar. El bypass de la app
+   en la ruleset sería la otra salida, pero GitHub lo rechaza en repos de
+   usuario: requiere una organización, y acá no hay. Todo documentado en
+   `.github/workflows/README.md`.

@@ -9,5 +9,8 @@ dist/
 ui/dist/
 *.log
 
+# Local agent tooling cache.
+.atl/
+
 # NOTE: out/ is intentionally NOT ignored.
 # The dataset is the product and is committed (SPEC 5.1).

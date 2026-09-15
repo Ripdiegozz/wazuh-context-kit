@@ -100,16 +100,21 @@ Chain strategy: size-exception
 - [x] 9.2 Modify `src/cli.ts` — wire `loadSources(cwd) → fetchRepos({..., io: createFetchIo()}) → toParseTargets → parseFetchedRepos → buildMatrix` for the non-`--fixtures` path; `fetchOutcome.skipped` flows straight into `BuildInput.skipped`.
 - [x] 9.3 Modify `src/cli.ts` — set `BuildInput.resolvedAt` to the **oldest** `resolvedAt` read back across all fetched repos' `.fetch.json` stamps (via `io.readStamp`/`cacheDirFor`), never `new Date()`/`Date.now()`. **Open item resolved: see apply-progress.md — `cacheDirFor` is exported from `src/fetch/clone.ts` and `readStamp` is a member of the `FetchIo` instance `cli.ts` already holds via `createFetchIo()`; no additional export was needed beyond what the design's File Changes table already lists.**
 - [x] 9.4 Modify `src/cli.ts` — add `--refresh` flag wired to `FetchOptions.refresh`; add a fatal path (exit 2) when `sources.yml` is missing/invalid or `git` is not on PATH (spawn ENOENT), naming the file/binary.
-- [ ] 9.5 Verify `--fixtures` path is byte-for-byte unaffected: `bun run build && node dist/cli.js matrix --ref 5.0.0 --fixtures` still writes `out/5.0.0/matrix.json`/`MATRIX.md` from `fixtures/facts.ts`. **NOT RUN — no shell tool available this session.**
+- [x] 9.5 Verify `--fixtures` path is byte-for-byte unaffected. **DONE** — a detached worktree at `e4e4b28` (the commit preceding the implementation) produced `--fixtures` output byte-identical to the current tree: same `MATRIX.md` digest, same `payloadHash` `sha256:1f9274f5…`. Comparing two post-change runs would only have proven determinism, not parity; this compares against the real pre-change baseline.
 
 ## Phase 10: Cross-cutting hazards and the purity seam (D1)
 
-- [ ] 10.1 Dedicated verification task: `git diff --stat -- src/matrix src/decisions/apply.ts` on the complete change diff returns empty; confirm neither path gained an import of `node:fs`, `node:child_process`, `node:net`, `node:http`, `node:https`, nor a call to `Date.now()`/`new Date()`. **NOT RUN — no shell tool available this session. Manually confirmed by file-list review: no edit was made to any file under `src/matrix/` or to `src/decisions/apply.ts` in this apply batch.**
-- [ ] 10.2 Full-suite regression: run `bun test` and confirm the pre-existing 34 tests in `src/matrix/matrix.test.ts` and `src/decisions/decisions.test.ts` are still green alongside the new suites. **NOT RUN — no shell tool available this session.**
+- [x] 10.1 `git diff --stat -- src/matrix src/decisions/apply.ts` returns empty. **DONE** — executed against `HEAD`; empty. The purity seam of SPEC 6.1 (D1) holds.
+- [x] 10.2 Full-suite regression. **DONE** — `bun test`: 94 pass, 1 skip, 0 fail across 6 files. The pre-existing 34 tests are green alongside the new suites.
 
 ## Phase 11: Final verification
 
-- [ ] 11.1 `bun test` — all suites pass. **NOT RUN.**
-- [ ] 11.2 `bun run typecheck` — clean, including the `exactOptionalPropertyTypes` cases from 7.5. **NOT RUN.**
-- [ ] 11.3 `bun run build` — produces a runnable `dist/cli.js`; smoke-run `node dist/cli.js --version`. **NOT RUN.**
-- [ ] 11.4 Hand off to `sdd-verify` for the criteria this change cannot honestly prove offline: `≥ 18 templates` and full end-to-end determinism against a real `wazuh-indexer-plugins` checkout (`WAZUH_CTX_NETWORK=1`).
+- [x] 11.1 `bun test` — **DONE**, 94 pass / 1 skip / 0 fail.
+- [x] 11.2 `bun run typecheck` — **DONE**, clean, `exactOptionalPropertyTypes` cases included.
+- [x] 11.3 `bun run build` — **DONE**, `dist/cli.js` 0.95 MB; `node dist/cli.js --version` prints `0.1.0`.
+- [x] 11.4 Handed off to `sdd-verify`. **DONE** — see `verify-report.md`. `≥ 18 templates` confirmed against real data (20 found) and the opt-in integration test has now been executed for the first time (`WAZUH_CTX_NETWORK=1`: 1 pass, 5 assertions). End-to-end determinism confirmed on real data: identical `payloadHash` and byte-identical `MATRIX.md` across a cold and a warm run.
+
+### Outstanding after verify
+
+- [ ] 12.1 Assert sparse-checkout **on disk**, not only in argv. The tests confirm `sparse-checkout set <paths>` is issued correctly, but nothing has ever inspected a real checkout to confirm only the SPEC 1.2 paths landed. Last gap between Phase 1 and an honest "fully verified". See `HANDOFF.md` P0.
+- [ ] 12.2 Add a thin `cli.test.ts` covering `--fixtures` parity and the two fatal exit-2 paths (malformed `sources.yml`, `git` missing). No CLI-level regression coverage exists today. See `HANDOFF.md` P1.

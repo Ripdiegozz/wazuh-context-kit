@@ -1,104 +1,16 @@
 {
   "meta": {
-    "generatedAt": "2026-09-15T04:04:21.944Z",
+    "generatedAt": "2026-09-14T00:00:00Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:d08ca24fbd4ff56d95670898369d75f5cf0b6e51645d4c7bc65c6f2b89eb02cc",
+  "payloadHash": "sha256:1f9274f57051dff4dc31b8f03ba38333f1a625896ddadf68f40f3348a9ad2bfe",
   "ref": "5.0.0",
-  "resolvedAt": "2026-09-15T04:03:20.386Z",
+  "resolvedAt": "2026-09-14T00:00:00Z",
   "resolvedRefs": {
-    "wazuh-dashboard": "4a07e4289a5866b9c0de5f3d26a97c7205d4d401",
-    "wazuh-dashboard-plugins": "5157de35b53cc4e661a1cad9b94af45efadac146",
-    "wazuh-dashboard-alerting": "48b0fc05d3a9cf67eaf3d829d47992a5398cc310",
-    "wazuh-dashboard-notifications": "deebf080ade530eb662ff8599a57ed6e24198554",
-    "wazuh-dashboard-reporting": "71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a",
-    "wazuh-dashboard-security-analytics": "89d74cce356b8e22b4b45b7c2fa07da81bb89301",
-    "wazuh-security-dashboards-plugin": "4f034db7b9374b81bab48884ebe47e68ce68ad38",
-    "wazuh-indexer-plugins": "1b0810abcef6299e788418c2e483a03b08040967"
+    "wazuh-dashboard-plugins": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
+    "wazuh-dashboard-security-analytics": "a91c02f1bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e"
   },
   "plugins": [
-    {
-      "repo": "wazuh-dashboard-alerting",
-      "pluginId": "alertingDashboards",
-      "pluginDir": ".",
-      "world": "upstream-fork",
-      "versionScheme": "osd",
-      "configPath": [
-        "opensearch_alerting"
-      ],
-      "serverApiAccess": "none",
-      "indexerAccess": [
-        "osd-data",
-        "osd-data-source",
-        "os-plugin-bound"
-      ],
-      "requiredOSDataSourcePlugins": [
-        "opensearch-alerting"
-      ],
-      "requiredPlugins": [
-        "uiActions",
-        "dashboard",
-        "navigation",
-        "embeddable",
-        "opensearchDashboardsReact",
-        "savedObjects",
-        "expressions",
-        "data",
-        "visAugmenter",
-        "opensearchDashboardsUtils",
-        "contentManagement"
-      ],
-      "optionalPlugins": [
-        "dataSource",
-        "dataSourceManagement",
-        "assistantDashboards",
-        "explore"
-      ],
-      "evidence": {
-        "kind": "derived",
-        "manifestPath": "opensearch_dashboards.json",
-        "packageJsonPath": "package.json",
-        "commit": "48b0fc05d3a9cf67eaf3d829d47992a5398cc310"
-      },
-      "assertions": {},
-      "annotations": []
-    },
-    {
-      "repo": "wazuh-dashboard-notifications",
-      "pluginId": "notificationsDashboards",
-      "pluginDir": ".",
-      "world": "upstream-fork",
-      "versionScheme": "osd",
-      "configPath": [],
-      "serverApiAccess": "none",
-      "indexerAccess": [
-        "osd-data",
-        "osd-data-source",
-        "os-plugin-bound"
-      ],
-      "requiredOSDataSourcePlugins": [
-        "opensearch-notifications"
-      ],
-      "requiredPlugins": [
-        "navigation",
-        "data",
-        "opensearchDashboardsUtils"
-      ],
-      "optionalPlugins": [
-        "share",
-        "managementOverview",
-        "dataSource",
-        "dataSourceManagement"
-      ],
-      "evidence": {
-        "kind": "derived",
-        "manifestPath": "opensearch_dashboards.json",
-        "packageJsonPath": "package.json",
-        "commit": "deebf080ade530eb662ff8599a57ed6e24198554"
-      },
-      "assertions": {},
-      "annotations": []
-    },
     {
       "repo": "wazuh-dashboard-plugins",
       "pluginId": "wazuh",
@@ -109,41 +21,22 @@
         "wazuh"
       ],
       "serverApiAccess": "wazuh-core",
-      "indexerAccess": [
-        "osd-data"
-      ],
+      "indexerAccess": [],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
         "navigation",
-        "data",
-        "dashboard",
-        "embeddable",
-        "discover",
-        "inspector",
-        "visualizations",
-        "uiActions",
-        "charts",
-        "savedObjects",
         "opensearchDashboardsReact",
-        "opensearchDashboardsUtils",
-        "opensearchDashboardsLegacy",
-        "wazuhCheckUpdates",
         "wazuhCore"
       ],
       "optionalPlugins": [
-        "security",
         "securityDashboards",
-        "searchguard",
-        "telemetry",
-        "notificationsDashboards",
-        "alertingDashboards",
-        "reportsDashboards"
+        "usageCollection"
       ],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "5157de35b53cc4e661a1cad9b94af45efadac146"
+        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
       },
       "assertions": {},
       "annotations": []
@@ -162,19 +55,14 @@
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
         "navigation",
-        "savedObjects",
-        "opensearchDashboardsReact",
-        "wazuhCore",
-        "opensearchDashboardsUtils"
+        "wazuhCore"
       ],
-      "optionalPlugins": [
-        "wazuh"
-      ],
+      "optionalPlugins": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "5157de35b53cc4e661a1cad9b94af45efadac146"
+        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
       },
       "assertions": {},
       "annotations": []
@@ -185,24 +73,22 @@
       "pluginDir": "plugins/wazuh-check-updates",
       "world": "wazuh-native",
       "versionScheme": "wazuh",
-      "configPath": [],
+      "configPath": [
+        "wazuh_check_updates"
+      ],
       "serverApiAccess": "wazuh-core",
       "indexerAccess": [],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
         "navigation",
-        "opensearchDashboardsUtils",
-        "opensearchDashboardsReact",
         "wazuhCore"
       ],
-      "optionalPlugins": [
-        "securityDashboards"
-      ],
+      "optionalPlugins": [],
       "evidence": {
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "5157de35b53cc4e661a1cad9b94af45efadac146"
+        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
       },
       "assertions": {},
       "annotations": []
@@ -213,13 +99,14 @@
       "pluginDir": "plugins/wazuh-core",
       "world": "wazuh-native",
       "versionScheme": "wazuh",
-      "configPath": [],
+      "configPath": [
+        "wazuh_core"
+      ],
       "serverApiAccess": "none",
       "indexerAccess": [],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
-        "navigation",
-        "opensearchDashboardsUtils"
+        "opensearchDashboardsReact"
       ],
       "optionalPlugins": [
         "securityDashboards"
@@ -228,7 +115,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "5157de35b53cc4e661a1cad9b94af45efadac146"
+        "commit": "5157de35aa0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d"
       },
       "assertions": {
         "world": {
@@ -247,41 +134,6 @@
           "date": "2026-09-14"
         }
       ]
-    },
-    {
-      "repo": "wazuh-dashboard-reporting",
-      "pluginId": "reportsDashboards",
-      "pluginDir": ".",
-      "world": "upstream-fork",
-      "versionScheme": "osd",
-      "configPath": [
-        "opensearch_reporting"
-      ],
-      "serverApiAccess": "none",
-      "indexerAccess": [
-        "osd-data",
-        "osd-data-source"
-      ],
-      "requiredOSDataSourcePlugins": [],
-      "requiredPlugins": [
-        "navigation",
-        "data",
-        "opensearchDashboardsUtils"
-      ],
-      "optionalPlugins": [
-        "share",
-        "dataSource",
-        "dataSourceManagement",
-        "observabilityDashboards"
-      ],
-      "evidence": {
-        "kind": "derived",
-        "manifestPath": "opensearch_dashboards.json",
-        "packageJsonPath": "package.json",
-        "commit": "71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a"
-      },
-      "assertions": {},
-      "annotations": []
     },
     {
       "repo": "wazuh-dashboard-security-analytics",
@@ -316,387 +168,15 @@
         "kind": "derived",
         "manifestPath": "opensearch_dashboards.json",
         "packageJsonPath": "package.json",
-        "commit": "89d74cce356b8e22b4b45b7c2fa07da81bb89301"
-      },
-      "assertions": {},
-      "annotations": []
-    },
-    {
-      "repo": "wazuh-security-dashboards-plugin",
-      "pluginId": "securityDashboards",
-      "pluginDir": ".",
-      "world": "upstream-fork",
-      "versionScheme": "osd",
-      "configPath": [
-        "opensearch_security"
-      ],
-      "serverApiAccess": "none",
-      "indexerAccess": [
-        "osd-data-source",
-        "os-plugin-bound"
-      ],
-      "requiredOSDataSourcePlugins": [
-        "opensearch-security"
-      ],
-      "requiredPlugins": [
-        "navigation",
-        "savedObjectsManagement"
-      ],
-      "optionalPlugins": [
-        "managementOverview",
-        "dataSource",
-        "dataSourceManagement"
-      ],
-      "evidence": {
-        "kind": "derived",
-        "manifestPath": "opensearch_dashboards.json",
-        "packageJsonPath": "package.json",
-        "commit": "4f034db7b9374b81bab48884ebe47e68ce68ad38"
+        "commit": "a91c02f1bb2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e"
       },
       "assertions": {},
       "annotations": []
     }
   ],
   "indexer": {
-    "templates": [
-      {
-        "name": "agent-config",
-        "path": "plugins/setup/src/main/resources/templates/states/agent-config.json",
-        "indexPatterns": [
-          "wazuh-agent-config*"
-        ]
-      },
-      {
-        "name": "agent-stats",
-        "path": "plugins/setup/src/main/resources/templates/states/agent-stats.json",
-        "indexPatterns": [
-          "wazuh-agent-stats*"
-        ]
-      },
-      {
-        "name": "fim-files",
-        "path": "plugins/setup/src/main/resources/templates/states/fim-files.json",
-        "indexPatterns": [
-          "wazuh-states-fim-files*"
-        ]
-      },
-      {
-        "name": "fim-registry-keys",
-        "path": "plugins/setup/src/main/resources/templates/states/fim-registry-keys.json",
-        "indexPatterns": [
-          "wazuh-states-fim-registry-keys*"
-        ]
-      },
-      {
-        "name": "fim-registry-values",
-        "path": "plugins/setup/src/main/resources/templates/states/fim-registry-values.json",
-        "indexPatterns": [
-          "wazuh-states-fim-registry-values*"
-        ]
-      },
-      {
-        "name": "inventory-browser-extensions",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-browser-extensions.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-browser-extensions*"
-        ]
-      },
-      {
-        "name": "inventory-groups",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-groups.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-groups*"
-        ]
-      },
-      {
-        "name": "inventory-hardware",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-hardware.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-hardware*"
-        ]
-      },
-      {
-        "name": "inventory-hotfixes",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-hotfixes.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-hotfixes*"
-        ]
-      },
-      {
-        "name": "inventory-interfaces",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-interfaces.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-interfaces*"
-        ]
-      },
-      {
-        "name": "inventory-networks",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-networks.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-networks*"
-        ]
-      },
-      {
-        "name": "inventory-packages",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-packages.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-packages*"
-        ]
-      },
-      {
-        "name": "inventory-ports",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-ports.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-ports*"
-        ]
-      },
-      {
-        "name": "inventory-processes",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-processes.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-processes*"
-        ]
-      },
-      {
-        "name": "inventory-protocols",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-protocols.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-protocols*"
-        ]
-      },
-      {
-        "name": "inventory-services",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-services.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-services*"
-        ]
-      },
-      {
-        "name": "inventory-system",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-system.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-system*"
-        ]
-      },
-      {
-        "name": "inventory-users",
-        "path": "plugins/setup/src/main/resources/templates/states/inventory-users.json",
-        "indexPatterns": [
-          "wazuh-states-inventory-users*"
-        ]
-      },
-      {
-        "name": "sca",
-        "path": "plugins/setup/src/main/resources/templates/states/sca.json",
-        "indexPatterns": [
-          "wazuh-states-sca*"
-        ]
-      },
-      {
-        "name": "vulnerabilities",
-        "path": "plugins/setup/src/main/resources/templates/states/vulnerabilities.json",
-        "indexPatterns": [
-          "wazuh-states-vulnerabilities*"
-        ]
-      }
-    ],
-    "wcsModules": [
-      {
-        "name": "ai-assistant/sessions",
-        "fieldsCsv": "wcs/ai-assistant/sessions/docs/fields.csv",
-        "fieldCount": 6
-      },
-      {
-        "name": "content/decoders",
-        "fieldsCsv": "wcs/content/decoders/docs/fields.csv",
-        "fieldCount": 22
-      },
-      {
-        "name": "content/filters",
-        "fieldsCsv": "wcs/content/filters/docs/fields.csv",
-        "fieldCount": 17
-      },
-      {
-        "name": "content/integrations",
-        "fieldsCsv": "wcs/content/integrations/docs/fields.csv",
-        "fieldCount": 22
-      },
-      {
-        "name": "content/ioc",
-        "fieldsCsv": "wcs/content/ioc/docs/fields.csv",
-        "fieldCount": 16
-      },
-      {
-        "name": "content/kvdbs",
-        "fieldsCsv": "wcs/content/kvdbs/docs/fields.csv",
-        "fieldCount": 15
-      },
-      {
-        "name": "content/policies",
-        "fieldsCsv": "wcs/content/policies/docs/fields.csv",
-        "fieldCount": 21
-      },
-      {
-        "name": "content/rules",
-        "fieldsCsv": "wcs/content/rules/docs/fields.csv",
-        "fieldCount": 39
-      },
-      {
-        "name": "content/vulnerabilities",
-        "fieldsCsv": "wcs/content/vulnerabilities/docs/fields.csv",
-        "fieldCount": 3
-      },
-      {
-        "name": "cve",
-        "fieldsCsv": "wcs/cve/docs/fields.csv",
-        "fieldCount": 419
-      },
-      {
-        "name": "internal-state",
-        "fieldsCsv": "wcs/internal-state/docs/fields.csv",
-        "fieldCount": 14
-      },
-      {
-        "name": "settings",
-        "fieldsCsv": "wcs/settings/docs/fields.csv",
-        "fieldCount": 1
-      },
-      {
-        "name": "stateful/agent-config",
-        "fieldsCsv": "wcs/stateful/agent-config/docs/fields.csv",
-        "fieldCount": 397
-      },
-      {
-        "name": "stateful/agent-stats",
-        "fieldsCsv": "wcs/stateful/agent-stats/docs/fields.csv",
-        "fieldCount": 27
-      },
-      {
-        "name": "stateful/fim/files",
-        "fieldsCsv": "wcs/stateful/fim/files/docs/fields.csv",
-        "fieldCount": 32
-      },
-      {
-        "name": "stateful/fim/windows-registry-keys",
-        "fieldsCsv": "wcs/stateful/fim/windows-registry-keys/docs/fields.csv",
-        "fieldCount": 28
-      },
-      {
-        "name": "stateful/fim/windows-registry-values",
-        "fieldsCsv": "wcs/stateful/fim/windows-registry-values/docs/fields.csv",
-        "fieldCount": 28
-      },
-      {
-        "name": "stateful/inventory/browser-extensions",
-        "fieldsCsv": "wcs/stateful/inventory/browser-extensions/docs/fields.csv",
-        "fieldCount": 40
-      },
-      {
-        "name": "stateful/inventory/groups",
-        "fieldsCsv": "wcs/stateful/inventory/groups/docs/fields.csv",
-        "fieldCount": 25
-      },
-      {
-        "name": "stateful/inventory/hardware",
-        "fieldsCsv": "wcs/stateful/inventory/hardware/docs/fields.csv",
-        "fieldCount": 26
-      },
-      {
-        "name": "stateful/inventory/hotfixes",
-        "fieldsCsv": "wcs/stateful/inventory/hotfixes/docs/fields.csv",
-        "fieldCount": 20
-      },
-      {
-        "name": "stateful/inventory/interfaces",
-        "fieldsCsv": "wcs/stateful/inventory/interfaces/docs/fields.csv",
-        "fieldCount": 32
-      },
-      {
-        "name": "stateful/inventory/networks",
-        "fieldsCsv": "wcs/stateful/inventory/networks/docs/fields.csv",
-        "fieldCount": 25
-      },
-      {
-        "name": "stateful/inventory/packages",
-        "fieldsCsv": "wcs/stateful/inventory/packages/docs/fields.csv",
-        "fieldCount": 31
-      },
-      {
-        "name": "stateful/inventory/ports",
-        "fieldsCsv": "wcs/stateful/inventory/ports/docs/fields.csv",
-        "fieldCount": 29
-      },
-      {
-        "name": "stateful/inventory/processes",
-        "fieldsCsv": "wcs/stateful/inventory/processes/docs/fields.csv",
-        "fieldCount": 28
-      },
-      {
-        "name": "stateful/inventory/protocols",
-        "fieldsCsv": "wcs/stateful/inventory/protocols/docs/fields.csv",
-        "fieldCount": 23
-      },
-      {
-        "name": "stateful/inventory/services",
-        "fieldsCsv": "wcs/stateful/inventory/services/docs/fields.csv",
-        "fieldCount": 50
-      },
-      {
-        "name": "stateful/inventory/system",
-        "fieldsCsv": "wcs/stateful/inventory/system/docs/fields.csv",
-        "fieldCount": 34
-      },
-      {
-        "name": "stateful/inventory/users",
-        "fieldsCsv": "wcs/stateful/inventory/users/docs/fields.csv",
-        "fieldCount": 50
-      },
-      {
-        "name": "stateful/sca",
-        "fieldsCsv": "wcs/stateful/sca/docs/fields.csv",
-        "fieldCount": 52
-      },
-      {
-        "name": "stateful/vulnerabilities",
-        "fieldsCsv": "wcs/stateful/vulnerabilities/docs/fields.csv",
-        "fieldCount": 87
-      },
-      {
-        "name": "stateless/active-responses",
-        "fieldsCsv": "wcs/stateless/active-responses/docs/fields.csv",
-        "fieldCount": 536
-      },
-      {
-        "name": "stateless/events/findings",
-        "fieldsCsv": "wcs/stateless/events/findings/docs/fields.csv",
-        "fieldCount": 2412
-      },
-      {
-        "name": "stateless/events/main",
-        "fieldsCsv": "wcs/stateless/events/main/docs/fields.csv",
-        "fieldCount": 2362
-      },
-      {
-        "name": "stateless/events/raw",
-        "fieldsCsv": "wcs/stateless/events/raw/docs/fields.csv",
-        "fieldCount": 78
-      },
-      {
-        "name": "stateless/metrics/agents",
-        "fieldsCsv": "wcs/stateless/metrics/agents/docs/fields.csv",
-        "fieldCount": 19
-      },
-      {
-        "name": "stateless/metrics/comms",
-        "fieldsCsv": "wcs/stateless/metrics/comms/docs/fields.csv",
-        "fieldCount": 21
-      },
-      {
-        "name": "stateless/metrics/engine",
-        "fieldsCsv": "wcs/stateless/metrics/engine/docs/fields.csv",
-        "fieldCount": 11
-      }
-    ]
+    "templates": [],
+    "wcsModules": []
   },
   "skipped": [
     {
@@ -705,6 +185,11 @@
     }
   ],
   "unknowns": [
+    {
+      "plugin": "wazuh",
+      "field": "indexerAccess",
+      "reason": "indexer access not derivable from the manifest"
+    },
     {
       "plugin": "wazuhAiAssistant",
       "field": "indexerAccess",

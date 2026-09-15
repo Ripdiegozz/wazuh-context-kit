@@ -25,8 +25,8 @@ phases:
   design: done
   tasks: done
   apply: done
-  verify: ready
-  archive: blocked
+  verify: done
+  archive: ready
 
 artifacts:
   exploration: openspec/changes/phase-1-real-data/exploration.md

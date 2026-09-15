@@ -1,0 +1,243 @@
+name: Regenerate matrix
+
+# SPEC 5.4: most days nothing moved upstream, so the whole point of this
+# workflow is the ls-remote precheck below — it decides in ~10 network calls
+# and zero clones whether there is anything to do at all.
+on:
+  schedule:
+    - cron: "17 4 * * *" # daily; off-the-hour to avoid the top-of-hour GH Actions rush
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  REF: "5.0.0"
+
+jobs:
+  regenerate:
+    name: Regenerate matrix
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # git ls-remote reads a branch's SHA without cloning anything (SPEC 5.4).
+      # Compares every repo in sources.yml against out/<ref>/matrix.json's
+      # resolvedRefs and stops here, with no clone and no PR, when nothing moved.
+      - name: Precheck upstream refs
+        id: precheck
+        run: |
+          cat > /tmp/precheck.mjs <<'JS'
+          import { parse } from "yaml";
+          import { readFileSync } from "node:fs";
+          import { execSync } from "node:child_process";
+
+          const REF = process.env.REF;
+          const sources = parse(readFileSync("sources.yml", "utf8"));
+          const matrixPath = `out/${REF}/matrix.json`;
+          const matrix = JSON.parse(readFileSync(matrixPath, "utf8"));
+          const resolvedRefs = matrix.resolvedRefs ?? {};
+
+          const moved = [];
+          const missing = [];
+
+          for (const repo of sources.repos) {
+            const url = `https://github.com/wazuh/${repo.name}.git`;
+            let sha = null;
+            try {
+              const out = execSync(`git ls-remote --heads ${url} ${REF}`, {
+                encoding: "utf8",
+              }).trim();
+              sha = out.split(/\s+/)[0] || null;
+            } catch {
+              sha = null;
+            }
+
+            if (sha === null) {
+              // No matching branch upstream. Expected for at least one repo
+              // (wazuh-dashboard-ml-commons is listed on purpose for exactly
+              // this case, per sources.yml) — never a failure.
+              missing.push(repo.name);
+              continue;
+            }
+
+            const known = resolvedRefs[repo.name] ?? null;
+            if (known !== sha) {
+              moved.push({ name: repo.name, from: known, to: sha });
+            }
+          }
+
+          if (moved.length === 0) {
+            console.log("No repository moved since the last regeneration. Nothing to do.");
+          } else {
+            console.log(`${moved.length} repo(s) moved:`);
+            for (const m of moved) {
+              console.log(`  ${m.name}: ${m.from ?? "(none)"} -> ${m.to}`);
+            }
+          }
+          if (missing.length > 0) {
+            console.log(`No ${REF} branch upstream (expected, not a failure): ${missing.join(", ")}`);
+          }
+
+          const summary = moved
+            .map((m) => `${m.name} (${(m.from ?? "none").slice(0, 7)} -> ${m.to.slice(0, 7)})`)
+            .join("; ");
+          const names = moved.map((m) => m.name).join(", ");
+
+          const outFile = process.env.GITHUB_OUTPUT;
+          const fs = await import("node:fs");
+          fs.appendFileSync(outFile, `moved=${moved.length > 0}\n`);
+          fs.appendFileSync(outFile, `summary=${summary}\n`);
+          fs.appendFileSync(outFile, `names=${names}\n`);
+          JS
+          bun /tmp/precheck.mjs
+
+      - name: Capture pre-regeneration counts
+        if: steps.precheck.outputs.moved == 'true'
+        id: before
+        run: |
+          m="out/${REF}/matrix.json"
+          echo "plugins=$(jq '.plugins | length' "$m")" >> "$GITHUB_OUTPUT"
+          echo "core=$(jq '[.core[]?.plugins | length] | add // 0' "$m")" >> "$GITHUB_OUTPUT"
+          echo "templates=$(jq '.indexer.templates | length' "$m")" >> "$GITHUB_OUTPUT"
+          echo "wcs=$(jq '.indexer.wcsModules | length' "$m")" >> "$GITHUB_OUTPUT"
+          echo "unknowns=$(jq '.unknowns | length' "$m")" >> "$GITHUB_OUTPUT"
+
+          # SPEC 5.4 calls the reconciliation cross-check "probably the most
+          # valuable signal this system emits", and says a superseded decision
+          # whose derived value DIFFERS from the decided one "requires explicit
+          # human review". No test fails on that, so auto-merge would bury it.
+          conflicts=$(jq '[.reconciliation[]? | select(.conflict == true)] | length' "$m")
+          echo "conflicts=$conflicts" >> "$GITHUB_OUTPUT"
+          if [ "$conflicts" -gt 0 ]; then
+            echo "$conflicts reconciliation conflict(s) found - this PR needs a human."
+            jq -r '.reconciliation[]? | select(.conflict == true)
+                   | "  \(.plugin).\(.field): decided \(.decidedValue), derived \(.derivedValue)"' "$m"
+          fi
+
+      # Only reached when something moved. Clones just the moved repos
+      # (fetchRepos re-uses the cache for everything else) and rewrites out/.
+      - name: Regenerate matrix
+        if: steps.precheck.outputs.moved == 'true'
+        run: bun run ./src/cli.ts matrix --ref "${REF}"
+
+      - name: Capture post-regeneration counts
+        if: steps.precheck.outputs.moved == 'true'
+        id: after
+        run: |
+          m="out/${REF}/matrix.json"
+          echo "plugins=$(jq '.plugins | length' "$m")" >> "$GITHUB_OUTPUT"
+          echo "core=$(jq '[.core[]?.plugins | length] | add // 0' "$m")" >> "$GITHUB_OUTPUT"
+          echo "templates=$(jq '.indexer.templates | length' "$m")" >> "$GITHUB_OUTPUT"
+          echo "wcs=$(jq '.indexer.wcsModules | length' "$m")" >> "$GITHUB_OUTPUT"
+          echo "unknowns=$(jq '.unknowns | length' "$m")" >> "$GITHUB_OUTPUT"
+
+      # A moved SHA does not always change the payload (SPEC 5.4: "regenerar es
+      # parsear y reconciliar", not every upstream commit touches a tracked
+      # path). No diff means no PR.
+      - name: Check whether out/ actually changed
+        if: steps.precheck.outputs.moved == 'true'
+        id: diff
+        run: |
+          if git status --porcelain -- out/ | grep -q .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "out/ is unchanged after regeneration. Nothing to open a PR about."
+          fi
+
+      # This is the network-gated freshness suite (src/dataset-freshness.integration.test.ts)
+      # run against the tree we just regenerated, before anything is proposed
+      # for merge. If this fails, the job fails here and no branch/PR is created.
+      - name: Freshness check against regenerated tree
+        if: steps.diff.outputs.changed == 'true'
+        run: WAZUH_CTX_NETWORK=1 bun test
+
+      - name: Open regeneration PR
+        if: steps.diff.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MOVED_SUMMARY: ${{ steps.precheck.outputs.summary }}
+          BEFORE_PLUGINS: ${{ steps.before.outputs.plugins }}
+          AFTER_PLUGINS: ${{ steps.after.outputs.plugins }}
+          BEFORE_CORE: ${{ steps.before.outputs.core }}
+          AFTER_CORE: ${{ steps.after.outputs.core }}
+          BEFORE_TEMPLATES: ${{ steps.before.outputs.templates }}
+          AFTER_TEMPLATES: ${{ steps.after.outputs.templates }}
+          BEFORE_WCS: ${{ steps.before.outputs.wcs }}
+          AFTER_WCS: ${{ steps.after.outputs.wcs }}
+          BEFORE_UNKNOWNS: ${{ steps.before.outputs.unknowns }}
+          AFTER_UNKNOWNS: ${{ steps.after.outputs.unknowns }}
+          CONFLICTS: ${{ steps.after.outputs.conflicts }}
+        run: |
+          if [ "${CONFLICTS}" -gt 0 ]; then
+            REVIEW_NOTE="⚠️ **${CONFLICTS} reconciliation conflict(s). Auto-merge deliberately NOT enabled on this PR.**
+
+          A field became derivable and the derived value disagrees with a human decision in \`decisions.yml\`. Either the rule is wrong or the decision was. SPEC 5.4 requires explicit human review for exactly this case, and no test fails on it — so this one waits for you."
+          else
+            REVIEW_NOTE="No reconciliation conflicts. Auto-merge is enabled and fires once the required status checks pass."
+          fi
+          export REVIEW_NOTE
+
+          branch="automation/regenerate-${REF}-${{ github.run_id }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add out/
+          git commit -m "chore(out): regenerate ${REF} matrix
+
+          Moved upstream: ${MOVED_SUMMARY}
+
+          plugins:   ${BEFORE_PLUGINS} -> ${AFTER_PLUGINS}
+          core:      ${BEFORE_CORE} -> ${AFTER_CORE}
+          templates: ${BEFORE_TEMPLATES} -> ${AFTER_TEMPLATES}
+          wcsModules: ${BEFORE_WCS} -> ${AFTER_WCS}
+          unknowns:  ${BEFORE_UNKNOWNS} -> ${AFTER_UNKNOWNS}"
+          git push origin "$branch"
+
+          body=$(cat <<BODY
+          Automated regeneration of \`out/${REF}\` (SPEC 5.4).
+
+          **Moved upstream:** ${MOVED_SUMMARY}
+
+          | | before | after |
+          |---|---|---|
+          | plugins | ${BEFORE_PLUGINS} | ${AFTER_PLUGINS} |
+          | core plugins | ${BEFORE_CORE} | ${AFTER_CORE} |
+          | index templates | ${BEFORE_TEMPLATES} | ${AFTER_TEMPLATES} |
+          | WCS modules | ${BEFORE_WCS} | ${AFTER_WCS} |
+          | unknowns | ${BEFORE_UNKNOWNS} | ${AFTER_UNKNOWNS} |
+
+          Passed \`WAZUH_CTX_NETWORK=1 bun test\` against the regenerated tree before this PR was opened.
+
+          ${REVIEW_NOTE}
+
+          See \`.github/workflows/README.md\` for the repository settings this depends on.
+          BODY
+          )
+
+          pr_url=$(gh pr create \
+            --base master \
+            --head "$branch" \
+            --title "chore(out): regenerate ${REF} matrix" \
+            --body "$body")
+          echo "Opened $pr_url"
+
+          # The boring 95% merges itself; the case SPEC 5.4 names as needing a
+          # person is the case that waits for one. Closing the bus factor must
+          # not also close the eyes.
+          if [ "${CONFLICTS}" -gt 0 ]; then
+            gh pr edit "$pr_url" --add-label "needs-human-review" 2>/dev/null \
+              || echo "Label 'needs-human-review' not present in this repo; PR left unlabelled."
+            echo "Auto-merge withheld: ${CONFLICTS} reconciliation conflict(s)."
+          else
+            gh pr merge --auto --squash "$pr_url"
+          fi

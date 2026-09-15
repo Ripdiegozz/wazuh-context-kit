@@ -1,5 +1,24 @@
 /**
- * Hand-written fixtures mirroring real manifests on branch 5.0.0 (SPEC 1.2, 4).
+ * SHAPE-ONLY FIXTURES. These are NOT a mirror of any real repository.
+ *
+ * `wazuhMain` declares 3 `requiredPlugins` where the real `plugins/main`
+ * manifest at 5.0.0 declares 15, and its `optionalPlugins` names
+ * `usageCollection`, which the real manifest does not contain at all. The
+ * divergence is by construction, not drift: these fixtures exist to exercise
+ * the SHAPE of the pipeline with a readable amount of data.
+ *
+ * A consequence worth knowing before you "fix" anything here: because the
+ * fixture omits `data`, `wazuh.indexerAccess` computes to `[]` where the real
+ * manifest yields `["osd-data"]`. That difference is expected.
+ *
+ * Do NOT sync these to reality. A fixture that mirrors an upstream repository
+ * is a snapshot, and a snapshot rots on every release. Verification against
+ * the real thing is the opt-in network suite's job
+ * (`WAZUH_CTX_NETWORK=1`), and it already does it.
+ */
+/**
+ * Hand-written fixtures modelled on real manifests from branch 5.0.0
+ * (SPEC 1.2, 4). Modelled on, not copied from -- see the banner above.
  *
  * These exist so the pure core can be exercised with nothing cloned. Values are
  * transcribed from the manifests quoted in the spec; the commits are synthetic

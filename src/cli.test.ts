@@ -217,4 +217,35 @@ describe("wazuh-ctx argument handling", () => {
     expect(result.code).toBe(2);
     expect(result.stderr).toContain("not implemented yet");
   });
+
+  test("crosscheck is no longer unimplemented", async () => {
+    // SPEC 1.8 sits inside FASE 1 and returned notImplemented for the whole of
+    // Phase 1. Pinned so it cannot quietly regress to a stub.
+    const cwd = await mkdtemp(join(tmpdir(), "wazuh-ctx-cli-xcheck-"));
+    try {
+      const result = await runCli(["crosscheck", "--ref", REF, "--out", join(cwd, "out")], { cwd });
+      expect(result.stderr).not.toContain("not implemented yet");
+      // No sources.yml in this cwd, so it fails on config, not on being a stub.
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("sources.yml not found");
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("crosscheck reports git missing from PATH as fatal, like matrix does", async () => {
+    const cwd = await workdirWithSources("ok");
+    const emptyPath = await pathWithoutGit();
+    try {
+      const result = await runCli(["crosscheck", "--ref", REF, "--out", join(cwd, "out")], {
+        cwd,
+        env: { ...process.env, PATH: emptyPath },
+      });
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("git not found on PATH");
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+      await rm(emptyPath, { recursive: true, force: true });
+    }
+  }, 60_000);
 });

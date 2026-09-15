@@ -17,6 +17,9 @@ import { fetchRepos } from "./fetch/index.ts";
 import { buildMatrix } from "./matrix/build.ts";
 import { renderMatrixMarkdown } from "./matrix/render.ts";
 import type { BuildInput } from "./matrix/types.ts";
+import { buildCrosscheck } from "./crosscheck/build.ts";
+import { renderCrosscheckMarkdown } from "./crosscheck/render.ts";
+import { scanIndexReferences } from "./parse/index-references.ts";
 import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
 import { loadSources } from "./sources.ts";
 
@@ -237,6 +240,99 @@ async function runMatrix(values: Record<string, unknown>): Promise<CommandResult
   return { code: 0 };
 }
 
+/**
+ * `crosscheck` — SPEC 1.8. Which indices the indexer declares, against which
+ * the dashboard actually references.
+ *
+ * Scanning source is deliberately NOT part of `matrix`: it reads thousands of
+ * files and the matrix does not need it. Only this command pays for it.
+ */
+async function runCrosscheck(values: Record<string, unknown>): Promise<CommandResult> {
+  const ref = (values.ref as string | undefined) ?? "5.0.0";
+  const outDir = (values.out as string | undefined) ?? "out";
+  const frozenTime = values["frozen-time"] as string | undefined;
+
+  let sources: Awaited<ReturnType<typeof loadSources>>;
+  try {
+    sources = await loadSources(process.cwd());
+  } catch (error) {
+    console.error(`wazuh-ctx crosscheck: ${(error as Error).message}`);
+    return { code: 2 };
+  }
+
+  const cacheRoot = resolve(process.cwd(), ".cache");
+  const io = createFetchIo();
+
+  let fetchOutcome: Awaited<ReturnType<typeof fetchRepos>>;
+  try {
+    fetchOutcome = await fetchRepos({ repos: sources.repos, ref, cacheRoot, refresh: false, io });
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      console.error(`wazuh-ctx crosscheck: git not found on PATH (${err.message})`);
+      return { code: 2 };
+    }
+    throw error;
+  }
+
+  const targets = toParseTargets(sources, fetchOutcome.fetched);
+  const parsed = await parseFetchedRepos(targets);
+
+  // One DeclaredIndex per pattern: a template may declare several.
+  const declared = parsed.templates.flatMap((template) =>
+    template.indexPatterns.map((pattern) => ({
+      pattern,
+      template: template.path,
+      group: template.group,
+    })),
+  );
+
+  const references = [];
+  const uncovered = [];
+  const scannedRepos: string[] = [];
+  for (const target of targets) {
+    if (target.repoKind !== "dashboard") continue;
+    const scan = await scanIndexReferences(target);
+    references.push(...scan.references);
+    uncovered.push(...scan.uncovered);
+    scannedRepos.push(target.repo);
+  }
+
+  const crosscheck = buildCrosscheck({
+    ref,
+    generatedAt: frozenTime ?? new Date().toISOString(),
+    tool: TOOL,
+    declared,
+    references,
+    uncovered,
+    wcsModules: parsed.wcsModules.map((m) => ({ name: m.name, indexPatterns: m.indexPatterns })),
+    scannedRepos,
+  });
+
+  const target = join(outDir, ref);
+  await mkdir(target, { recursive: true });
+  await writeFile(
+    join(target, "crosscheck.json"),
+    `${JSON.stringify(crosscheck, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(join(target, "CROSSCHECK.md"), renderCrosscheckMarkdown(crosscheck), "utf8");
+
+  console.log(`ref                    ${crosscheck.ref}`);
+  console.log(`declared indices       ${declared.length}`);
+  console.log(`recovered names        ${crosscheck.coverage.recoveredNames}`);
+  console.log(`repos scanned          ${scannedRepos.length}`);
+  console.log(`declared unreferenced  ${crosscheck.declaredUnreferenced.length}`);
+  console.log(`referenced undeclared  ${crosscheck.referencedUndeclared.length}`);
+  console.log(`wcs without consumer   ${crosscheck.wcsWithoutConsumer.length}`);
+  console.log(`competing catalogs     ${crosscheck.competingCatalogs.length}`);
+  console.log(`UNCOVERED mechanisms   ${crosscheck.coverage.uncovered.length}  <- this report is not complete`);
+  console.log(`written                ${join(target, "crosscheck.json")}`);
+  console.log(`                       ${join(target, "CROSSCHECK.md")}`);
+
+  return { code: 0 };
+}
+
 function notImplemented(command: string, specSection: string): CommandResult {
   console.error(
     `wazuh-ctx ${command}: not implemented yet. See SPEC ${specSection}.\n` +
@@ -288,7 +384,7 @@ async function main(): Promise<number> {
     case "matrix":
       return (await runMatrix(parsed.values)).code;
     case "crosscheck":
-      return notImplemented("crosscheck", "1.8").code;
+      return (await runCrosscheck(parsed.values)).code;
     case "skills-diff":
       return notImplemented("skills-diff", "2.1").code;
     case "sync":

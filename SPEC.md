@@ -1122,18 +1122,57 @@ puede probar hoy, y es lo único que se afirma.
       otro mecanismo. Meterlo ahí daría dos motores de override bajo un nombre, y
       el día que uno falle el usuario no sabría cuál está mirando. La deuda es
       más chica que un segundo motor y, a diferencia de él, es visible.
-- [ ] `core/` + `overrides/<repo>/` reconstruyen **byte-idénticos ≥ 35 de los 42**
-      SKILL.md originales.
-- [ ] Los ≤ 7 restantes están listados en `lossy[]` con el diff exacto de lo que
-      no se pudo reconstruir. `reconstruidos + lossy == 42` siempre.
+- [x] `core/` + `overrides/<repo>/` reconstruyen **byte-idénticos ≥ 35 de los 42**
+      SKILL.md originales. **Verificado el 2026-09-16: 42 de 42.** Llegar ahí
+      costó tres defectos reales que ninguna suite unitaria vio —`.join("\n")` no
+      inyectivo, líneas en blanco nominadas como ancla, y orden de headings
+      tomado del primer escaneo—.
+- [x] **El core lleva ≥ 50 % del contenido particionable** —core + overrides—,
+      con los conflictos reportados aparte y sin gatear. **Verificado: 59.0 %**,
+      conflictos 28.2 %. Una compuerta debe medir lo que la implementación
+      controla: la extracción decide cómo partir, no decide si una divergencia
+      lleva marcador —eso es propiedad de los archivos—. El caso degenerado que el
+      piso existía para atrapar sigue fallando en 0 %.
+- [x] **El ancla de cada operación se resuelve dentro del heading que la
+      contiene**, y lleva un ordinal. **Verificado.** Anclar al heading no
+      alcanzaba: una línea de cierre de bloque de código aparece dos veces en una
+      misma sección. El ancla es `(heading, línea, ocurrencia, offset)` y un
+      invariante afirma que toda operación emitida resuelve a exactamente una
+      posición.
+- [x] Los restantes están listados en `lossy[]` con el diff exacto. **Verificado:
+      `42 + 0 == 42`.** La aritmética se afirma sobre el corpus entero, no por
+      muestreo.
 
-> El umbral de 35 es la misma proporción que el viejo 15/18 trasladada a 42, y
-> **no está validado contra la divergencia real**. Cinco de los seis skills
-> difieren en más de la mitad de sus líneas (2.1.0). Si el `skills-diff` muestra
-> que 35 es inalcanzable, se baja el umbral **con el número medido escrito al
-> lado**; lo que no se hace es aflojar la reconstrucción byte-idéntica para
-> llegar. `lossy[]` con el diff exacto es el mecanismo honesto; un umbral
-> cumplido por relajar la definición no mide nada.
+> **Umbral validado el 2026-09-16, antes de construir la reconstrucción.**
+>
+> Primero, la trampa que tenía el criterio: "≥ 35 de 42 byte-idénticos" es
+> **trivialmente satisfacible**. Core vacío, cada archivo entero como override, y
+> reconstruís 42 de 42 sin haber extraído nada. La barra mide que los parches
+> invierten la partición, no que la partición signifique algo. Por eso ahora va
+> acompañada de un piso de contenido en el core.
+>
+> Medido sobre los 42 archivos reales:
+>
+> | | |
+> | --- | --- |
+> | Contenido que vive en el core | **60 %** |
+> | Bloques de parche | 409 |
+> | Con ancla única | 380 (92 %) |
+> | Con ancla ambigua | 29 (7 %) |
+>
+> Por skill, el core va de **96 %** en `analyze-dashboard-vuln` a **34 %** en
+> `check-standards`. Los conteos por sección engañaban: 21 secciones comunes
+> sobre 61 sonaba a poco, pero las comunes son las grandes.
+>
+> **Lo decisivo es el ancla, no el volumen de divergencia.** Con un ancla de
+> línea simple reconstruyen limpio **21 de 42** —por debajo de la barra—. Las 29
+> anclas ambiguas se resuelven **todas** anclando al heading que las contiene,
+> con lo que el resultado es **42 de 42**. Y eso es lo que 2.1.1 ya muestra en su
+> ejemplo (`anchor: "## Version bases"`): el ancla es un heading, no una línea
+> cualquiera.
+>
+> Por lo tanto el umbral se sostiene y no se baja. Lo que se agrega es la
+> condición que lo hace significar algo.
 - [ ] Un ancla de override que resuelve a cero o a más de una posición hace
       fallar el `sync`. Test con un ancla ambigua a propósito.
 - [ ] Sobre el repo de fixture: `sync` materializa `.claude/standards/`, `check`

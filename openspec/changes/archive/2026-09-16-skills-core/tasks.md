@@ -80,28 +80,29 @@ the two compose to the identity — a fixture cannot agree with that.
 A green suite does not close this. Five previous cycles had one and shipped
 defects only real data found.
 
-- [ ] 7.1 Run extraction over the seven real repositories. Record the counts.
-- [ ] 7.2 **Confirm 42 of 42 reconstruct byte-identically.** Measured
+- [x] 7.1 Run extraction over the seven real repositories. Record the counts.
+- [x] 7.2 **Confirm 42 of 42 reconstruct byte-identically.** Measured
       prediction before building: 42 of 42 with heading-scoped anchors, 21 of 42
       with file-wide ones. A result of 21 means anchors are not scoped.
-- [ ] 7.3 Confirm the core share is ≥ 50 %. Measured prediction: 60 %.
-- [ ] 7.4 Confirm the per-skill spread matches the measurement:
+- [x] 7.3 Confirm the core share is ≥ 50 %. Measured prediction: 60 %.
+- [x] 7.4 Confirm the per-skill spread matches the measurement:
       `analyze-dashboard-vuln` ≈ 96 %, `check-standards` ≈ 34 %. A large
       divergence from these means extraction is not splitting where the diff says.
-- [ ] 7.5 Confirm five of six skills are undistributable and
-      `analyze-dashboard-vuln` is not. That is the expected initial state, not a
-      defect.
-- [ ] 7.6 Confirm no conflict appears in any `overrides/<repo>/`.
-- [ ] 7.7 Confirm `git status` shows `out/` unchanged — extraction writes its own
+- [~] 7.5 CORRECTED. **All six** are undistributable, not five.
+      `analyze-dashboard-vuln` carries only 2.4 % conflicts but carries some, and
+      the gate is any-conflict, not a threshold. The prediction was wrong; the
+      behaviour is right.
+- [x] 7.6 Confirm no conflict appears in any `overrides/<repo>/`.
+- [x] 7.7 Confirm `git status` shows `out/` unchanged — extraction writes its own
       trees and must not touch the committed dataset.
-- [ ] 7.8 Record every result, marking each confirmed-against-real-repos or
+- [x] 7.8 Record every result, marking each confirmed-against-real-repos or
       asserted-by-fixture.
 
 ## 8. Documentation
 
-- [ ] 8.1 Tick the SPEC 2.4 criteria this change closes, with an evidence header.
-- [ ] 8.2 State which criteria remain and why — `sync` and `check` are not built
+- [x] 8.1 Tick the SPEC 2.4 criteria this change closes, with an evidence header.
+- [x] 8.2 State which criteria remain and why — `sync` and `check` are not built
       here.
-- [ ] 8.3 Record that the ambiguous-anchor test is **constructed**: after heading
+- [x] 8.3 Record that the ambiguous-anchor test is **constructed**: after heading
       scoping the real corpus produces zero ambiguous anchors, so the corpus no
       longer exercises that path. Say so rather than implying coverage.

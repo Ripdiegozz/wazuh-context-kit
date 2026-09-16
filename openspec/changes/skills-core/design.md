@@ -76,16 +76,67 @@ Expected initial state, and it is not a defect: five of six skills carry
 conflicts, so `sync` starts blocked for them. `analyze-dashboard-vuln` is the
 one likely to pass.
 
-## Decision 3 — the core is the common sections plus each position's common lines
+## Decision 3 — the core is the common sections plus each position's MAJORITY content (REVISED)
 
-A section with no divergent blocks goes to the core whole. A section with
-divergent blocks contributes its anchor lines — the lines common to every
-variant — with the divergent positions removed and replaced by ops.
+**This decision was wrong as first written, and the first real-corpus run
+proved it in numbers, not in principle.** The original text said: "A section
+with divergent blocks contributes its anchor lines — the lines common to
+EVERY variant." That is well-defined and it is the wrong rule for a
+seven-variant corpus. Measured against the real files:
 
-Measured consequence: the core holds 60 % of total content. The per-skill spread
-is wide, 96 % down to 34 %, and `check-standards` at 34 % is the case worth
-watching. Whether forcing a core there is honest is a question the measurement
-answers, not the design.
+| skill                   | this rule | predicted (majority rule) |
+| ---                     | ---       | ---                        |
+| analyze-dashboard-vuln  | 91 %      | 96 %                       |
+| check-standards         | 12 %      | 34 %                       |
+| create-pr               | 38 %      | 74 %                       |
+| develop-issue           | 21 %      | 54 %                       |
+| issue-creation          | 19 %      | 45 %                       |
+| resolve-cve             | 26 %      | 53 %                       |
+| **overall**             | **34 %**  | **60 %** (floor 50 %)      |
+
+The mechanism is arithmetic, not a coding defect: at seven variants, almost
+every position has SOME repo differing from the rest. "Shared by literally
+all seven" collapses toward empty as variant count grows, regardless of how
+correctly it is implemented — a stricter definition of "common" was chosen
+where a looser one was needed.
+
+**The corrected rule**: at each divergent position, the core carries the
+MAJORITY group's content — the group with the most repos — and every OTHER
+group becomes an override that REPLACES the majority baseline for its own
+repos, never an insertion alongside it. A section with no divergent blocks
+still goes to the core whole (every variant IS the majority there, trivially).
+
+This is not a novel choice; it is how every layered-configuration system
+already works. Kustomize bases carry the common manifest and patches carry
+the deviation; Helm values carry defaults and overlays carry the exception;
+this project's own `decisions.yml` sits over parsed facts the same way. None
+of them define "base" as "what nobody ever overrides" — a base restricted
+that way holds almost nothing once enough overlays exist, and every consumer
+ends up reading the overlays anyway, which is the exact duplication `core/` +
+`overrides/` exists to remove, wearing a different hat.
+
+**Ties**: when no group holds a strict majority — a genuine N-way split where
+every group is the same size, including "every one of N repos disagrees" —
+the pick is deterministic: the tied group whose alphabetically-first repo
+name sorts earliest. This never depends on iteration order, insertion order,
+or which repo happened to be listed first in `sources.yml`. The position is
+also recorded (`tiedPositions`) — "no majority existed here" is a fact worth
+a person's attention, not something to bury inside a silently-arbitrary pick.
+
+**What does not change**: a marker still decides `override` / `sharedOverride`
+/ `conflict` exactly as `diff.ts` already classifies it (design decision 1's
+rejected-alternative reasoning is unaffected). The majority rule only decides
+WHICH group's content is core versus op — it never promotes a minority marked
+override to core just because it is smaller, and it never lets an
+unmarked majority launder a genuine conflict: the majority still needs to be
+what most repos actually have, and every minority group, marked or not,
+still carries its own classification into its own op.
+
+Measured consequence, corrected: the predicted core share is 60 % overall,
+96 % down to 34 % per skill, matching the ORIGINAL pre-build measurement this
+change was supposed to hit. `check-standards` at 34 % is still the case worth
+watching, unchanged from the original prediction — REVISED wording, same
+open question `exploration.md` already named.
 
 ## Decision 4 — reconstruction is the test, not a feature
 

@@ -10,12 +10,22 @@
  * would let this file's understanding of the diff's shape drift from
  * `diff.ts`'s own without either suite noticing.
  *
+ * Design decision 3, REVISED after the first real-corpus run: the core
+ * carries the MAJORITY group at each divergent position — the group with
+ * the most repos, never "only what every last variant shares verbatim" —
+ * because at seven real variants that stricter rule measured 34 % overall
+ * against a 60 %-predicted, 50 %-floor target. Every test below that
+ * touches a divergent position therefore checks BOTH halves of the same
+ * fact: the majority's content lands in `core`, and only the MINORITY
+ * carries an op.
+ *
  * No fixture files: every input is a literal in this file.
  */
 
 import { describe, expect, test } from "bun:test";
 import { diffSkill } from "./diff.ts";
 import { extractSkill } from "./extract.ts";
+import type { CoreSection, ExtractedSkill } from "./extract.ts";
 import type { SectionMarker, SkillVariant } from "./types.ts";
 
 const REPOS = ["wazuh-dashboard", "wazuh-dashboard-plugins", "wazuh-indexer"] as const;
@@ -33,6 +43,21 @@ function variant(
   };
 }
 
+/** Flattens a `CoreSection`'s anchors and majority-baseline slots back into
+ * one line list, for assertions — the same interleaving `reconstruct.ts`
+ * and `emit.ts` both replay. */
+function flatten(section: CoreSection): readonly string[] {
+  const out: string[] = [...section.slots[0]!];
+  section.anchors.forEach((anchorLine, i) => {
+    out.push(anchorLine, ...section.slots[i + 1]!);
+  });
+  return out;
+}
+
+function coreFor(extracted: ExtractedSkill, path: readonly string[]): CoreSection {
+  return extracted.core.find((s) => s.path.join("/") === path.join("/"))!;
+}
+
 describe("a section with no divergent blocks goes to the core whole (task 2.1)", () => {
   test("its full body lands in core.sections, no override, no conflict", () => {
     const lines = ["Run the standard checks.", "Nothing repo-specific here."];
@@ -42,7 +67,7 @@ describe("a section with no divergent blocks goes to the core whole (task 2.1)",
 
     expect(extracted.core).toHaveLength(1);
     expect(extracted.core[0]!.path).toEqual(["Section"]);
-    expect(extracted.core[0]!.lines).toEqual(lines);
+    expect(flatten(extracted.core[0]!)).toEqual(lines);
     expect(extracted.core[0]!.absentFor).toEqual([]);
     for (const repo of REPOS) {
       expect(extracted.overrides.get(repo)).toEqual([]);
@@ -51,8 +76,8 @@ describe("a section with no divergent blocks goes to the core whole (task 2.1)",
   });
 });
 
-describe("a section with divergent blocks contributes common lines, ops replace the rest (task 2.2)", () => {
-  test("the core holds the anchors; the divergent position becomes an op", () => {
+describe("a divergent position: the MAJORITY lands in core, the minority carries the op (task 2.2)", () => {
+  test("two of three repos share a line; the core keeps it, the third repo overrides it", () => {
     const base = ["Confirm the branch.", "Push when ready."];
     const overridden = [
       "Confirm the branch.",
@@ -72,29 +97,24 @@ describe("a section with divergent blocks contributes common lines, ops replace 
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
 
-    // The core keeps only what every variant shares — "Push when ready." is
-    // NOT in the core, because wazuh-dashboard replaced it.
+    // The majority (wazuh-dashboard-plugins + wazuh-indexer) is the core —
+    // "Push when ready." is NOT relegated to an op just because one repo of
+    // three deviates.
     expect(extracted.core).toHaveLength(1);
-    expect(extracted.core[0]!.lines).toEqual(["Confirm the branch."]);
+    expect(flatten(extracted.core[0]!)).toEqual(base);
 
     const ops = extracted.overrides.get("wazuh-dashboard")!;
     expect(ops).toHaveLength(1);
     expect(ops[0]!.anchor).toBe("Confirm the branch.");
-    expect(ops[0]!.content).toBe(
+    expect(ops[0]!.content).toEqual([
       "> **repo-specific (wazuh-dashboard):** live bases include main and 5.0.0.",
-    );
+    ]);
     expect(ops[0]!.attribution).toBe("override");
 
-    // The other two repos' own baseline line ("Push when ready.") is ALSO
-    // not universal — wazuh-dashboard replaced it — so it is not core
-    // either. It reconstructs through its own op, anchored at the same
-    // common line, attributed to the repos that share it.
-    for (const repo of ["wazuh-dashboard-plugins", "wazuh-indexer"]) {
-      const baseline = extracted.overrides.get(repo)!;
-      expect(baseline).toHaveLength(1);
-      expect(baseline[0]!.anchor).toBe("Confirm the branch.");
-      expect(baseline[0]!.content).toBe("Push when ready.");
-    }
+    // The majority repos get no op at all — they reconstruct from the core
+    // alone.
+    expect(extracted.overrides.get("wazuh-dashboard-plugins")).toEqual([]);
+    expect(extracted.overrides.get("wazuh-indexer")).toEqual([]);
   });
 });
 
@@ -112,25 +132,25 @@ describe("a marked divergence becomes an op attributed to the repos in its group
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
 
+    // wazuh-dashboard + wazuh-dashboard-plugins are the majority: "Open the
+    // PR." is core, and only wazuh-indexer's deviation is an op.
+    expect(flatten(extracted.core[0]!)).toEqual(base);
+
     const op = extracted.overrides.get("wazuh-indexer")!;
     expect(op).toHaveLength(1);
     expect(op[0]!.repos).toEqual(["wazuh-indexer"]);
     expect(op[0]!.attribution).toBe("override");
 
-    // The majority's own baseline line is equally not universal (the whole
-    // section is one line, and wazuh-indexer's differs), so it too needs an
-    // op — attributed to the majority, not to wazuh-indexer.
-    for (const repo of ["wazuh-dashboard", "wazuh-dashboard-plugins"]) {
-      const baseline = extracted.overrides.get(repo)!;
-      expect(baseline).toHaveLength(1);
-      expect(baseline[0]!.content).toBe("Open the PR.");
-      expect(baseline[0]!.repos).not.toContain("wazuh-indexer");
-    }
+    expect(extracted.overrides.get("wazuh-dashboard")).toEqual([]);
+    expect(extracted.overrides.get("wazuh-dashboard-plugins")).toEqual([]);
   });
 });
 
 describe("an unmarked divergence goes to conflicts, never to any overrides/<repo> (task 2.4)", () => {
   test("the conflict is present in extracted.conflicts and absent from EVERY repo's overrides", () => {
+    // Majority (wazuh-dashboard + wazuh-indexer, both "affected area") is
+    // core; the minority (wazuh-dashboard-plugins, unmarked) is the
+    // conflict.
     const variants = [
       variant("wazuh-dashboard", [{ path: ["Section"], lines: ["affected area"] }]),
       variant("wazuh-dashboard-plugins", [{ path: ["Section"], lines: ["affected plugin(s)"] }]),
@@ -139,7 +159,9 @@ describe("an unmarked divergence goes to conflicts, never to any overrides/<repo
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
 
-    expect(extracted.conflicts.length).toBeGreaterThan(0);
+    expect(flatten(extracted.core[0]!)).toEqual(["affected area"]);
+    expect(extracted.conflicts).toHaveLength(1);
+    expect(extracted.conflicts[0]!.repos).toEqual(["wazuh-dashboard-plugins"]);
     expect(extracted.conflicts.every((op) => op.attribution === "conflict")).toBe(true);
 
     // The hard assertion: absence, not just presence elsewhere.
@@ -154,40 +176,47 @@ describe("an unmarked divergence goes to conflicts, never to any overrides/<repo
 });
 
 describe("an unnamed-marker divergence is attributed to no single repo (task 2.5)", () => {
-  test("a bare '> **repo-specific:**' op carries every repo in its group, not one owner", () => {
+  test("a bare '> **repo-specific:**' op carries every repo in its (minority) group, not one owner", () => {
+    // Five repos so the shared-marker group can be the genuine MINORITY
+    // (two of five) while still being multi-repo — task 2.5 is about
+    // attribution width, not about which side wins the majority.
     const base = ["Open the PR."];
-    const shared = ["> **repo-specific:** two of the three plugin repos need this."];
+    const shared = ["> **repo-specific:** two of the five plugin repos need this."];
+    const majorityRepos = ["wazuh-dashboard", "wazuh-dashboard-alerting", "wazuh-dashboard-reporting"];
+    const minorityRepos = ["wazuh-dashboard-plugins", "wazuh-indexer"];
+
     const variants = [
-      variant("wazuh-dashboard", [{ path: ["Section"], lines: base }]),
-      variant("wazuh-dashboard-plugins", [
-        { path: ["Section"], lines: shared, markers: [{ lineIndex: 0, repo: null }] },
-      ]),
-      variant("wazuh-indexer", [{ path: ["Section"], lines: shared, markers: [{ lineIndex: 0, repo: null }] }]),
+      ...majorityRepos.map((repo) => variant(repo, [{ path: ["Section"], lines: base }])),
+      ...minorityRepos.map((repo) =>
+        variant(repo, [{ path: ["Section"], lines: shared, markers: [{ lineIndex: 0, repo: null }] }]),
+      ),
     ];
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
 
-    const sharedOps = [
-      ...(extracted.overrides.get("wazuh-dashboard-plugins") ?? []),
-      ...(extracted.overrides.get("wazuh-indexer") ?? []),
-    ].filter((op) => op.attribution === "sharedOverride");
+    expect(flatten(extracted.core[0]!)).toEqual(base);
 
+    const sharedOps = minorityRepos.flatMap((repo) =>
+      (extracted.overrides.get(repo) ?? []).filter((op) => op.attribution === "sharedOverride"),
+    );
     expect(sharedOps.length).toBeGreaterThan(0);
     for (const op of sharedOps) {
       expect(op.repos.length).toBeGreaterThan(1);
-      expect([...op.repos].sort()).toEqual(["wazuh-dashboard-plugins", "wazuh-indexer"]);
+      expect([...op.repos].sort()).toEqual([...minorityRepos].sort());
     }
-    // Materialised into BOTH member repos' override lists, since
+    // Materialised into BOTH minority repos' override lists, since
     // reconstruction is per repo — but owned by neither alone.
-    expect(extracted.overrides.get("wazuh-dashboard-plugins")!.some((o) => o.attribution === "sharedOverride")).toBe(
-      true,
-    );
-    expect(extracted.overrides.get("wazuh-indexer")!.some((o) => o.attribution === "sharedOverride")).toBe(true);
+    for (const repo of minorityRepos) {
+      expect(extracted.overrides.get(repo)!.some((o) => o.attribution === "sharedOverride")).toBe(true);
+    }
+    for (const repo of majorityRepos) {
+      expect(extracted.overrides.get(repo)).toEqual([]);
+    }
   });
 });
 
 describe("the core share is computed and reported per skill (task 2.6)", () => {
-  test("a skill with a small divergence reports a high core share", () => {
+  test("a skill with a small minority divergence reports a high core share", () => {
     const base = ["one", "two", "three", "four", "five"];
     const overridden = ["one", "two", "> **repo-specific (wazuh-dashboard):** three-alt", "four", "five"];
     const variants = REPOS.map((repo) =>
@@ -199,11 +228,15 @@ describe("the core share is computed and reported per skill (task 2.6)", () => {
     );
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
-    expect(extracted.coreShare).toBeGreaterThan(0.5);
-    expect(extracted.coreShare).toBeLessThanOrEqual(1);
+    // Core: "one","two","four","five" (anchors) + "three" (majority slot) = 5
+    // lines; the minority op is 1 line. 5 / 6.
+    expect(extracted.coreShare).toBeCloseTo(5 / 6, 5);
   });
 
-  test("a skill that is entirely one divergent block reports a low core share", () => {
+  test("an N-way tie with no majority is broken deterministically, and recorded", () => {
+    // All three repos disagree — no group has more repos than another, so
+    // the pick falls to the alphabetically-first repo name, and the
+    // position is recorded as tied rather than silently resolved.
     const variants = [
       variant("wazuh-dashboard", [{ path: ["Section"], lines: ["dashboard-only content, wall to wall"] }]),
       variant("wazuh-dashboard-plugins", [{ path: ["Section"], lines: ["plugins-only content, wall to wall"] }]),
@@ -211,7 +244,12 @@ describe("the core share is computed and reported per skill (task 2.6)", () => {
     ];
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
-    expect(extracted.coreShare).toBe(0);
+
+    // "wazuh-dashboard" sorts first among the three tied candidates.
+    expect(flatten(extracted.core[0]!)).toEqual(["dashboard-only content, wall to wall"]);
+    expect(extracted.tiedPositions.length).toBeGreaterThan(0);
+    // One core line against two minority (conflict) op lines: 1 / 3.
+    expect(extracted.coreShare).toBeCloseTo(1 / 3, 5);
   });
 });
 
@@ -224,8 +262,9 @@ describe("a section absent in one variant surfaces as divergence, not silent omi
     ];
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
-    const section = extracted.core.find((s) => s.path.join() === "Extra")!;
+    const section = coreFor(extracted, ["Extra"]);
     expect(section).toBeDefined();
     expect([...section.absentFor].sort()).toEqual(["wazuh-dashboard-plugins", "wazuh-indexer"]);
+    expect(flatten(section)).toEqual(["only wazuh-dashboard has this"]);
   });
 });

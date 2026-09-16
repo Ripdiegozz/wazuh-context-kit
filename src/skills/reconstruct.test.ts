@@ -146,6 +146,9 @@ describe("ops applied in shuffled order still reconstruct the same result (task 
 
 describe("a file that cannot be reconstructed lands in lossy[] with the exact diff (task 3.3)", () => {
   test("a deliberately corrupted extraction is reported lossy, not silently wrong", () => {
+    // "b" and "c" share the plain baseline (the majority); "a" is the
+    // unambiguous minority, so it is the one guaranteed to carry an op —
+    // no tie-break involved, unlike a 1-vs-1 split.
     const variants = [
       variant("a", [
         {
@@ -155,6 +158,7 @@ describe("a file that cannot be reconstructed lands in lossy[] with the exact di
         },
       ]),
       variant("b", [{ path: ["Section"], lines: ["common line"] }]),
+      variant("c", [{ path: ["Section"], lines: ["common line"] }]),
     ];
 
     const extracted = extractSkill(diffSkill("a-skill", variants));
@@ -164,14 +168,14 @@ describe("a file that cannot be reconstructed lands in lossy[] with the exact di
     const corruptedOverrides = new Map(extracted.overrides);
     corruptedOverrides.set(
       "a",
-      corruptedOverrides.get("a")!.map((op) => ({ ...op, content: "WRONG CONTENT" })),
+      corruptedOverrides.get("a")!.map((op) => ({ ...op, content: ["WRONG CONTENT"] })),
     );
     const corrupted = { ...extracted, overrides: corruptedOverrides };
 
     const originals = new Map(variants.map((v) => [v.repo, originalBody(v)]));
     const summary = reconstructAndVerify(corrupted, originals);
 
-    expect(summary.reconstructed).toBe(1); // "b" still reconstructs
+    expect(summary.reconstructed).toBe(2); // "b" and "c" still reconstruct
     expect(summary.lossy).toHaveLength(1);
     expect(summary.lossy[0]!.repo).toBe("a");
     expect(summary.lossy[0]!.expected).toEqual(originals.get("a")!);

@@ -1,6 +1,6 @@
 /**
  * `extractSkill` — `SkillDiff` -> `ExtractedSkill` (SPEC 2.1; design decision
- * 3). Pure: no fs, no network, no clock.
+ * 3, REVISED). Pure: no fs, no network, no clock.
  *
  * Extraction is a PROJECTION of `diffSkill`'s output, not a second analysis:
  *
@@ -9,20 +9,39 @@
  * `diff.ts` already did the hard part — grouping section bodies, segmenting
  * divergent blocks, classifying by marker. This module only asks, for each
  * already-classified section: does it stay whole in the core, or does it
- * contribute its anchors to the core and its divergent content to ops? That
- * is why `ClassifiedSection` carries `wholeLines` and `anchors` (added for
- * this change) instead of this module recomputing `commonAcrossGroups`
- * itself — recomputing it here would be a second analysis of the same
- * corpus, and the two would drift with nobody able to see it, because each
- * would have its own tests (the same argument that keeps `covers()` a single
- * function in the crosscheck).
+ * contribute its anchors PLUS a majority baseline to the core, with the
+ * deviating groups carrying overrides? That is why `ClassifiedSection`
+ * carries `wholeLines` and `anchors` (added for `skills-core`) instead of
+ * this module recomputing `commonAcrossGroups` itself — recomputing it here
+ * would be a second analysis of the same corpus, and the two would drift
+ * with nobody able to see it, because each would have its own tests (the
+ * same argument that keeps `covers()` a single function in the crosscheck).
  *
- * A section with no divergent blocks (`blocks.length === 0`) goes to the
- * core whole. A divergent section contributes only its `anchors` — the
- * lines common to every variant — to the core, and each divergent position
- * becomes one or more patch ops, keyed by the anchor line that precedes it
- * (`null` for the position before the first anchor, i.e. the start of the
- * section).
+ * REVISED after the first real-corpus run (2026-09-16): the original rule —
+ * "the core is only what literally every variant shares verbatim" — measured
+ * 34 % overall against a 60 %-predicted, 50 %-floor target, and per skill it
+ * gutted the core hardest exactly where seven variants exist:
+ * `check-standards` measured 12 % against a 34 % prediction. The math is
+ * mechanical, not a coding bug: at seven variants, almost every position has
+ * SOME repo differing, so "shared by literally all seven" collapses toward
+ * empty. That is precisely the failure an override system exists to avoid —
+ * Kustomize bases with patches, Helm values with overlays, this project's
+ * own `decisions.yml` over parsed facts all put the MAJORITY case in the
+ * base and the exception in the overlay, never the reverse. A base that may
+ * only hold what nobody ever overrides holds almost nothing, and every
+ * consumer ends up reading the overlays anyway — the exact duplication this
+ * change exists to remove, wearing a different hat.
+ *
+ * So: at each divergent POSITION (design's "slot"), the core carries the
+ * MAJORITY group's content — the group with the most repos, not the
+ * intersection of all of them — and every OTHER group becomes a patch op
+ * that REPLACES the majority baseline for its own repos. When no group has
+ * a strict majority (a genuine N-way tie), the choice is made
+ * deterministically: the tied group whose alphabetically-first repo name
+ * sorts earliest, so the pick never depends on iteration order — and the
+ * position is recorded in `tiedPositions`, because "no majority existed" is
+ * a fact worth a person's attention, not something to bury inside a
+ * silently-arbitrary pick.
  *
  * `override` and `sharedOverride` ops are materialised into EVERY repo in
  * their group's `overrides/<repo>` list — reconstruction is per repo, so
@@ -31,32 +50,53 @@
  * to a separate list and are never written into any repo's overrides (task
  * 2.4) — SPEC 2.1.1 forbids resolving a conflict automatically, and putting
  * it in an override file is exactly that: it launders a divergence nobody
- * declared into a decision `sync` would then distribute as policy.
+ * declared into a decision `sync` would then distribute as policy. The
+ * majority-baseline rule does not change this: a conflict position's
+ * MAJORITY still lands in the core (it is, after all, what most repos
+ * actually have), but every minority group there is still a conflict op,
+ * never an override — "most common" is not "declared," and SPEC 2.1.1 does
+ * not let volume substitute for a marker.
  */
 
-import type { ClassifiedSection, DivergentBlock, SectionCategory, SkillDiff } from "./types.ts";
+import type { ClassifiedSection, DivergentBlock, SectionCategory, SectionGroup, SkillDiff } from "./types.ts";
 
 /**
- * One patch operation: insert `content` immediately after `anchor` within
- * `heading` (or at the very start of the section when `anchor` is `null`).
- * `repos` are every repository this op reconstructs — for a `conflict` op
- * this is still populated (reconstruction of the FULL corpus applies
- * conflicts too, design decision 2: "reconstruction applies all three"),
- * even though a conflict is never written into any `overrides/<repo>` file.
+ * One patch operation: REPLACE the core's baseline at this position with
+ * `content`, for every repo in `repos`. `content` is a LINE ARRAY, not a
+ * joined string — `[]` (replace with nothing) and `[""]` (replace with one
+ * blank line) are different, real facts about a repo's original file, and a
+ * joined string collapses both to `""` with no way back. `anchor` identifies
+ * the position — the common line immediately preceding it, or `null` for
+ * the position before the section's first anchor (or the whole section,
+ * when it has no anchors at all). `repos` are every repository this op
+ * reconstructs — for a `conflict` op this is still populated (reconstruction
+ * of the FULL corpus applies conflicts too, design decision 2:
+ * "reconstruction applies all three"), even though a conflict is never
+ * written into any `overrides/<repo>` file.
  */
 export interface PatchOp {
   readonly heading: readonly string[];
   readonly anchor: string | null;
-  readonly content: string;
+  readonly content: readonly string[];
   readonly repos: readonly string[];
   readonly attribution: SectionCategory;
 }
 
 export interface CoreSection {
   readonly path: readonly string[];
-  /** The skeleton: the whole body for a fully common section, or just the
-   * anchors for a divergent one. */
-  readonly lines: readonly string[];
+  /** The lines common to literally every variant, in order — empty for a
+   * fully common section (there, the WHOLE body already qualifies and lives
+   * entirely in `slots[0]`, so there is nothing left to anchor). */
+  readonly anchors: readonly string[];
+  /**
+   * The majority baseline at each of `anchors.length + 1` gaps (`slots[0]`
+   * before the first anchor, `slots[i + 1]` after `anchors[i]`). A
+   * repository with no op at a given position reconstructs FROM this
+   * baseline; a repository with an op there uses the op's content INSTEAD
+   * of the baseline, never both — this is what makes it an override rather
+   * than an insertion.
+   */
+  readonly slots: readonly (readonly string[])[];
   /** Repos whose original file has no such heading at all — reconstruction
    * skips this section entirely for them (never emits the skeleton). */
   readonly absentFor: readonly string[];
@@ -78,6 +118,11 @@ export interface ExtractedSkill {
   /** Human-readable "heading: anchor" for each blocking conflict, for a
    * report to name without re-deriving it. */
   readonly blockingConflicts: readonly string[];
+  /** Human-readable "heading: anchor" for each position where no group held
+   * a strict majority — the tie-break landed somewhere, and this is the
+   * record that it WAS a tie-break, not a real majority (design decision 3,
+   * revised). */
+  readonly tiedPositions: readonly string[];
 }
 
 function headingLabel(heading: readonly string[]): string {
@@ -107,7 +152,7 @@ function absentReposIn(section: ClassifiedSection): string[] {
 /** Groups blocks by the slot they occupy — `classifyPosition` can return
  * more than one block for the same slot when markers are mixed (design
  * decision 1's "split, never collapse"), and extraction must treat those as
- * one position with several ops, not several positions. */
+ * one position, not several. */
 function groupBySlot(blocks: readonly DivergentBlock[]): Map<number, DivergentBlock[]> {
   const bySlot = new Map<number, DivergentBlock[]>();
   for (const block of blocks) {
@@ -121,36 +166,107 @@ function groupBySlot(blocks: readonly DivergentBlock[]): Map<number, DivergentBl
   return bySlot;
 }
 
+/**
+ * The groups actually present at a slot, deduplicated by REFERENCE. A mixed
+ * position (design decision 1's split) can list the SAME unmarked baseline
+ * group object inside both its `override` and `sharedOverride` blocks —
+ * deliberately, for the report, so a reader sees it under both headings.
+ * Extraction must still treat it as ONE group, or it would emit the same
+ * content twice (once per block) into reconstruction, silently duplicating
+ * bytes on replay.
+ */
+function presentGroupsAtSlot(blocksAtSlot: readonly DivergentBlock[]): SectionGroup[] {
+  const seen = new Set<SectionGroup>();
+  const result: SectionGroup[] = [];
+  for (const block of blocksAtSlot) {
+    for (const group of block.groups) {
+      if (group.body === null) continue; // absent — never a majority candidate, never an op
+      if (seen.has(group)) continue;
+      seen.add(group);
+      result.push(group);
+    }
+  }
+  return result;
+}
+
+function firstRepo(group: SectionGroup): string {
+  return [...group.repos].sort((a, b) => a.localeCompare(b))[0] ?? "";
+}
+
+interface MajorityPick {
+  readonly majority: SectionGroup;
+  readonly tied: boolean;
+}
+
+/**
+ * Picks the majority group among `groups` — the one with the most repos.
+ * Ties (including the N-way-all-distinct case) are broken by the
+ * alphabetically-first repo name across the tied candidates, so the choice
+ * depends only on repo names, never on array order or iteration order
+ * (design decision 3, revised: "pick the deterministic first group by
+ * sorted repo name").
+ */
+function pickMajority(groups: readonly SectionGroup[]): MajorityPick {
+  const maxSize = Math.max(...groups.map((g) => g.repos.length));
+  const candidates = groups.filter((g) => g.repos.length === maxSize);
+  const sorted = [...candidates].sort((a, b) => firstRepo(a).localeCompare(firstRepo(b)));
+  return { majority: sorted[0]!, tied: candidates.length > 1 };
+}
+
 export function extractSkill(diff: SkillDiff): ExtractedSkill {
   const core: CoreSection[] = [];
   const overridesByRepo = new Map<string, PatchOp[]>();
   for (const repo of diff.repos) overridesByRepo.set(repo, []);
   const conflicts: PatchOp[] = [];
+  const tiedPositions: string[] = [];
 
   for (const section of diff.sections) {
     if (section.blocks.length === 0) {
-      core.push({ path: section.path, lines: section.wholeLines ?? [], absentFor: [] });
+      // Fully common: the whole body IS the majority (everyone has it), so
+      // it lives entirely in the single slot before a (nonexistent) first
+      // anchor. Representing it this way — rather than as a special case —
+      // means reconstruction never needs to know "common" as its own idea.
+      core.push({ path: section.path, anchors: [], slots: [[...(section.wholeLines ?? [])]], absentFor: [] });
       continue;
     }
 
-    core.push({ path: section.path, lines: [...section.anchors], absentFor: absentReposIn(section) });
-
     const bySlot = groupBySlot(section.blocks);
-    for (const slot of [...bySlot.keys()].sort((a, b) => a - b)) {
-      const anchor = slot === 0 ? null : section.anchors[slot - 1]!;
+    const slots: string[][] = [];
+    const emittedGroups = new Set<SectionGroup>();
 
-      for (const block of bySlot.get(slot)!) {
+    for (let slot = 0; slot <= section.anchors.length; slot++) {
+      const blocksAtSlot = bySlot.get(slot) ?? [];
+      const groups = presentGroupsAtSlot(blocksAtSlot);
+
+      if (groups.length === 0) {
+        slots.push([]);
+        continue;
+      }
+
+      const { majority, tied } = pickMajority(groups);
+      slots.push([...majority.diffLines]);
+
+      if (tied) {
+        const anchorText = slot === 0 ? null : section.anchors[slot - 1]!;
+        tiedPositions.push(`${headingLabel(section.path)}: ${anchorLabel(anchorText)}`);
+      }
+
+      const anchorText = slot === 0 ? null : section.anchors[slot - 1]!;
+      for (const block of blocksAtSlot) {
         for (const group of block.groups) {
-          // A group with nothing to insert here — e.g. the absent-body
-          // group, or a repo whose content at this position is empty —
-          // contributes no op. Its repos reconstruct from the skeleton
-          // alone.
-          if (group.diffLines.length === 0) continue;
+          if (group === majority || group.body === null) continue;
+          if (emittedGroups.has(group)) continue; // same dedup as presentGroupsAtSlot, for op emission
+          emittedGroups.add(group);
+          // NOT skipped when `diffLines` is empty: an empty minority group
+          // is a real fact — "this repo has NOTHING here, unlike the
+          // majority" — and must REPLACE the baseline with nothing, not
+          // silently fall back to it (that fallback is exactly what
+          // `reconstruct.ts` does for a group with no op at all).
 
           const op: PatchOp = {
             heading: section.path,
-            anchor,
-            content: group.diffLines.join("\n"),
+            anchor: anchorText,
+            content: [...group.diffLines],
             repos: group.repos,
             attribution: block.category,
           };
@@ -166,14 +282,16 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
         }
       }
     }
+
+    core.push({ path: section.path, anchors: [...section.anchors], slots, absentFor: absentReposIn(section) });
   }
 
   // One entry per blocking POSITION (heading + anchor), not per op — a
   // conflict at one position is typically emitted as one op per distinct
-  // group (design decision 1: "no base repository", every population is its
-  // own group), and a person resolving conflicts needs "these positions
-  // block you," not the same position repeated once per group that
-  // disagrees there.
+  // minority group (design decision 1: "no base repository", every
+  // population is its own group), and a person resolving conflicts needs
+  // "these positions block you," not the same position repeated once per
+  // group that disagrees there.
   const blockingConflicts = [
     ...new Set(conflicts.map((op) => `${headingLabel(op.heading)}: ${anchorLabel(op.anchor)}`)),
   ];
@@ -186,9 +304,37 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
     conflicts,
     distributable: conflicts.length === 0,
     blockingConflicts,
+    tiedPositions: [...new Set(tiedPositions)],
   };
 
   return { ...withoutShare, coreShare: computeCoreShare(withoutShare) };
+}
+
+/**
+ * Raw line counts behind `computeCoreShare` — exposed separately so a
+ * caller aggregating several skills (the CLI's overall floor check) sums
+ * COUNTS, not per-skill ratios: averaging ratios would let a tiny skill's
+ * 100 % share cancel out a large skill's 10 % share, which is not what
+ * "the core carries at least half the content" means at the corpus level.
+ */
+export function coreShareCounts(
+  extracted: Pick<ExtractedSkill, "core" | "overrides" | "conflicts">,
+): { readonly coreLines: number; readonly totalLines: number } {
+  const coreLines = extracted.core.reduce(
+    (sum, s) => sum + s.anchors.length + s.slots.reduce((slotSum, slot) => slotSum + slot.length, 0),
+    0,
+  );
+
+  const seen = new Set<string>();
+  let divergentLines = 0;
+  for (const op of [...[...extracted.overrides.values()].flat(), ...extracted.conflicts]) {
+    const key = JSON.stringify([op.heading, op.anchor, op.content, op.attribution]);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    divergentLines += op.content.length;
+  }
+
+  return { coreLines, totalLines: coreLines + divergentLines };
 }
 
 /**
@@ -206,18 +352,7 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
  * with how much content actually diverges.
  */
 export function computeCoreShare(extracted: Pick<ExtractedSkill, "core" | "overrides" | "conflicts">): number {
-  const coreLines = extracted.core.reduce((sum, s) => sum + s.lines.length, 0);
-
-  const seen = new Set<string>();
-  let divergentLines = 0;
-  for (const op of [...[...extracted.overrides.values()].flat(), ...extracted.conflicts]) {
-    const key = JSON.stringify([op.heading, op.anchor, op.content, op.attribution]);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    divergentLines += op.content.length === 0 ? 0 : op.content.split("\n").length;
-  }
-
-  const totalLines = coreLines + divergentLines;
+  const { coreLines, totalLines } = coreShareCounts(extracted);
   return totalLines === 0 ? 1 : coreLines / totalLines;
 }
 

@@ -551,12 +551,48 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
 
   if (values.extract === true) {
     const extracted = skillsDiff.skills.map((skill) => extractSkill(skill));
-    const { written } = await emitExtraction(target, extracted);
+
+    // `skill.name -> repo -> that repo's original flattened body` — the
+    // ONLY place this exists, since `extractSkill`'s output does not retain
+    // the inputs it was built from (the proof is that reconstruction
+    // recovers them, not that they were kept around). Built from the same
+    // `loaded.variantsBySkill` `skillsDiff` itself was built from, so this
+    // never drifts from what was actually diffed.
+    const originalsBySkill = new Map(
+      skillsDiff.skills.map((skill) => {
+        const variants = loaded.variantsBySkill.get(skill.skill) ?? [];
+        const repoLines = new Map(
+          variants.map((v) => [v.repo, v.skill.sections.flatMap((s) => s.lines)] as const),
+        );
+        return [skill.skill, repoLines] as const;
+      }),
+    );
+
+    const { written, report } = await emitExtraction(target, extracted, originalsBySkill);
 
     const distributable = extracted.filter((e) => e.distributable).length;
     console.log(`extracted        ${extracted.length} skills`);
     console.log(`distributable    ${distributable} of ${extracted.length}`);
+    console.log(`core share       ${(report.overall.coreShare * 100).toFixed(1)}% (floor ${(report.overall.floor * 100).toFixed(0)}%)`);
+    if (report.overall.reconstruction) {
+      console.log(
+        `reconstructed    ${report.overall.reconstruction.reconstructed} of ${report.overall.reconstruction.total} ` +
+          `(${report.overall.reconstruction.lossy} lossy)`,
+      );
+    }
     for (const path of written) console.log(`written          ${path}`);
+
+    // SPEC 2.4's companion to reconstruction: byte-identical reconstruction
+    // alone is trivially satisfiable (an empty core, every file whole as
+    // its own override) and proves nothing about whether the split means
+    // anything. This is a HARD gate, independent of reconstruction success.
+    if (!report.overall.meetsFloor) {
+      console.error(
+        `wazuh-ctx skills-diff --extract: core share ${(report.overall.coreShare * 100).toFixed(1)}% is ` +
+          `below the ${(report.overall.floor * 100).toFixed(0)}% floor required by SPEC 2.4.`,
+      );
+      return { code: 1 };
+    }
   }
 
   // A conflict is the expected output of an analysis, not a failure (SPEC 2.1.1).

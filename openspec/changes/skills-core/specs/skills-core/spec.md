@@ -68,7 +68,8 @@ could not reconstruct in `lossy[]` with the exact diff.
 ### Requirement: The core carries at least half the content
 
 The system MUST report the share of total content living in `core/`, and that
-share MUST be at least 50 %.
+share MUST be at least 50 %. The run MUST exit non-zero when it is not,
+independently of whether reconstruction succeeded.
 
 Without this floor the reconstruction requirement above is trivially satisfiable:
 an empty core plus each file whole as its own override reconstructs 42 of 42
@@ -78,8 +79,32 @@ says nothing about whether the split means anything.
 A threshold met by relaxing its own definition is worse than no threshold,
 because it looks like it measures something.
 
-Measured before building: 60 % overall, from 96 % in `analyze-dashboard-vuln` to
-34 % in `check-standards`.
+**At each divergent position, "the core" MUST be the MAJORITY group's
+content — the group with the most repos — never the intersection of every
+variant.** This is a correction, not the original text: an earlier version of
+this requirement said "the lines common to every variant," and the first
+real-corpus run measured exactly what that produces at seven variants — 34 %
+overall against a 60 %-predicted, 50 %-floor target, because almost every
+position has SOME repo differing from the rest, so "shared by literally all
+seven" collapses toward empty as variant count grows. The majority rule is
+the standard posture of every layered-configuration system (Kustomize bases
+plus patches, Helm values plus overlays, this project's own `decisions.yml`
+over parsed facts): the base carries the common case, the overlay carries the
+exception, never the reverse.
+
+When no group holds a strict majority at a position (a genuine N-way tie),
+the system MUST resolve it deterministically — the tied group whose
+alphabetically-first repo name sorts earliest — and MUST record that the
+position had no majority, so the pick is visible as a tie-break rather than
+indistinguishable from an ordinary majority.
+
+Measured before building (original, uncorrected reading): 60 % overall, from
+96 % in `analyze-dashboard-vuln` to 34 % in `check-standards`. Measured
+against the real corpus with the STRICT "every variant" reading: 34 %
+overall, 12 % down to 91 % per skill — the gap that revealed the majority
+rule was the one this requirement always meant. The corrected majority rule
+is expected to recover the original 60 %/96 %/34 % prediction; slice 7 (the
+real-corpus run) confirms or refutes this and is not decided here.
 
 #### Scenario: An empty core fails even when reconstruction succeeds
 
@@ -87,6 +112,24 @@ Measured before building: 60 % overall, from 96 % in `analyze-dashboard-vuln` to
 - WHEN the result is checked
 - THEN reconstruction reports every file reproduced
 - AND the run still fails, because the core carries no content
+- AND the process exits non-zero, naming the measured share and the floor
+
+#### Scenario: A majority position keeps the majority's content in the core
+
+- GIVEN a divergent position where most repos share one content and a
+  minority differs
+- WHEN extraction runs
+- THEN the majority's content is part of `core/`
+- AND only the minority carries an override
+
+#### Scenario: An N-way tie is resolved deterministically and recorded
+
+- GIVEN a divergent position where every group is the same size and none is
+  a majority
+- WHEN extraction runs
+- THEN the group whose alphabetically-first repo name sorts earliest is
+  chosen for the core
+- AND the position is recorded as having had no majority
 
 #### Scenario: The share is reported per skill
 

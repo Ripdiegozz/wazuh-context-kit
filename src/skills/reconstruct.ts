@@ -10,9 +10,12 @@
  * composing to the identity is an assertion no fixture can agree with, which
  * is exactly why it is the load-bearing test of the whole change.
  *
- * Reconstruction walks the core's sections in order and, at each one,
- * replays every op whose `heading` matches and whose `repos` include this
- * repository. An op with `anchor: null` goes before the section's first
+ * Reconstruction walks the core's sections in order. At each of a section's
+ * `anchors.length + 1` positions it REPLACES the majority baseline
+ * (`slots[i]`) with this repo's own op content when one exists there, and
+ * falls back to the baseline otherwise (design decision 3, revised: the
+ * core holds the majority, a deviating repo overrides it — never both). An
+ * op with `anchor: null` targets the position before the section's first
  * anchor line; every other op is placed by resolving its `anchor` text
  * through `resolveAnchor` — the SAME resolver `sync` would use, so an
  * anchor that has become ambiguous since extraction (a heading edited by
@@ -78,32 +81,34 @@ export function reconstructRepo(extracted: ExtractedSkill, repo: string): readon
 
     const ops = opsForRepoAndHeading(extracted, repo, section.path);
 
-    // Ops anchored at `null` — "before the first anchor line" — including
-    // the degenerate case of a section with NO anchors at all (a fully
-    // divergent section: everything for this repo lives in this one op).
-    for (const op of ops.filter((o) => o.anchor === null)) {
-      output.push(...op.content.split("\n"));
-    }
-
-    section.lines.forEach((anchorLine, index) => {
-      output.push(anchorLine);
-
-      // Resolve every non-null anchor THROUGH resolveAnchor, scoped to this
-      // section's own lines — not by comparing `op.anchor === anchorLine`
-      // directly, which would silently apply an op after every occurrence
-      // of a repeated anchor line instead of failing loud on the ambiguity
-      // SPEC 2.1.1 calls fatal.
-      for (const op of ops) {
-        if (op.anchor === null) continue;
+    /**
+     * The content at slot `index` (`0` is before `anchors[0]`, `i + 1` is
+     * after `anchors[i]`): this repo's own op there if one exists, or the
+     * majority baseline otherwise. A repo belongs to at most one group per
+     * position (groups partition repos), so at most one op can match here —
+     * `.find` rather than looping every op, unlike the OLD insert-only
+     * model, where several unrelated ops could legally coexist at one
+     * anchor because nothing there ever replaced anything.
+     */
+    function contentAt(index: number): readonly string[] {
+      const op = ops.find((candidate) => {
+        if (candidate.anchor === null) return index === 0;
         const resolved = resolveAnchor({
           skill: extracted.skill,
           repo,
           heading: section.path,
-          lines: section.lines,
-          anchor: op.anchor,
+          lines: section.anchors,
+          anchor: candidate.anchor,
         });
-        if (resolved === index) output.push(...op.content.split("\n"));
-      }
+        return resolved + 1 === index;
+      });
+      return op ? op.content : section.slots[index]!;
+    }
+
+    output.push(...contentAt(0));
+    section.anchors.forEach((anchorLine, index) => {
+      output.push(anchorLine);
+      output.push(...contentAt(index + 1));
     });
   }
 
@@ -120,7 +125,7 @@ export function reconstructRepo(extracted: ExtractedSkill, repo: string): readon
   for (const key of orphanHeadings.sort()) {
     const heading = JSON.parse(key) as string[];
     const ops = opsForRepoAndHeading(extracted, repo, heading).filter((op) => op.anchor === null);
-    for (const op of ops) output.push(...op.content.split("\n"));
+    for (const op of ops) output.push(...op.content);
   }
 
   return output;

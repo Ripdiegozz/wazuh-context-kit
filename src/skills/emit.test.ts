@@ -30,6 +30,15 @@ function variant(
   };
 }
 
+/**
+ * Three repos, not two — a 1-vs-1 split is always a TIE under the
+ * majority-baseline rule (design decision 3, revised), and a tie's winner
+ * depends only on alphabetical repo order, not on which repo "looks like"
+ * the base. Three repos lets "Section" and "Disputed" each have a genuine
+ * 2-vs-1 majority, so this fixture's shape (dashboard overrides, plugins
+ * has no override file, plugins conflicts) is unambiguous rather than an
+ * accident of two repo names happening to sort a particular way.
+ */
 function sampleExtraction() {
   const variants = [
     variant("wazuh-dashboard", [
@@ -45,6 +54,11 @@ function sampleExtraction() {
       { path: ["Common"], lines: ["shared line"] },
       { path: ["Section"], lines: ["common line"] },
       { path: ["Disputed"], lines: ["plugin(s)"] },
+    ]),
+    variant("wazuh-indexer", [
+      { path: ["Common"], lines: ["shared line"] },
+      { path: ["Section"], lines: ["common line"] },
+      { path: ["Disputed"], lines: ["area"] },
     ]),
   ];
   return extractSkill(diffSkill("a-skill", variants));
@@ -137,6 +151,72 @@ describe("emitExtraction lays out the trees SPEC 2.1 describes", () => {
       expect(report.skills[0].skill).toBe("a-skill");
       expect(report.skills[0].distributable).toBe(false);
       expect(report.skills[0].blockingConflicts.length).toBeGreaterThan(0);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the report carries reconstruction verification, not just core-share numbers", () => {
+  test("with originals supplied, every repo reconstructs and the arithmetic closes", async () => {
+    const extracted = [sampleExtraction()];
+    const originalsBySkill = new Map([
+      [
+        "a-skill",
+        new Map([
+          ["wazuh-dashboard", ["shared line", "common line", "> **repo-specific (wazuh-dashboard):** dashboard-only line", "area"]],
+          ["wazuh-dashboard-plugins", ["shared line", "common line", "plugin(s)"]],
+          ["wazuh-indexer", ["shared line", "common line", "area"]],
+        ]),
+      ],
+    ]);
+
+    const dir = await mkdtemp(join(tmpdir(), "skills-core-emit-recon-"));
+    try {
+      await emitExtraction(dir, extracted, originalsBySkill);
+      const report = JSON.parse(await readFile(join(dir, "extraction-report.json"), "utf8"));
+
+      const entry = report.skills[0];
+      expect(entry.reconstruction).not.toBeNull();
+      expect(entry.reconstruction.total).toBe(3);
+      expect(entry.reconstruction.reconstructed).toBe(3);
+      expect(entry.reconstruction.lossy).toEqual([]);
+      expect(entry.reconstruction.reconstructed + entry.reconstruction.lossy.length).toBe(entry.reconstruction.total);
+
+      expect(report.overall.reconstruction.total).toBe(3);
+      expect(report.overall.reconstruction.reconstructed).toBe(3);
+      expect(report.overall.reconstruction.lossy).toBe(0);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("without originals, reconstruction is explicitly null, not omitted", async () => {
+    const extracted = [sampleExtraction()];
+    const dir = await mkdtemp(join(tmpdir(), "skills-core-emit-norecon-"));
+    try {
+      await emitExtraction(dir, extracted);
+      const report = JSON.parse(await readFile(join(dir, "extraction-report.json"), "utf8"));
+
+      expect(report.skills[0].reconstruction).toBeNull();
+      expect(report.overall.reconstruction).toBeNull();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("the report states the overall core share against the floor (task 3/4 companion)", () => {
+  test("a share below the floor is reported as not meeting it", async () => {
+    // A skill that is entirely one N-way tie has a low core share.
+    const extracted = [sampleExtraction()];
+    const dir = await mkdtemp(join(tmpdir(), "skills-core-emit-floor-"));
+    try {
+      await emitExtraction(dir, extracted);
+      const report = JSON.parse(await readFile(join(dir, "extraction-report.json"), "utf8"));
+
+      expect(report.overall.floor).toBe(0.5);
+      expect(report.overall.meetsFloor).toBe(report.overall.coreShare >= 0.5);
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

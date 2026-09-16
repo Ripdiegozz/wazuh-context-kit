@@ -29,7 +29,7 @@ describe("an extraction placing every file whole into its own override reconstru
     const wholeFileAsOverride: PatchOp = {
       heading: [],
       anchor: null,
-      content: original.join("\n"),
+      content: original,
       repos: ["wazuh-dashboard"],
       attribution: "override",
     };
@@ -43,6 +43,7 @@ describe("an extraction placing every file whole into its own override reconstru
       coreShare: 1, // deliberately wrong, to prove meetsCoreFloor never trusts this field
       distributable: true,
       blockingConflicts: [],
+      tiedPositions: [],
     };
 
     // Reconstruction succeeds — the patches DO invert the split.
@@ -61,7 +62,7 @@ describe("the share is reported per skill (task 2.6 / 4.2 companion)", () => {
     const extracted: ExtractedSkill = {
       skill: "a-skill",
       repos: ["wazuh-dashboard", "wazuh-indexer"],
-      core: [{ path: ["Section"], lines: ["a", "b", "c"], absentFor: [] }],
+      core: [{ path: ["Section"], anchors: ["a", "b", "c"], slots: [[], [], [], []], absentFor: [] }],
       overrides: new Map([
         ["wazuh-dashboard", []],
         ["wazuh-indexer", []],
@@ -70,6 +71,7 @@ describe("the share is reported per skill (task 2.6 / 4.2 companion)", () => {
       coreShare: 0, // deliberately wrong, same reason as above
       distributable: true,
       blockingConflicts: [],
+      tiedPositions: [],
     };
 
     expect(computeCoreShare(extracted)).toBe(1);
@@ -80,19 +82,20 @@ describe("the share is reported per skill (task 2.6 / 4.2 companion)", () => {
     const op: PatchOp = {
       heading: ["Section"],
       anchor: "shared",
-      content: "divergent line",
+      content: ["divergent line"],
       repos: ["wazuh-dashboard"],
       attribution: "override",
     };
     const extracted: ExtractedSkill = {
       skill: "a-skill",
       repos: ["wazuh-dashboard"],
-      core: [{ path: ["Section"], lines: ["shared"], absentFor: [] }],
+      core: [{ path: ["Section"], anchors: ["shared"], slots: [[], []], absentFor: [] }],
       overrides: new Map([["wazuh-dashboard", [op]]]),
       conflicts: [],
       coreShare: 0,
       distributable: true,
       blockingConflicts: [],
+      tiedPositions: [],
     };
 
     expect(computeCoreShare(extracted)).toBe(0.5);

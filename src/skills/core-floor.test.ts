@@ -18,7 +18,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { computeCoreShare, meetsCoreFloor } from "./extract.ts";
+import { computeConflictsShare, computeCoreShare, meetsCoreFloor } from "./extract.ts";
 import { reconstructRepo } from "./reconstruct.ts";
 import type { ExtractedSkill, PatchOp } from "./extract.ts";
 
@@ -43,6 +43,7 @@ describe("an extraction placing every file whole into its own override reconstru
       overrides: new Map([["wazuh-dashboard", [wholeFileAsOverride]]]),
       conflicts: [],
       coreShare: 1, // deliberately wrong, to prove meetsCoreFloor never trusts this field
+      conflictsShare: 1, // deliberately wrong, same reason
       distributable: true,
       blockingConflicts: [],
       tiedPositions: [],
@@ -53,9 +54,68 @@ describe("an extraction placing every file whole into its own override reconstru
 
     // And the floor still fails, because computeCoreShare is derived from
     // `core`/`overrides`/`conflicts` directly, never from the (here,
-    // deliberately wrong) `coreShare` field.
+    // deliberately wrong) `coreShare` field. This is the load-bearing proof
+    // that excluding conflicts from the denominator (core / (core +
+    // overrides)) did not weaken the gate: the degenerate extraction the
+    // floor exists to catch still fails, at 0 %, with zero conflicts in
+    // sight.
     expect(computeCoreShare(extracted)).toBe(0);
     expect(meetsCoreFloor(extracted)).toBe(false);
+  });
+});
+
+describe("conflicts are reported, never counted against the floor", () => {
+  test("two corpora with identical core-to-override ratios and different conflict volumes report the same core share", () => {
+    const overrideOp: PatchOp = {
+      heading: ["Section"],
+      anchor: "shared",
+      occurrence: 1,
+      offset: 0,
+      content: ["divergent line"],
+      repos: ["wazuh-dashboard"],
+      attribution: "override",
+    };
+    // Same core (1 line), same override (1 line) — a 50/50 core-to-override
+    // ratio — in both corpora. Only the conflict volume differs: none in
+    // the first, a lot in the second.
+    const noConflicts: ExtractedSkill = {
+      skill: "a-skill",
+      repos: ["wazuh-dashboard"],
+      core: [{ path: ["Section"], anchors: ["shared"], slots: [[], []], absentFor: [] }],
+      overrides: new Map([["wazuh-dashboard", [overrideOp]]]),
+      conflicts: [],
+      coreShare: 0,
+      conflictsShare: 0,
+      distributable: true,
+      blockingConflicts: [],
+      tiedPositions: [],
+    };
+
+    const heavyConflicts: ExtractedSkill = {
+      ...noConflicts,
+      conflicts: [
+        {
+          heading: ["Section"],
+          anchor: "shared",
+          occurrence: 1,
+          offset: 1,
+          content: ["conflict line one", "conflict line two", "conflict line three"],
+          repos: ["wazuh-indexer"],
+          attribution: "conflict",
+        },
+      ],
+      distributable: false,
+    };
+
+    // Same core share — the gate does not move because conflicts appeared.
+    expect(computeCoreShare(noConflicts)).toBe(0.5);
+    expect(computeCoreShare(heavyConflicts)).toBe(0.5);
+    expect(meetsCoreFloor(noConflicts)).toBe(meetsCoreFloor(heavyConflicts));
+
+    // The conflicts share DOES differ, and is reported.
+    expect(computeConflictsShare(noConflicts)).toBe(0);
+    expect(computeConflictsShare(heavyConflicts)).toBeGreaterThan(0);
+    expect(computeConflictsShare(heavyConflicts)).not.toBe(computeConflictsShare(noConflicts));
   });
 });
 
@@ -71,6 +131,7 @@ describe("the share is reported per skill (task 2.6 / 4.2 companion)", () => {
       ]),
       conflicts: [],
       coreShare: 0, // deliberately wrong, same reason as above
+      conflictsShare: 0,
       distributable: true,
       blockingConflicts: [],
       tiedPositions: [],
@@ -97,6 +158,7 @@ describe("the share is reported per skill (task 2.6 / 4.2 companion)", () => {
       overrides: new Map([["wazuh-dashboard", [op]]]),
       conflicts: [],
       coreShare: 0,
+      conflictsShare: 0,
       distributable: true,
       blockingConflicts: [],
       tiedPositions: [],

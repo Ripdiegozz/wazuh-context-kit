@@ -573,7 +573,8 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
     const distributable = extracted.filter((e) => e.distributable).length;
     console.log(`extracted        ${extracted.length} skills`);
     console.log(`distributable    ${distributable} of ${extracted.length}`);
-    console.log(`core share       ${(report.overall.coreShare * 100).toFixed(1)}% (floor ${(report.overall.floor * 100).toFixed(0)}%)`);
+    console.log(`core share       ${(report.overall.coreShare * 100).toFixed(1)}% of core+overrides (floor ${(report.overall.floor * 100).toFixed(0)}%)`);
+    console.log(`conflicts share  ${(report.overall.conflictsShare * 100).toFixed(1)}% of core+overrides+conflicts (reported only, not gated)`);
     if (report.overall.reconstruction) {
       console.log(
         `reconstructed    ${report.overall.reconstruction.reconstructed} of ${report.overall.reconstruction.total} ` +

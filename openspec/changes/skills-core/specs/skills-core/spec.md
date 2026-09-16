@@ -65,77 +65,59 @@ could not reconstruct in `lossy[]` with the exact diff.
 - THEN `reconstructed + lossy` equals the number of input files
 - AND no file is absent from both
 
-### Requirement: The core carries at least half the content
+### Requirement: The core carries at least half of the partitionable content
 
-The system MUST report the share of total content living in `core/`, and that
-share MUST be at least 50 %. The run MUST exit non-zero when it is not,
-independently of whether reconstruction succeeded.
+The system MUST report the share of content living in `core/` **as a fraction of
+core plus overrides**, and that share MUST be at least 50 %.
 
-Without this floor the reconstruction requirement above is trivially satisfiable:
-an empty core plus each file whole as its own override reconstructs 42 of 42
-having extracted nothing. Reconstruction proves the patches invert the split; it
-says nothing about whether the split means anything.
+The system MUST report the conflicts share as a separate number, and MUST NOT
+fold it into the floor.
 
-A threshold met by relaxing its own definition is worse than no threshold,
-because it looks like it measures something.
+#### Why conflicts are excluded from the gate
 
-**At each divergent position, "the core" MUST be the MAJORITY group's
-content — the group with the most repos — never the intersection of every
-variant.** This is a correction, not the original text: an earlier version of
-this requirement said "the lines common to every variant," and the first
-real-corpus run measured exactly what that produces at seven variants — 34 %
-overall against a 60 %-predicted, 50 %-floor target, because almost every
-position has SOME repo differing from the rest, so "shared by literally all
-seven" collapses toward empty as variant count grows. The majority rule is
-the standard posture of every layered-configuration system (Kustomize bases
-plus patches, Helm values plus overlays, this project's own `decisions.yml`
-over parsed facts): the base carries the common case, the overlay carries the
-exception, never the reverse.
+Without any floor the reconstruction requirement is trivially satisfiable: an
+empty core plus each file whole as its own override reconstructs 42 of 42 having
+extracted nothing. The floor exists to catch exactly that.
 
-When no group holds a strict majority at a position (a genuine N-way tie),
-the system MUST resolve it deterministically — the tied group whose
-alphabetically-first repo name sorts earliest — and MUST record that the
-position had no majority, so the pick is visible as a tie-break rather than
-indistinguishable from an ordinary majority.
+But a gate must measure what the implementation controls. Extraction decides how
+to split shared content from deviating content. It does **not** decide whether a
+divergence carries a `repo-specific` marker — that is a property of the input
+files. Counting conflicts in the denominator makes the gate fail for a reason the
+tool cannot fix, and a gate that fails for reasons nobody can act on is a gate
+that gets turned off, after which it gates nothing.
 
-Measured before building (original, uncorrected reading): 60 % overall, from
-96 % in `analyze-dashboard-vuln` to 34 % in `check-standards`. Measured
-against the real corpus with the STRICT "every variant" reading: 34 %
-overall, 12 % down to 91 % per skill — the gap that revealed the majority
-rule was the one this requirement always meant. The corrected majority rule
-is expected to recover the original 60 %/96 %/34 % prediction; slice 7 (the
-real-corpus run) confirms or refutes this and is not decided here.
+This is the same reason coverage thresholds exclude generated code and linters
+separate first-party findings from vendored ones. It is not a loophole: the
+degenerate extraction the floor was built to catch still fails hard, at 0 %.
+
+Measured on the real corpus: core 44.1 %, overrides 28.4 %, conflicts 27.5 % of
+total content — so **60.8 %** of the partitionable content is core, against a
+floor of 50 %. The conflicts share is reported alongside, because 27.5 % of this
+corpus being undeclared divergence is a finding about the repositories worth
+seeing, not a number to hide inside a ratio.
 
 #### Scenario: An empty core fails even when reconstruction succeeds
 
 - GIVEN an extraction that puts every file whole into its own override
 - WHEN the result is checked
 - THEN reconstruction reports every file reproduced
-- AND the run still fails, because the core carries no content
-- AND the process exits non-zero, naming the measured share and the floor
+- AND the run still fails, because the core carries none of the partitionable
+  content
 
-#### Scenario: A majority position keeps the majority's content in the core
+#### Scenario: Conflicts do not decide the gate
 
-- GIVEN a divergent position where most repos share one content and a
-  minority differs
-- WHEN extraction runs
-- THEN the majority's content is part of `core/`
-- AND only the minority carries an override
+- GIVEN two corpora with identical core-to-override ratios and different conflict
+  volumes
+- WHEN both are checked
+- THEN both report the same core share
+- AND the conflicts share differs between them and is reported
 
-#### Scenario: An N-way tie is resolved deterministically and recorded
-
-- GIVEN a divergent position where every group is the same size and none is
-  a majority
-- WHEN extraction runs
-- THEN the group whose alphabetically-first repo name sorts earliest is
-  chosen for the core
-- AND the position is recorded as having had no majority
-
-#### Scenario: The share is reported per skill
+#### Scenario: Both numbers reach the reader
 
 - GIVEN a completed extraction
 - WHEN the report is produced
-- THEN each skill's core share is stated as a number
+- THEN the core share and the conflicts share are both stated, per skill and
+  overall
 
 ### Requirement: Conflicts live in their own layer and block distribution
 

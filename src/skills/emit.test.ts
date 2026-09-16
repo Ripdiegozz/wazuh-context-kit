@@ -221,6 +221,13 @@ describe("emitExtraction lays out the trees SPEC 2.1 describes", () => {
       expect(report.skills[0].skill).toBe("a-skill");
       expect(report.skills[0].distributable).toBe(false);
       expect(report.skills[0].blockingConflicts.length).toBeGreaterThan(0);
+      // Both numbers reach the reader, per skill and overall — conflicts
+      // share is never folded into the core share, only reported beside it.
+      expect(typeof report.skills[0].coreShare).toBe("number");
+      expect(typeof report.skills[0].conflictsShare).toBe("number");
+      expect(report.skills[0].conflictsShare).toBeGreaterThan(0);
+      expect(typeof report.overall.coreShare).toBe("number");
+      expect(typeof report.overall.conflictsShare).toBe("number");
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

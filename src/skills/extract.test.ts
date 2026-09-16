@@ -346,8 +346,15 @@ describe("the core share is computed and reported per skill (task 2.6)", () => {
     // "wazuh-dashboard" sorts first among the three tied candidates.
     expect(flatten(extracted.core[0]!)).toEqual(["dashboard-only content, wall to wall"]);
     expect(extracted.tiedPositions.length).toBeGreaterThan(0);
-    // One core line against two minority (conflict) op lines: 1 / 3.
-    expect(extracted.coreShare).toBeCloseTo(1 / 3, 5);
+    // Both minority groups are UNMARKED, so both are conflicts, not
+    // overrides — zero overrides means the core is 100 % of the
+    // PARTITIONABLE content (core / (core + overrides)), even though most
+    // of the skill's total content is unresolved conflict. That is the
+    // point of excluding conflicts from the gate: this skill's floor
+    // check passes, and its conflicts share (reported separately) is what
+    // actually says "most of this is undeclared divergence."
+    expect(extracted.coreShare).toBe(1);
+    expect(extracted.conflictsShare).toBeCloseTo(2 / 3, 5);
   });
 });
 

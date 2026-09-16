@@ -120,7 +120,12 @@ export interface SkillReconstructionSummary {
 
 export interface SkillReportEntry {
   readonly skill: string;
+  /** `core / (core + overrides)` — conflicts excluded (see
+   * `extract.ts`'s `computeCoreShare` docblock for why). */
   readonly coreShare: number;
+  /** `conflicts / (core + overrides + conflicts)` — reported for
+   * visibility, never counted against the floor. */
+  readonly conflictsShare: number;
   readonly distributable: boolean;
   readonly blockingConflicts: readonly string[];
   readonly tiedPositions: readonly string[];
@@ -130,8 +135,13 @@ export interface SkillReportEntry {
 export interface OverallReport {
   /** Aggregated from raw line COUNTS across every skill, never averaged
    * per-skill ratios (`extract.ts`'s `coreShareCounts` docblock: averaging
-   * ratios lets a tiny skill's 100 % cancel a large skill's 10 %). */
+   * ratios lets a tiny skill's 100 % cancel a large skill's 10 %).
+   * `core / (core + overrides)`, conflicts excluded from the denominator. */
   readonly coreShare: number;
+  /** `conflicts / (core + overrides + conflicts)`, aggregated the same
+   * way — reported alongside `coreShare`, never folded into it or the
+   * floor. */
+  readonly conflictsShare: number;
   readonly floor: number;
   /** `false` when `coreShare < floor` — SPEC 2.4's scenario: reconstruction
    * succeeding is NOT sufficient, this must independently hold. */
@@ -171,6 +181,7 @@ export function buildExtractionReport(
       return {
         skill: e.skill,
         coreShare: e.coreShare,
+        conflictsShare: e.conflictsShare,
         distributable: e.distributable,
         blockingConflicts: e.blockingConflicts,
         tiedPositions: e.tiedPositions,
@@ -182,11 +193,18 @@ export function buildExtractionReport(
   const totals = extracted.reduce(
     (sum, e) => {
       const counts = coreShareCounts(e);
-      return { coreLines: sum.coreLines + counts.coreLines, totalLines: sum.totalLines + counts.totalLines };
+      return {
+        coreLines: sum.coreLines + counts.coreLines,
+        overrideLines: sum.overrideLines + counts.overrideLines,
+        conflictLines: sum.conflictLines + counts.conflictLines,
+      };
     },
-    { coreLines: 0, totalLines: 0 },
+    { coreLines: 0, overrideLines: 0, conflictLines: 0 },
   );
-  const overallCoreShare = totals.totalLines === 0 ? 1 : totals.coreLines / totals.totalLines;
+  const partitionable = totals.coreLines + totals.overrideLines;
+  const overallCoreShare = partitionable === 0 ? 1 : totals.coreLines / partitionable;
+  const overallTotal = totals.coreLines + totals.overrideLines + totals.conflictLines;
+  const overallConflictsShare = overallTotal === 0 ? 0 : totals.conflictLines / overallTotal;
 
   const haveAnyOriginals = originalsBySkill !== undefined;
   const reconstructionTotals = haveAnyOriginals
@@ -204,6 +222,7 @@ export function buildExtractionReport(
     skills,
     overall: {
       coreShare: overallCoreShare,
+      conflictsShare: overallConflictsShare,
       floor: CORE_SHARE_FLOOR,
       meetsFloor: overallCoreShare >= CORE_SHARE_FLOOR,
       reconstruction: reconstructionTotals,

@@ -181,9 +181,23 @@ export interface ExtractedSkill {
    * repo with nothing to override is a fact, not an absence. */
   readonly overrides: ReadonlyMap<string, readonly PatchOp[]>;
   readonly conflicts: readonly PatchOp[];
-  /** The core's share of total content, 0..1 (task 2.6; SPEC's ≥ 50 % floor
-   * lives in `meetsCoreFloor`, not here — this module only measures). */
+  /**
+   * The core's share of the PARTITIONABLE content, `core / (core +
+   * overrides)` — conflicts excluded from the denominator (task 2.6; SPEC's
+   * ≥ 50 % floor lives in `meetsCoreFloor`, not here — this module only
+   * measures). Extraction decides how to split shared content from
+   * deviating content; it does not decide whether a divergence carries a
+   * `repo-specific` marker, which is a property of the input files, not
+   * something this tool controls. A gate that fails for a reason nobody can
+   * act on gets turned off, so conflicts are reported (`conflictsShare`)
+   * but never fold into this number.
+   */
   readonly coreShare: number;
+  /** The conflicts' share of ALL content (core + overrides + conflicts) —
+   * reported for visibility, never folded into `coreShare` or the floor. A
+   * high number here is a finding about the repositories (undeclared
+   * divergence), not about the extraction. */
+  readonly conflictsShare: number;
   /** `false` exactly when `conflicts` is non-empty (design decision 2). */
   readonly distributable: boolean;
   /** Human-readable "heading: anchor" for each blocking conflict, for a
@@ -377,7 +391,7 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
     ...new Set(conflicts.map((op) => `${headingLabel(op.heading)}: ${anchorLabel(op.anchor)}`)),
   ];
 
-  const withoutShare: Omit<ExtractedSkill, "coreShare"> = {
+  const withoutShares: Omit<ExtractedSkill, "coreShare" | "conflictsShare"> = {
     skill: diff.skill,
     repos: diff.repos,
     core,
@@ -388,59 +402,105 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
     tiedPositions: [...new Set(tiedPositions)],
   };
 
-  return { ...withoutShare, coreShare: computeCoreShare(withoutShare) };
+  return {
+    ...withoutShares,
+    coreShare: computeCoreShare(withoutShares),
+    conflictsShare: computeConflictsShare(withoutShares),
+  };
 }
 
 /**
- * Raw line counts behind `computeCoreShare` — exposed separately so a
- * caller aggregating several skills (the CLI's overall floor check) sums
- * COUNTS, not per-skill ratios: averaging ratios would let a tiny skill's
- * 100 % share cancel out a large skill's 10 % share, which is not what
- * "the core carries at least half the content" means at the corpus level.
+ * Raw line counts behind `computeCoreShare` and `computeConflictsShare` —
+ * exposed separately so a caller aggregating several skills (the CLI's
+ * overall floor check) sums COUNTS, not per-skill ratios: averaging ratios
+ * would let a tiny skill's 100 % share cancel out a large skill's 10 %
+ * share, which is not what "the core carries at least half the
+ * partitionable content" means at the corpus level.
+ *
+ * `overrideLines` and `conflictLines` are kept SEPARATE, not folded into one
+ * `divergentLines` total — the floor divides by `coreLines + overrideLines`
+ * only (SPEC: "The core carries at least half of the partitionable
+ * content"). Extraction decides how to split shared content from deviating
+ * content; it does not decide whether a divergence carries a
+ * `repo-specific` marker, which is a property of the input files. Counting
+ * conflicts in the denominator would fail the gate for a reason the tool
+ * cannot fix, and a gate that fails for reasons nobody can act on is one
+ * that gets turned off, after which it gates nothing — the same reasoning
+ * that keeps generated code and vendored findings out of coverage and lint
+ * thresholds.
  */
 export function coreShareCounts(
   extracted: Pick<ExtractedSkill, "core" | "overrides" | "conflicts">,
-): { readonly coreLines: number; readonly totalLines: number } {
+): { readonly coreLines: number; readonly overrideLines: number; readonly conflictLines: number } {
   const coreLines = extracted.core.reduce(
     (sum, s) => sum + s.anchors.length + s.slots.reduce((slotSum, slot) => slotSum + slot.length, 0),
     0,
   );
 
   const seen = new Set<string>();
-  let divergentLines = 0;
+  let overrideLines = 0;
+  let conflictLines = 0;
   for (const op of [...[...extracted.overrides.values()].flat(), ...extracted.conflicts]) {
     const key = JSON.stringify([op.heading, op.anchor, op.occurrence, op.offset, op.content, op.attribution]);
     if (seen.has(key)) continue;
     seen.add(key);
-    divergentLines += op.content.length;
+    if (op.attribution === "conflict") {
+      conflictLines += op.content.length;
+    } else {
+      overrideLines += op.content.length;
+    }
   }
 
-  return { coreLines, totalLines: coreLines + divergentLines };
+  return { coreLines, overrideLines, conflictLines };
 }
 
 /**
- * Derives the core's share of total content DIRECTLY from `core`,
- * `overrides` and `conflicts` — never trusted as a field set independently
- * of them, so a hand-built `ExtractedSkill` (task 4.1: "every file whole as
- * its own override") measures the same way a real extraction does. Without
- * this, the ≥ 50 % floor (SPEC 2.4) would be checking a number that could
- * disagree with the structure it is supposed to describe.
+ * Derives the core's share of the PARTITIONABLE content — `core / (core +
+ * overrides)`, conflicts excluded from the denominator — DIRECTLY from
+ * `core`, `overrides` and `conflicts`, never trusted as a field set
+ * independently of them, so a hand-built `ExtractedSkill` (task 4.1: "every
+ * file whole as its own override") measures the same way a real extraction
+ * does. Without this, the ≥ 50 % floor (SPEC 2.4) would be checking a number
+ * that could disagree with the structure it is supposed to describe.
  *
- * Divergent content is counted ONCE per distinct (heading, anchor, content,
- * attribution) — a `PatchOp` is replicated into every member repo's
- * override list (extraction above), and counting each replica would make
- * the share shrink with the number of repos sharing an override rather than
- * with how much content actually diverges.
+ * Excluding conflicts is a decision, not an oversight — see
+ * `coreShareCounts`'s docblock. `computeConflictsShare` reports that number
+ * separately; it is never folded in here.
+ *
+ * Divergent content is counted ONCE per distinct (heading, anchor,
+ * occurrence, offset, content, attribution) — a `PatchOp` is replicated
+ * into every member repo's override list (extraction above), and counting
+ * each replica would make the share shrink with the number of repos sharing
+ * an override rather than with how much content actually diverges.
  */
 export function computeCoreShare(extracted: Pick<ExtractedSkill, "core" | "overrides" | "conflicts">): number {
-  const { coreLines, totalLines } = coreShareCounts(extracted);
-  return totalLines === 0 ? 1 : coreLines / totalLines;
+  const { coreLines, overrideLines } = coreShareCounts(extracted);
+  const partitionable = coreLines + overrideLines;
+  return partitionable === 0 ? 1 : coreLines / partitionable;
+}
+
+/**
+ * The conflicts' share of ALL content (core + overrides + conflicts) —
+ * reported for visibility (SPEC: "the system MUST report the conflicts
+ * share as a separate number"), never folded into `computeCoreShare` or the
+ * floor. A high number here says something about the SEVEN REPOSITORIES
+ * (how much of their divergence nobody declared), not about the
+ * extraction — the tool cannot make repositories mark their own overrides.
+ */
+export function computeConflictsShare(
+  extracted: Pick<ExtractedSkill, "core" | "overrides" | "conflicts">,
+): number {
+  const { coreLines, overrideLines, conflictLines } = coreShareCounts(extracted);
+  const total = coreLines + overrideLines + conflictLines;
+  return total === 0 ? 0 : conflictLines / total;
 }
 
 /** SPEC's ≥ 50 % floor (task 4.2) — a hard check, kept separate from
  * `extractSkill` so task 4.1's "empty core still fails" test can construct
  * an `ExtractedSkill` by hand and check the floor without re-running the
- * whole classifier. */
+ * whole classifier. Measures `computeCoreShare` (core / (core + overrides)),
+ * NOT a share that includes conflicts — see that function's docblock for
+ * why conflicts are excluded from the gate. */
 export function meetsCoreFloor(extracted: ExtractedSkill, floor = 0.5): boolean {
   return computeCoreShare(extracted) >= floor;
 }

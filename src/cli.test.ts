@@ -10,9 +10,14 @@
  * are the contract here and an in-process call cannot observe `process.exit`.
  * None of them touch the network: the `--fixtures` runs never fetch, and the
  * two failure paths both abort before the first remote call.
+ *
+ * The `crosscheck --indexer` group at the bottom additionally requires a warm
+ * `.cache/` in this checkout and is skipped without one — see `HAS_WARM_CACHE`
+ * below for why that gate exists and why it is not keyed on the network flag.
  */
 
 import { describe, expect, test } from "bun:test";
+import { existsSync } from "node:fs";
 import { copyFile, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -21,6 +26,34 @@ const REPO_ROOT = join(import.meta.dir, "..");
 const CLI = join(REPO_ROOT, "src", "cli.ts");
 const REF = "5.0.0";
 const FROZEN_TIME = "2026-01-01T00:00:00Z";
+
+/**
+ * The `crosscheck --indexer` tests below need a warm `.cache/` in this
+ * checkout, and `.cache/` is gitignored.
+ *
+ * So their premise lives outside the repository: they pass on a machine that
+ * has run `wazuh-ctx matrix` at least once, and fail on a fresh clone for a
+ * reason that has nothing to do with the code under test. That is the whole
+ * failure mode this project exists to remove, and leaving it in a test suite
+ * would be the least defensible place to keep it.
+ *
+ * The gate is cache presence, NOT `WAZUH_CTX_NETWORK`, because that is the
+ * real dependency: these tests reach no network at all — `fetchRepos` without
+ * `--refresh` cache-hits on a purely local `git rev-parse`. A developer with a
+ * warm checkout gets the coverage offline, and `regenerate.yml` gets it in CI
+ * too, because it regenerates before running the suite and so has a warm cache
+ * by the time the tests start. The hermetic PR job skips them, which is what
+ * "hermetic on purpose" (see `.github/workflows/ci.yml`) asks for.
+ */
+const HAS_WARM_CACHE = existsSync(join(REPO_ROOT, ".cache"));
+const cachedTest = HAS_WARM_CACHE ? test : test.skip;
+
+if (!HAS_WARM_CACHE) {
+  console.warn(
+    "[cli.test] Skipping 3 `crosscheck --indexer` tests: this checkout has no .cache/.\n" +
+      "[cli.test] Warm it once with `bun run ./src/cli.ts matrix --ref 5.0.0`, then rerun.",
+  );
+}
 
 /**
  * The `--fixtures` payload hash, pinned deliberately.
@@ -270,7 +303,7 @@ describe("wazuh-ctx argument handling", () => {
 });
 
 describe("wazuh-ctx crosscheck --indexer (crosscheck-live-indexer)", () => {
-  test(
+  cachedTest(
     "an unreachable --indexer produces out/<ref> byte-identical to running without it",
     async () => {
       const cwdWithout = await workdirWithWarmCache();
@@ -323,7 +356,7 @@ describe("wazuh-ctx crosscheck --indexer (crosscheck-live-indexer)", () => {
     60_000,
   );
 
-  test(
+  cachedTest(
     "an unreachable indexer exits non-zero and names the URL",
     async () => {
       const cwd = await workdirWithWarmCache();
@@ -352,7 +385,7 @@ describe("wazuh-ctx crosscheck --indexer (crosscheck-live-indexer)", () => {
     60_000,
   );
 
-  test(
+  cachedTest(
     "absent --indexer leaves behaviour unchanged: no live section, exit 0",
     async () => {
       const cwd = await workdirWithWarmCache();

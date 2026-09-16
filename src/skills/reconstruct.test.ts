@@ -20,13 +20,14 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { resolveAnchor } from "./anchor.ts";
 import { diffSkill } from "./diff.ts";
 import { extractSkill as extractSkillUnchecked } from "./extract.ts";
 import type { ExtractedSkill } from "./extract.ts";
 import { reconstructAndVerify, reconstructRepo } from "./reconstruct.ts";
 import type { SectionMarker, SkillDiff, SkillVariant } from "./types.ts";
 
-/** Same blanket guard as `extract.test.ts` — this file builds its own
+/** Same blanket guards as `extract.test.ts` — this file builds its own
  * extractions directly rather than importing that file's wrapper, so it
  * needs its own copy to get the same protection on every call here. */
 function assertNoBlankAnchor(extracted: ExtractedSkill): void {
@@ -42,9 +43,35 @@ function assertNoBlankAnchor(extracted: ExtractedSkill): void {
   }
 }
 
+/** The general invariant (see `extract.test.ts` for the full rationale):
+ * every op's `(heading, anchor, occurrence, offset)` must resolve to
+ * exactly one position, in every repo it belongs to — the same
+ * `resolveAnchor` reconstruction itself calls. */
+function assertAnchorsResolve(extracted: ExtractedSkill): void {
+  const coreByHeading = new Map(extracted.core.map((section) => [JSON.stringify(section.path), section]));
+  const opsWithRepo: { readonly op: { heading: readonly string[]; anchor: string | null; occurrence: number }; readonly repo: string }[] = [];
+  for (const [repo, ops] of extracted.overrides) for (const op of ops) opsWithRepo.push({ op, repo });
+  for (const op of extracted.conflicts) for (const repo of op.repos) opsWithRepo.push({ op, repo });
+
+  for (const { op, repo } of opsWithRepo) {
+    if (op.anchor === null) continue;
+    const section = coreByHeading.get(JSON.stringify(op.heading));
+    if (section === undefined) continue;
+    resolveAnchor({
+      skill: extracted.skill,
+      repo,
+      heading: op.heading,
+      lines: section.anchors,
+      anchor: op.anchor,
+      occurrence: op.occurrence,
+    });
+  }
+}
+
 function extractSkill(diff: SkillDiff): ExtractedSkill {
   const result = extractSkillUnchecked(diff);
   assertNoBlankAnchor(result);
+  assertAnchorsResolve(result);
   return result;
 }
 
@@ -186,6 +213,50 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
     expect(op).toBeDefined();
     expect(op!.anchor).not.toBeNull();
     expect(op!.anchor!.trim().length).toBeGreaterThan(0);
+  });
+
+  test("REGRESSION: the same non-blank line twice in one section, each preceding a different divergence", () => {
+    // The `check-standards` crash: a code fence line (` ``` `) appearing
+    // TWICE within one heading — `resolveAnchor` reported "matched 2
+    // positions" because both divergent positions naively anchored to the
+    // literal text `"```"` with no way to tell them apart. Design decision
+    // 1's third anchor component, `occurrence`, is exactly the fix: each
+    // op now names WHICH match of `"```"` it means.
+    const majorityTail = ["```", "shared block one", "```", "shared block two"];
+    const minorityTail = [
+      "```",
+      "> **repo-specific (wazuh-dashboard):** first override",
+      "```",
+      "> **repo-specific (wazuh-dashboard):** second override",
+    ];
+
+    const variants = [
+      variant("wazuh-dashboard", [
+        {
+          path: ["Workflow", "6. Report"],
+          lines: minorityTail,
+          markers: [
+            { lineIndex: 1, repo: "wazuh-dashboard" },
+            { lineIndex: 3, repo: "wazuh-dashboard" },
+          ],
+        },
+      ]),
+      variant("wazuh-dashboard-plugins", [{ path: ["Workflow", "6. Report"], lines: majorityTail }]),
+      variant("wazuh-indexer", [{ path: ["Workflow", "6. Report"], lines: majorityTail }]),
+    ];
+
+    const extracted = extractSkill(diffSkill("check-standards", variants));
+
+    // Two distinct override ops, both anchored to the literal same text,
+    // distinguished only by occurrence.
+    const ops = extracted.overrides.get("wazuh-dashboard")!.filter((o) => o.attribution === "override");
+    expect(ops).toHaveLength(2);
+    expect(ops.every((o) => o.anchor === "```")).toBe(true);
+    expect([...ops.map((o) => o.occurrence)].sort()).toEqual([1, 2]);
+
+    for (const v of variants) {
+      expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
+    }
   });
 });
 

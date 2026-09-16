@@ -29,6 +29,7 @@ describe("an extraction placing every file whole into its own override reconstru
     const wholeFileAsOverride: PatchOp = {
       heading: [],
       anchor: null,
+      occurrence: 0,
       offset: 0,
       content: original,
       repos: ["wazuh-dashboard"],
@@ -83,6 +84,7 @@ describe("the share is reported per skill (task 2.6 / 4.2 companion)", () => {
     const op: PatchOp = {
       heading: ["Section"],
       anchor: "shared",
+      occurrence: 1,
       offset: 0,
       content: ["divergent line"],
       repos: ["wazuh-dashboard"],

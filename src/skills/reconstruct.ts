@@ -39,7 +39,7 @@ function sameHeading(a: readonly string[], b: readonly string[]): boolean {
  * whatever order the caller's `Map`/array happens to iterate in, ops at one
  * position are always replayed in this order, never insertion order. */
 function opSortKey(op: PatchOp): string {
-  return JSON.stringify([op.attribution, [...op.repos].sort(), op.anchor, op.offset, op.content]);
+  return JSON.stringify([op.attribution, [...op.repos].sort(), op.anchor, op.occurrence, op.offset, op.content]);
 }
 
 function opsForRepoAndHeading(
@@ -90,11 +90,14 @@ export function reconstructRepo(extracted: ExtractedSkill, repo: string): readon
      * model, where several unrelated ops could legally coexist at one
      * anchor because nothing there ever replaced anything.
      *
-     * `op.anchor` is never a blank line (`extract.ts`'s `nominateAnchor`) —
-     * it names the nearest NON-BLANK anchor, and `op.offset` is how many
-     * blank anchors sit between that anchor and the actual target. This
-     * inverts `nominateAnchor`'s arithmetic exactly: `resolvedIndex + 1 +
-     * offset` gets back to the same `slot` that produced the op.
+     * `op.anchor` prefers the nearest NON-BLANK anchor (`extract.ts`'s
+     * `nominateAnchor`), `op.occurrence` picks which match of that text
+     * within the heading — design decision 1's third anchor component,
+     * needed because a line can legitimately repeat within one section (a
+     * code fence, a `---` separator) — and `op.offset` is how many blank
+     * anchors sit between the resolved occurrence and the actual target.
+     * This inverts `nominateAnchor`'s arithmetic exactly: `resolvedIndex +
+     * 1 + offset` gets back to the same `slot` that produced the op.
      */
     function contentAt(index: number): readonly string[] {
       const op = ops.find((candidate) => {
@@ -105,6 +108,7 @@ export function reconstructRepo(extracted: ExtractedSkill, repo: string): readon
           heading: section.path,
           lines: section.anchors,
           anchor: candidate.anchor,
+          occurrence: candidate.occurrence,
         });
         return resolved + 1 + candidate.offset === index;
       });

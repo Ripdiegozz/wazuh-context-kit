@@ -23,6 +23,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { resolveAnchor } from "./anchor.ts";
 import { diffSkill } from "./diff.ts";
 import { extractSkill as extractSkillUnchecked } from "./extract.ts";
 import type { CoreSection, ExtractedSkill } from "./extract.ts";
@@ -52,9 +53,46 @@ function assertNoBlankAnchor(extracted: ExtractedSkill): void {
   }
 }
 
+/**
+ * The GENERAL invariant, replacing a per-line-type blacklist: every emitted
+ * op's `(heading, anchor, occurrence, offset)` MUST resolve to exactly one
+ * position, in every repo the op belongs to. This is what the blank-anchor
+ * guard above was really a special case of — a blank line was one line
+ * shape that could be ambiguous within a heading; a code fence, a `---`
+ * separator, a table pipe, or a bare list bullet are others, and the real
+ * corpus surfaced a fence repeating in `check-standards` right after the
+ * blank-line fix landed. Calling the SAME `resolveAnchor` reconstruction
+ * itself uses means this check fails exactly when reconstruction would —
+ * before a real run finds out, not after.
+ */
+function assertAnchorsResolve(extracted: ExtractedSkill): void {
+  const coreByHeading = new Map(extracted.core.map((section) => [JSON.stringify(section.path), section]));
+  const opsWithRepo: { readonly op: { heading: readonly string[]; anchor: string | null; occurrence: number }; readonly repo: string }[] = [];
+  for (const [repo, ops] of extracted.overrides) for (const op of ops) opsWithRepo.push({ op, repo });
+  for (const op of extracted.conflicts) for (const repo of op.repos) opsWithRepo.push({ op, repo });
+
+  for (const { op, repo } of opsWithRepo) {
+    if (op.anchor === null) continue; // nothing to resolve — the position IS the start
+    const section = coreByHeading.get(JSON.stringify(op.heading));
+    if (section === undefined) continue; // an orphan heading, only possible in a hand-built ExtractedSkill
+    // Throws with resolveAnchor's own message on failure — a real bug here
+    // should read exactly like the crash it prevents, not a generic
+    // assertion failure.
+    resolveAnchor({
+      skill: extracted.skill,
+      repo,
+      heading: op.heading,
+      lines: section.anchors,
+      anchor: op.anchor,
+      occurrence: op.occurrence,
+    });
+  }
+}
+
 function extractSkill(diff: SkillDiff): ExtractedSkill {
   const result = extractSkillUnchecked(diff);
   assertNoBlankAnchor(result);
+  assertAnchorsResolve(result);
   return result;
 }
 

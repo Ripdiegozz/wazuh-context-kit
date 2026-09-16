@@ -67,20 +67,27 @@ import type { ClassifiedSection, DivergentBlock, SectionCategory, SectionGroup, 
  * blank line) are different, real facts about a repo's original file, and a
  * joined string collapses both to `""` with no way back.
  *
- * `anchor` identifies the position — but NEVER a blank line: a blank line
- * occurs everywhere, so it is ambiguous by construction, and nominating one
- * as an anchor crashes `resolveAnchor` on the first real file that has one
- * (a blank line before a divergent position, which real `SKILL.md`s do
- * constantly — around headings, between list items). `anchor` is instead
- * the nearest NON-BLANK line at or before this position, or `null` when
- * every anchor at or before it is blank (including the position before the
- * section's first anchor, or a section with no anchors at all). `offset`
- * counts how many blank anchor lines sit between that nominated anchor (or
- * the section start, when `anchor` is `null`) and this op's actual target —
- * `0` in the overwhelming common case (the immediately preceding anchor is
- * already non-blank). The blank lines themselves are NEVER dropped — they
- * still exist in `CoreSection.anchors`, exactly where they were; only their
- * eligibility to be REFERENCED by an op is what changes.
+ * `anchor` identifies the position — preferring a NON-BLANK line: a blank
+ * line occurs everywhere, so nominating one is ambiguous almost by
+ * definition and unfriendly to a human reading the emitted YAML besides.
+ * `anchor` is the nearest NON-BLANK line at or before this position, or
+ * `null` when every line at or before it is blank (including the position
+ * before the section's first anchor, or a section with no anchors at all).
+ * `offset` counts how many blank anchor lines sit between that nominated
+ * anchor (or the section start, when `anchor` is `null`) and this op's
+ * actual target — `0` in the overwhelming common case. The blank lines
+ * themselves are NEVER dropped — they still exist in `CoreSection.anchors`,
+ * exactly where they were; only their eligibility to be REFERENCED changes.
+ *
+ * `occurrence` is design decision 1's third anchor component, 1-based:
+ * "the Nth match of `anchor` within this heading." Avoiding blank lines
+ * only fixes ONE line shape that repeats within a section; a code fence
+ * (` ``` `), a `---` separator, a table pipe, or a bare list bullet repeats
+ * just as legitimately, and the real corpus proved it on the second skill
+ * extraction was run against (`check-standards`, a fence line twice in one
+ * heading). `occurrence` is what makes EVERY non-blank line usable as an
+ * anchor regardless of how many times it repeats — `resolveAnchor` picks
+ * the specific match by ordinal instead of requiring uniqueness.
  *
  * `repos` are every repository this op reconstructs — for a `conflict` op
  * this is still populated (reconstruction of the FULL corpus applies
@@ -90,6 +97,9 @@ import type { ClassifiedSection, DivergentBlock, SectionCategory, SectionGroup, 
 export interface PatchOp {
   readonly heading: readonly string[];
   readonly anchor: string | null;
+  /** 1-based ordinal of `anchor` within the section's anchors, meaningless
+   * (and always `0`) when `anchor` is `null`. */
+  readonly occurrence: number;
   readonly offset: number;
   readonly content: readonly string[];
   readonly repos: readonly string[];
@@ -100,26 +110,47 @@ function isBlank(line: string): boolean {
   return line.trim().length === 0;
 }
 
+/** The 1-based ordinal of `anchors[index]` among every earlier-or-equal
+ * index holding the SAME text — "this is the Nth match of this line." */
+function occurrenceAt(anchors: readonly string[], index: number): number {
+  let count = 0;
+  for (let i = 0; i <= index; i++) {
+    if (anchors[i] === anchors[index]) count++;
+  }
+  return count;
+}
+
 /**
  * Finds the anchor a position `slot` (before `anchors[slot]`, `0` is the
  * start of the section) should be described relative to: the nearest
  * NON-BLANK anchor at index `< slot`, walking backward past any blank ones,
- * plus how many blank anchors were passed. Returns `{ anchor: null, offset:
- * slot }` when every anchor before `slot` is blank (including `slot === 0`,
- * where `offset` is trivially `0` and there is nothing to walk past).
+ * how many blank anchors were passed (`offset`), and which occurrence of
+ * that anchor TEXT it is within the section (`occurrence`) — the line may
+ * repeat elsewhere in the same heading (a fence, a separator), and
+ * `occurrence` is what lets `resolveAnchor` land on this exact one instead
+ * of requiring the text to be unique. Returns `{ anchor: null, occurrence:
+ * 0, offset: slot }` when every anchor before `slot` is blank (including
+ * `slot === 0`, where `offset` is trivially `0`).
  *
- * This is the ONLY place that decides which line an op is anchored to —
- * `reconstruct.ts`'s `contentAt` inverts exactly this arithmetic
- * (`resolvedIndex + 1 + offset === slot`) to get back to the same position.
+ * This is the ONLY place that decides which line — and which occurrence of
+ * it — an op is anchored to. `reconstruct.ts`'s `contentAt` inverts exactly
+ * this arithmetic (`resolvedIndex + 1 + offset === slot`, where
+ * `resolvedIndex` comes from resolving `(anchor, occurrence)`) to get back
+ * to the same position.
  */
-function nominateAnchor(anchors: readonly string[], slot: number): { anchor: string | null; offset: number } {
+function nominateAnchor(
+  anchors: readonly string[],
+  slot: number,
+): { anchor: string | null; occurrence: number; offset: number } {
   let index = slot - 1;
   let offset = 0;
   while (index >= 0 && isBlank(anchors[index]!)) {
     index--;
     offset++;
   }
-  return index < 0 ? { anchor: null, offset: slot } : { anchor: anchors[index]!, offset };
+  return index < 0
+    ? { anchor: null, occurrence: 0, offset: slot }
+    : { anchor: anchors[index]!, occurrence: occurrenceAt(anchors, index), offset };
 }
 
 export interface CoreSection {
@@ -286,7 +317,7 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
       const { majority, tied } = pickMajority(groups);
       slots.push([...majority.diffLines]);
 
-      const { anchor: nominatedAnchor, offset } = nominateAnchor(section.anchors, slot);
+      const { anchor: nominatedAnchor, occurrence, offset } = nominateAnchor(section.anchors, slot);
 
       if (tied) {
         tiedPositions.push(`${headingLabel(section.path)}: ${anchorLabel(nominatedAnchor)}`);
@@ -306,6 +337,7 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
           const op: PatchOp = {
             heading: section.path,
             anchor: nominatedAnchor,
+            occurrence,
             offset,
             content: [...group.diffLines],
             repos: group.repos,
@@ -369,7 +401,7 @@ export function coreShareCounts(
   const seen = new Set<string>();
   let divergentLines = 0;
   for (const op of [...[...extracted.overrides.values()].flat(), ...extracted.conflicts]) {
-    const key = JSON.stringify([op.heading, op.anchor, op.offset, op.content, op.attribution]);
+    const key = JSON.stringify([op.heading, op.anchor, op.occurrence, op.offset, op.content, op.attribution]);
     if (seen.has(key)) continue;
     seen.add(key);
     divergentLines += op.content.length;

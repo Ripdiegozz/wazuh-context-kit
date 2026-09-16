@@ -43,15 +43,53 @@ anchors dissolve.
 `heading` is the section key `parse.ts` already produces. `anchor` resolves only
 inside that section.
 
-The third component, `occurrence`, is not needed by today's corpus — after
-heading scoping, zero anchors remain ambiguous — but the resolver must still
-**count** matches and fail on anything other than exactly one. SPEC 2.1.1 is
-explicit that zero or many is fatal, not a warning, and a resolver that does not
-count cannot enforce it.
+**The third component, `occurrence`, IS needed, and the real corpus is what
+proved it.** This design originally said occurrence was "not needed by
+today's corpus — after heading scoping, zero anchors remain ambiguous." That
+check was done file-wide, not within-heading: it measured that no ANCHOR
+LINE previously picked by the file-wide reading was ambiguous, but it never
+asked whether an ordinary, non-anchor line could repeat within one heading
+and later need to become an anchor itself. The first real-extraction run
+answered that question twice, on two different skills:
+
+- `analyze-dashboard-vuln`: a blank line, ambiguous everywhere a blank line
+  occurs — fixed by never nominating a blank line as an anchor
+  (`nominateAnchor` walks back to the nearest non-blank one).
+- `check-standards`: a code fence line (` ``` `) appearing twice within one
+  heading — `Workflow > 6. Report` — not fixable by skipping a line TYPE,
+  because a fence is exactly as legitimate an anchor as any other line. So
+  are `---` separators, table pipes, and bare list bullets, and each would
+  have surfaced as its own crash on its own skill, one plausible local fix
+  at a time — the exact failure shape this project has paid for repeatedly.
+
+`occurrence` is the general answer instead of the Nth special case: a
+1-based ordinal naming which match of `anchor` within the heading is meant.
+`resolveAnchor` still **counts** every match and still fails fatally — zero
+matches, or fewer matches than the requested ordinal, is fatal per SPEC
+2.1.1 exactly as before. What stops being fatal is "this line matched more
+than once," because an ordinal is precisely the answer to that question:
+
+```yaml
+- op: replace-slot
+  heading: "Workflow/6. Report"
+  anchor: "```"
+  occurrence: 2        # the 2nd match of that line within this heading
+  offset: 0
+```
+
+`nominateAnchor` still prefers a non-blank line where one is available —
+that stays, because a human reading the emitted YAML finds `"Confirm the
+branch."` (occurrence omitted, since it is the only match) far more legible
+than an ordinal against a blank line. `occurrence` is what makes that
+preference safe rather than load-bearing: even where every candidate line
+repeats, resolution still succeeds, because the ordinal — not the line's
+uniqueness — is what resolves it.
 
 Why this must be a requirement and not a detail: the file-wide reading **fails
 quietly**. 21 files still reconstruct. A half-implementation looks half-working,
-which is the failure shape that has cost this project four cycles.
+which is the failure shape that has cost this project four cycles — and
+"heading scoping alone is enough" was the fifth: it passed 342 unit tests and
+crashed on the first real skill.
 
 ## Decision 2 — conflicts are a third tree, and they gate distribution
 

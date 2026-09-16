@@ -12,13 +12,14 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { resolveAnchor } from "./anchor.ts";
 import { diffSkill } from "./diff.ts";
 import { extractSkill } from "./extract.ts";
 import type { ExtractedSkill } from "./extract.ts";
 import { emitExtraction } from "./emit.ts";
 import type { SectionMarker, SkillVariant } from "./types.ts";
 
-/** Same blanket guard as `extract.test.ts` and `reconstruct.test.ts` —
+/** Same blanket guards as `extract.test.ts` and `reconstruct.test.ts` —
  * applied to the one extraction this file builds and reuses everywhere. */
 function assertNoBlankAnchor(extracted: ExtractedSkill): void {
   const allOps = [...[...extracted.overrides.values()].flat(), ...extracted.conflicts];
@@ -26,6 +27,30 @@ function assertNoBlankAnchor(extracted: ExtractedSkill): void {
     if (op.anchor !== null && op.anchor.trim().length === 0) {
       throw new Error(`assertNoBlankAnchor: skill '${extracted.skill}' has a blank/whitespace-only anchor`);
     }
+  }
+}
+
+/** The general invariant (see `extract.test.ts` for the full rationale):
+ * every op's `(heading, anchor, occurrence, offset)` must resolve to
+ * exactly one position, in every repo it belongs to. */
+function assertAnchorsResolve(extracted: ExtractedSkill): void {
+  const coreByHeading = new Map(extracted.core.map((section) => [JSON.stringify(section.path), section]));
+  const opsWithRepo: { readonly op: { heading: readonly string[]; anchor: string | null; occurrence: number }; readonly repo: string }[] = [];
+  for (const [repo, ops] of extracted.overrides) for (const op of ops) opsWithRepo.push({ op, repo });
+  for (const op of extracted.conflicts) for (const repo of op.repos) opsWithRepo.push({ op, repo });
+
+  for (const { op, repo } of opsWithRepo) {
+    if (op.anchor === null) continue;
+    const section = coreByHeading.get(JSON.stringify(op.heading));
+    if (section === undefined) continue;
+    resolveAnchor({
+      skill: extracted.skill,
+      repo,
+      heading: op.heading,
+      lines: section.anchors,
+      anchor: op.anchor,
+      occurrence: op.occurrence,
+    });
   }
 }
 
@@ -75,6 +100,7 @@ function sampleExtraction() {
   ];
   const extracted = extractSkill(diffSkill("a-skill", variants));
   assertNoBlankAnchor(extracted);
+  assertAnchorsResolve(extracted);
   return extracted;
 }
 

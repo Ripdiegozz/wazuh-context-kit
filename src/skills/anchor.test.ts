@@ -122,3 +122,87 @@ describe("the resolver counts every match rather than short-circuiting (task 1.4
     }
   });
 });
+
+/**
+ * Design decision 1's third anchor component, `occurrence`. Design's own
+ * text once called this "not needed by today's corpus" — the real corpus
+ * proved that wrong on `check-standards`, where a code fence line
+ * (` ``` `) appears twice within one heading. Heading scoping fixes
+ * ambiguity ACROSS sections; it does nothing for a line that legitimately
+ * repeats WITHIN one, and any sufficiently long document has some of those
+ * (fences, `---` separators, table pipes, bare list bullets). `occurrence`
+ * is the general fix: no line is ever unusable as an anchor once an ordinal
+ * can pick a specific match.
+ */
+describe("occurrence picks a specific match by ordinal (design decision 1's third component)", () => {
+  test("the same line twice in one heading resolves to its requested occurrence, not the first", () => {
+    const lines = ["```", "some fenced content", "```", "trailing text"];
+
+    const first = resolveAnchor({
+      skill: "check-standards",
+      repo: "wazuh-dashboard",
+      heading: ["Workflow", "6. Report"],
+      lines,
+      anchor: "```",
+      occurrence: 1,
+    });
+    const second = resolveAnchor({
+      skill: "check-standards",
+      repo: "wazuh-dashboard",
+      heading: ["Workflow", "6. Report"],
+      lines,
+      anchor: "```",
+      occurrence: 2,
+    });
+
+    expect(first).toBe(0);
+    expect(second).toBe(2);
+  });
+
+  test("without an occurrence, the SAME two-match line is still fatal — ordinals are opt-in, not automatic", () => {
+    const lines = ["```", "content", "```"];
+
+    expect(() =>
+      resolveAnchor({
+        skill: "check-standards",
+        repo: "wazuh-dashboard",
+        heading: ["Workflow", "6. Report"],
+        lines,
+        anchor: "```",
+      }),
+    ).toThrow(/matched 2 positions/);
+  });
+
+  test("requesting an occurrence beyond the match count is fatal, naming the ordinal and the count", () => {
+    const lines = ["```", "content", "```"];
+
+    try {
+      resolveAnchor({
+        skill: "check-standards",
+        repo: "wazuh-dashboard",
+        heading: ["Workflow", "6. Report"],
+        lines,
+        anchor: "```",
+        occurrence: 3,
+      });
+      throw new Error("expected resolveAnchor to throw");
+    } catch (error) {
+      const message = (error as Error).message;
+      expect(message).toContain("occurrence 3");
+      expect(message).toContain("only 2");
+    }
+  });
+
+  test("occurrence 1 against zero matches is still fatal, not silently accepted", () => {
+    expect(() =>
+      resolveAnchor({
+        skill: "check-standards",
+        repo: "wazuh-dashboard",
+        heading: ["Workflow", "6. Report"],
+        lines: ["no fences here"],
+        anchor: "```",
+        occurrence: 1,
+      }),
+    ).toThrow(/only 0/);
+  });
+});

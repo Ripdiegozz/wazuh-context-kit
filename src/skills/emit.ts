@@ -61,7 +61,15 @@ export function renderCoreMarkdown(core: readonly CoreSection[]): string {
 }
 
 function opSortKey(op: PatchOp): string {
-  return JSON.stringify([op.heading, op.anchor, op.offset, op.content, op.attribution, [...op.repos].sort()]);
+  return JSON.stringify([
+    op.heading,
+    op.anchor,
+    op.occurrence,
+    op.offset,
+    op.content,
+    op.attribution,
+    [...op.repos].sort(),
+  ]);
 }
 
 function serializeOp(op: PatchOp): Record<string, unknown> {
@@ -75,7 +83,15 @@ function serializeOp(op: PatchOp): Record<string, unknown> {
     op: op.anchor === null ? "replace-at-start" : "replace-after",
     heading: op.heading.join("/"),
   };
-  if (op.anchor !== null) base.anchor = op.anchor;
+  if (op.anchor !== null) {
+    base.anchor = op.anchor;
+    // Design decision 1's third anchor component. Emitted only when it is
+    // not the trivial "first and only" case, so the common op stays
+    // uncluttered and the ones that actually need an ordinal (a repeated
+    // fence, separator, or bullet within the same heading) say so plainly.
+    if (op.occurrence !== 1) base.occurrence = op.occurrence;
+  }
+  if (op.offset !== 0) base.offset = op.offset;
   base.content = op.content;
   return base;
 }

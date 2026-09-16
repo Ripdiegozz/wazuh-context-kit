@@ -960,7 +960,9 @@ Hoy vive incrustado dentro de archivos duplicados. Pasa a ser una capa real.
 ### 2.1.0 Corrección de alcance — medido el 2026-09-16
 
 **El primer borrador decía "3 repos" y "18 archivos". Los dos números eran de
-antes de contar.** Medido con `git ls-tree -r HEAD` dentro de cada clon del
+antes de contar.** (Costo medido de sumar `.claude` al sparse-checkout, 2026-09-16:
+clone en frío **34 s**, `.cache/` **264 MB** — idéntico a los 264 MB previos.
+`.claude/` es despreciable.) Medido con `git ls-tree -r HEAD` dentro de cada clon del
 cache —no sobre el disco, porque `.claude/` no está en el sparse-checkout de
 ningún repo y `find` devuelve vacío aunque el árbol sí lo tenga:
 
@@ -1090,17 +1092,36 @@ puede probar hoy, y es lo único que se afirma.
 > archivos, ≥ 15 de 18— eran del primer borrador y se escribieron antes de
 > contar. Ver 2.1.0.
 
-- [ ] `wazuh-ctx skills-diff` clasifica los **42** archivos (6 skills × 7 repos)
-      sin excepción.
-- [ ] Todo bloque divergente cae en común / override / CONFLICTO. Ninguno sin clasificar.
-- [ ] Los dos subformatos del marcador se distinguen: `repo-specific (<repo>)` y
-      `repo-specific` sin repo. Ninguno de los 15 sin nombre se atribuye a un
-      repo que el archivo no nombra.
+- [x] `wazuh-ctx skills-diff` clasifica los **42** archivos (6 skills × 7 repos)
+      sin excepción. **Verificado el 2026-09-16 contra los 7 repos reales**: 42
+      archivos, 61 secciones, `wazuh-dashboard` incluido pese a ser
+      `kind: platform`. Las 3 skills del indexer se reportan aparte, no se
+      fusionan (SPEC 2.2), por una regla descubierta —un skill entra al diff
+      cuando aparece en ≥ 2 repos— y no por una lista hardcodeada.
+- [x] Todo bloque divergente cae en común / override / CONFLICTO. Ninguno sin
+      clasificar. **La unidad es el bloque, no la sección**: una misma sección
+      puede llevar un override declarado y una divergencia sin declarar, y
+      colapsarla a una etiqueta pierde información en cualquier dirección.
+      Invariante verificado sobre datos reales: ningún bloque se reporta bajo
+      una categoría que descarte una atribución presente en uno de sus grupos.
+- [x] Los dos subformatos del marcador se distinguen: `repo-specific (<repo>)` y
+      `repo-specific` sin repo. Ninguno sin nombre se atribuye a un repo que el
+      archivo no nombra. **Corrección medida**: los 15 marcadores sin nombre son
+      líneas sobre los 42 archivos, y la mayoría vive en secciones idénticas en
+      los 7 repos, así que nunca llegan a ser divergencia. Un marcador dentro de
+      texto igual en todos lados no es una divergencia.
 - [ ] Los conflictos conocidos aparecen listados: typecheck en `check-standards`,
       label `no-changelog`, `changelogs/fragments` de OSD, divergencia de
       `settings.json` —que son **5 variantes distintas sobre 7 repos**, con
       `alerting`, `notifications` y `security-analytics` idénticos entre sí, y
       que además **no es un `SKILL.md`** y no sale del skills-diff por sí solo.
+      **Parcial (2026-09-16):** los tres primeros se reportan y están
+      verificados. `settings.json` queda **fuera de alcance a propósito** y este
+      criterio sigue abierto: el modelo de override es un parche anclado a texto
+      y un JSON no tiene anclas de heading, así que necesita merge por clave —
+      otro mecanismo. Meterlo ahí daría dos motores de override bajo un nombre, y
+      el día que uno falle el usuario no sabría cuál está mirando. La deuda es
+      más chica que un segundo motor y, a diferencia de él, es visible.
 - [ ] `core/` + `overrides/<repo>/` reconstruyen **byte-idénticos ≥ 35 de los 42**
       SKILL.md originales.
 - [ ] Los ≤ 7 restantes están listados en `lossy[]` con el diff exacto de lo que

@@ -179,8 +179,8 @@ describe("resolveRemoteRef", () => {
 });
 
 describe("sparsePathsFor", () => {
-  test("platform -> [src/plugins], the OSD core plugin tree", () => {
-    expect(sparsePathsFor("platform")).toEqual(["src/plugins"]);
+  test("platform -> [src/plugins, .claude], the OSD core plugin tree plus the skills tree", () => {
+    expect(sparsePathsFor("platform")).toEqual(["src/plugins", ".claude"]);
   });
 
   test("platform does NOT declare the git-ignored root-level plugins/", () => {
@@ -195,7 +195,7 @@ describe("sparsePathsFor", () => {
     // The other five dashboard repos ARE each one plugin, with server/ and
     // public/ at the root and no plugins/ directory at all -- cone mode left
     // them ~20 root files and no source. One path set, both shapes.
-    expect(sparsePathsFor("dashboard")).toEqual(["plugins", "server", "public", "common"]);
+    expect(sparsePathsFor("dashboard")).toEqual(["plugins", "server", "public", "common", ".claude"]);
   });
 
   test("indexer -> SPEC 1.2 verified paths", () => {
@@ -203,7 +203,23 @@ describe("sparsePathsFor", () => {
       "plugins/setup/src/main/resources/templates",
       "plugins/content-manager/src/main/resources/mappings",
       "wcs",
+      ".claude",
     ]);
+  });
+
+  describe(".claude is checked out for every kind (skills-diff repo-fetch delta, task 4.1)", () => {
+    // `.claude/` sits in NO repository's declared path set today (exploration
+    // finding 1): `find`, `fd` and `ls` return nothing while every clone's
+    // git tree holds the skill files, which is exactly the "confident,
+    // plausible, wrong zero" this project has shipped before. Widened
+    // unconditionally, not per-repo kind: a per-repo condition is a list that
+    // has to be maintained, and the repo set already burned this project once
+    // when it was hardcoded rather than discovered (design decision 5).
+    for (const kind of ["platform", "dashboard", "indexer"] as const) {
+      test(`${kind} includes .claude`, () => {
+        expect(sparsePathsFor(kind)).toContain(".claude");
+      });
+    }
   });
 });
 

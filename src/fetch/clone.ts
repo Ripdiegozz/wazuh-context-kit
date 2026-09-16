@@ -16,6 +16,18 @@ export function cacheDirFor(cacheRoot: string, repo: string, ref: string): strin
   return join(cacheRoot, `${repo}@${ref}`);
 }
 
+/**
+ * `.claude` is declared for EVERY kind, unconditionally (skills-diff design
+ * decision 5). `.claude/` sits in no repository's path set today, so `find`,
+ * `fd` and `ls` return nothing while every clone's git tree holds the skill
+ * files under it -- the "confident, plausible, wrong zero" this project has
+ * shipped before (exploration finding 1). A per-repo condition would be a
+ * list to maintain, and the repo set already burned this project once when it
+ * was hardcoded instead of discovered; cone mode already ignores a declared
+ * path a repository does not have, so a repo without `.claude` is unaffected.
+ */
+const CLAUDE_TREE = ".claude";
+
 /** SPEC 1.2 verified paths, one path set per RepoKind. */
 export function sparsePathsFor(kind: RepoKind): string[] {
   switch (kind) {
@@ -24,7 +36,7 @@ export function sparsePathsFor(kind: RepoKind): string[] {
       // the destination of every wazuh-native `requiredPlugins` edge. NOT the
       // root-level `plugins/`: that directory is git-ignored upstream and empty,
       // a local dev mount point rather than repository content.
-      return ["src/plugins"];
+      return ["src/plugins", CLAUDE_TREE];
     case "dashboard":
       // Two repository shapes, one path set.
       //
@@ -38,12 +50,13 @@ export function sparsePathsFor(kind: RepoKind): string[] {
       // listing all four covers both shapes with no per-repo special-casing.
       // The hazard this replaces: a declared path matching nothing is
       // indistinguishable from a repository containing nothing.
-      return ["plugins", "server", "public", "common"];
+      return ["plugins", "server", "public", "common", CLAUDE_TREE];
     case "indexer":
       return [
         "plugins/setup/src/main/resources/templates",
         "plugins/content-manager/src/main/resources/mappings",
         "wcs",
+        CLAUDE_TREE,
       ];
   }
 }

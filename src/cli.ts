@@ -26,6 +26,9 @@ import { IndexerError } from "./indexer/types.ts";
 import type { FetchLike, HttpResponseLike } from "./indexer/types.ts";
 import { scanIndexReferences } from "./parse/index-references.ts";
 import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
+import { buildSkillsDiffJson } from "./skills/diff.ts";
+import { loadSkills } from "./skills/load.ts";
+import { renderSkillsDiffMarkdown } from "./skills/render.ts";
 import { loadSources } from "./sources.ts";
 
 const VERSION = "0.1.0";
@@ -44,7 +47,7 @@ USAGE
 COMMANDS
   matrix        Generate out/<ref>/matrix.json and MATRIX.md
   crosscheck    Declared indices vs indices the dashboard actually references
-  skills-diff   Three-way diff of the shared .claude skills
+  skills-diff   Cross-repo diff of the shared .claude skills, classified and reported
   sync          Materialise .claude/standards/ from the package
   check         Verify .claude/standards/ against the package
   serve         Local inspector UI
@@ -422,6 +425,130 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
   return { code: 0 };
 }
 
+/**
+ * `skills-diff` — SPEC 2.1. Classifies every divergent block across the seven
+ * repositories that carry `.claude/skills/`, and reports the conflicts. It
+ * never resolves them: a CONFLICT exit is still exit `0` (SPEC 2.1.1 — this
+ * is the expected output of an analysis, not a failure).
+ *
+ * Deliberately no `--fixtures` support: the bundled fixtures carry no skills
+ * content, and accepting the flag anyway would make a documented no-network
+ * mode silently report zero skills — the exact "confident, plausible, wrong
+ * zero" this change exists to close (see `matrix, crosscheck` for the sibling
+ * decision on `--fixtures` scope).
+ */
+async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandResult> {
+  const ref = (values.ref as string | undefined) ?? "5.0.0";
+  const outDir = (values.out as string | undefined) ?? "out";
+  const frozenTime = values["frozen-time"] as string | undefined;
+
+  if (values.fixtures === true) {
+    console.error(
+      "wazuh-ctx skills-diff: --fixtures is not supported; it applies to `matrix` only.\n" +
+        "The bundled fixtures carry no .claude/skills content.",
+    );
+    return { code: 2 };
+  }
+
+  let sources: Awaited<ReturnType<typeof loadSources>>;
+  try {
+    sources = await loadSources(process.cwd());
+  } catch (error) {
+    console.error(`wazuh-ctx skills-diff: ${(error as Error).message}`);
+    return { code: 2 };
+  }
+
+  const cacheRoot = resolve(process.cwd(), ".cache");
+  const io = createFetchIo();
+
+  let fetchOutcome: Awaited<ReturnType<typeof fetchRepos>>;
+  try {
+    fetchOutcome = await fetchRepos({
+      repos: sources.repos,
+      ref,
+      cacheRoot,
+      refresh: values.refresh === true,
+      io,
+    });
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      console.error(`wazuh-ctx skills-diff: git not found on PATH (${err.message})`);
+      return { code: 2 };
+    }
+    throw error;
+  }
+
+  const kindByName = new Map(sources.repos.map((repo) => [repo.name, repo.kind]));
+  const targets = fetchOutcome.fetched
+    .map((f) => {
+      const kind = kindByName.get(f.repo);
+      return kind === undefined ? null : { repo: f.repo, repoKind: kind, dir: f.dir };
+    })
+    .filter((t): t is NonNullable<typeof t> => t !== null);
+
+  const loaded = await loadSkills(targets);
+
+  // `fetchRepos` reports non-fatal skips SEPARATELY from what it fetched
+  // (e.g. `wazuh-dashboard-ml-commons`, skipped because it has no `5.0.0`
+  // branch). Left out of `repos`, a skipped repository would simply vanish
+  // from the artifact and the denominator — the exact "resolved and
+  // contributed nothing" vs "could not be resolved" collapse
+  // `repo-fetch`'s own requirement forbids ("A repository contributing no
+  // facts is still reported"). Each skip becomes its own excluded
+  // `RepoSelection`, with a reason distinct from "no .claude/skills", merged
+  // in before building the artifact.
+  const skippedRepos = fetchOutcome.skipped.map((s) => ({
+    repo: s.repo,
+    included: false,
+    reason: `not fetched: ${s.reason}`,
+  }));
+  const allRepos = [...loaded.repos, ...skippedRepos];
+
+  const skillsDiff = buildSkillsDiffJson({
+    ref,
+    generatedAt: frozenTime ?? new Date().toISOString(),
+    tool: TOOL,
+    repos: allRepos,
+    variantsBySkill: loaded.variantsBySkill,
+    singleRepoSkills: loaded.singleRepoSkills,
+  });
+
+  const target = join(outDir, ref);
+  await mkdir(target, { recursive: true });
+  await writeFile(
+    join(target, "skills-diff.json"),
+    `${JSON.stringify(skillsDiff, null, 2)}\n`,
+    "utf8",
+  );
+  await writeFile(join(target, "SKILLS-DIFF.md"), renderSkillsDiffMarkdown(skillsDiff), "utf8");
+
+  const included = skillsDiff.repos.filter((r) => r.included).length;
+  const totalCounts = skillsDiff.skills.reduce(
+    (sum, s) => ({
+      common: sum.common + s.counts.common,
+      override: sum.override + s.counts.override,
+      sharedOverride: sum.sharedOverride + s.counts.sharedOverride,
+      conflict: sum.conflict + s.counts.conflict,
+    }),
+    { common: 0, override: 0, sharedOverride: 0, conflict: 0 },
+  );
+
+  console.log(`ref              ${skillsDiff.ref}`);
+  console.log(`repos included   ${included} of ${skillsDiff.repos.length}`);
+  console.log(`skills           ${skillsDiff.skills.length}`);
+  console.log(`single-repo      ${skillsDiff.singleRepoSkills.length} (reported, not diffed)`);
+  console.log(`common           ${totalCounts.common}`);
+  console.log(`override         ${totalCounts.override}`);
+  console.log(`sharedOverride   ${totalCounts.sharedOverride}`);
+  console.log(`CONFLICT         ${totalCounts.conflict}`);
+  console.log(`written          ${join(target, "skills-diff.json")}`);
+  console.log(`                 ${join(target, "SKILLS-DIFF.md")}`);
+
+  // A conflict is the expected output of an analysis, not a failure (SPEC 2.1.1).
+  return { code: 0 };
+}
+
 function notImplemented(command: string, specSection: string): CommandResult {
   console.error(
     `wazuh-ctx ${command}: not implemented yet. See SPEC ${specSection}.\n` +
@@ -478,7 +605,7 @@ async function main(): Promise<number> {
     case "crosscheck":
       return (await runCrosscheck(parsed.values)).code;
     case "skills-diff":
-      return notImplemented("skills-diff", "2.1").code;
+      return (await runSkillsDiff(parsed.values)).code;
     case "sync":
       return notImplemented("sync", "2.3").code;
     case "check":

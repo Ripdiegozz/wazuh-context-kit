@@ -21,7 +21,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
+import { lstat, mkdir, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, sep } from "node:path";
 import { cacheDirFor, cloneRepo, sparsePathsFor } from "./clone.ts";
@@ -170,11 +170,20 @@ describe("sparse checkout, verified on disk (SPEC 1.2)", () => {
 
       try {
         const origin = await createOrigin(run, root);
+        // Added on top of the shared fixture, specific to this test: proves
+        // `.claude` content lands once declared, without giving every OTHER
+        // test in this file a `.claude` tree it did not ask for.
+        const skillPath = join(origin, ".claude", "skills", "create-pr", "SKILL.md");
+        await mkdir(dirname(skillPath), { recursive: true });
+        await writeFile(skillPath, "---\nname: create-pr\ndescription: d\n---\n# Create PR\n", "utf8");
+        await runOrThrow(run, ["add", "--all"], origin);
+        await runOrThrow(run, ["commit", "--quiet", "--message", "add .claude fixture"], origin);
+
         const cacheRoot = join(root, "cache");
         await mkdir(cacheRoot, { recursive: true });
 
         const sparsePaths = sparsePathsFor("platform");
-        expect(sparsePaths).toEqual(["src/plugins"]);
+        expect(sparsePaths).toEqual(["src/plugins", ".claude"]);
 
         const dir = cacheDirFor(cacheRoot, "wazuh-dashboard", REF);
         const outcome = await cloneRepo(run, cacheRoot, dir, `file://${origin}`, REF, sparsePaths);
@@ -187,6 +196,11 @@ describe("sparse checkout, verified on disk (SPEC 1.2)", () => {
         expect(onDisk).toContain("src/plugins/navigation/opensearch_dashboards.json");
         expect(onDisk).toContain("src/plugins/data/opensearch_dashboards.json");
 
+        // skills-diff repo-fetch delta: the skills tree is now on disk too,
+        // readable by the same filesystem walk every other parser uses --
+        // no `git show` needed.
+        expect(onDisk).toContain(".claude/skills/create-pr/SKILL.md");
+
         // `src/core` is inside `src/` but outside the declared set, so it
         // proves the path set is `src/plugins` and not `src`.
         expect(onDisk.some((path) => path.startsWith("src/core/"))).toBe(false);
@@ -195,6 +209,54 @@ describe("sparse checkout, verified on disk (SPEC 1.2)", () => {
           (path) => !isRootFile(path) && !sparsePaths.some((allowed) => path.startsWith(`${allowed}/`)),
         );
         expect(unexpected).toEqual([]);
+      } finally {
+        await rm(root, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+});
+
+describe("a repository with no .claude tree is unaffected (skills-diff repo-fetch delta, task 4.2)", () => {
+  test(
+    "the checkout succeeds, and absence is distinguishable from a repo that was never fetched",
+    async () => {
+      // Cone mode ignores a declared path a repository does not have (already
+      // exercised below for "does-not-exist"); this pins the SAME property
+      // for `.claude` specifically, because it is the path this delta adds.
+      const root = await mkdtemp(join(tmpdir(), "wazuh-ctx-sparse-noclaude-"));
+      const run = createGitRunner();
+
+      try {
+        const origin = await createOrigin(run, root);
+        const cacheRoot = join(root, "cache");
+        await mkdir(cacheRoot, { recursive: true });
+
+        const dir = cacheDirFor(cacheRoot, "wazuh-indexer-plugins", REF);
+        const outcome = await cloneRepo(
+          run,
+          cacheRoot,
+          dir,
+          `file://${origin}`,
+          REF,
+          sparsePathsFor("indexer"),
+        );
+
+        expect(outcome.ok).toBe(true);
+        const onDisk = await filesOnDisk(dir);
+
+        // The declared indexer content still lands...
+        expect(onDisk).toContain("plugins/setup/src/main/resources/templates/states/agent-config.json");
+        // ...and `.claude` is simply absent, not an error and not a partial
+        // checkout -- this origin fixture never had a `.claude` tree.
+        expect(onDisk.some((path) => path.startsWith(".claude/"))).toBe(false);
+
+        // "Absent because never fetched" and "absent because the repository
+        // has none" must be distinguishable: a never-fetched repo has no
+        // cache directory at all, while this one exists and is a real,
+        // completed checkout with its declared content on disk.
+        const stat = await lstat(dir);
+        expect(stat.isDirectory()).toBe(true);
       } finally {
         await rm(root, { recursive: true, force: true });
       }

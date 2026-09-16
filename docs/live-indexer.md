@@ -12,13 +12,18 @@ nobody. Neither fact is reachable by reading repositories.
 ## Running it
 
 ```sh
-export WAZUH_CTX_INDEXER_USERNAME=admin
-export WAZUH_CTX_INDEXER_PASSWORD=admin
+read -rs -p 'indexer password: ' WAZUH_CTX_INDEXER_PASSWORD
+export WAZUH_CTX_INDEXER_USERNAME WAZUH_CTX_INDEXER_PASSWORD
 
 wazuh-ctx crosscheck --ref 5.0.0 \
   --indexer https://localhost:9200 \
   --indexer-skip-tls-verify
 ```
+
+`read -rs` keeps the password out of your shell history and off the process
+list. Exporting it inline works too, and if your stack still uses the default
+development credentials it will work on the first try — which is exactly why
+this page does not print them.
 
 Add `--format json` to get the comparison as a machine-readable stream.
 

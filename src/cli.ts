@@ -29,9 +29,12 @@ import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
 import { buildSkillsDiffJson } from "./skills/diff.ts";
 import { emitExtraction } from "./skills/emit.ts";
 import { extractSkill } from "./skills/extract.ts";
+import type { ExtractedSkill } from "./skills/extract.ts";
 import { loadSkills } from "./skills/load.ts";
 import { renderSkillsDiffMarkdown } from "./skills/render.ts";
 import { loadSources } from "./sources.ts";
+import { applySync, checkStandards } from "./standards/apply.ts";
+import { planSync } from "./standards/plan.ts";
 
 const VERSION = "0.1.0";
 const TOOL = `wazuh-ctx@${VERSION}`;
@@ -51,8 +54,10 @@ COMMANDS
   crosscheck    Declared indices vs indices the dashboard actually references
   skills-diff   Cross-repo diff of the shared .claude skills, classified and reported
                 --extract also writes core/, overrides/<repo>/, conflicts/ (SPEC 2.1)
-  sync          Materialise .claude/standards/ from the package
-  check         Verify .claude/standards/ against the package
+  sync          Materialise .claude/standards/ from the package (SPEC 2.3)
+                --repo <name> --target <dir> are both required
+  check         Verify .claude/standards/ against the package (SPEC 2.3)
+                --target <dir> is required; reports not-applicable | in-sync | drifted
   serve         Local inspector UI
   mcp           MCP server: docs | schema | runtime
 
@@ -64,6 +69,8 @@ OPTIONS
   --extract             skills-diff: also project core/, overrides/<repo>/, conflicts/
   --frozen-time <iso>   Pin meta.generatedAt for reproducible runs
   --out <dir>           Output directory (default: out)
+  --repo <name>         sync: which repository's overrides to materialise
+  --target <dir>        sync/check: the repository directory to write into / inspect
   --indexer <url>       crosscheck: also compare against a running indexer (read-only)
   --indexer-skip-tls-verify
                         crosscheck: accept a certificate that does not validate
@@ -600,6 +607,159 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
   return { code: 0 };
 }
 
+/**
+ * Fetches, diffs and extracts the corpus the SAME way `skills-diff --extract`
+ * does — `sync` needs `ExtractedSkill[]` for `planSync`, and there is only
+ * one place in this project that knows how to build one from real repos.
+ * Returns a `CommandResult` (never throws) when any step of the pipeline
+ * fails, so `runSync` can return that result directly without duplicating
+ * `skills-diff`'s own error handling.
+ */
+async function loadExtractionForSync(
+  values: Record<string, unknown>,
+): Promise<{ readonly extracted: readonly ExtractedSkill[] } | CommandResult> {
+  const ref = (values.ref as string | undefined) ?? "5.0.0";
+
+  let sources: Awaited<ReturnType<typeof loadSources>>;
+  try {
+    sources = await loadSources(process.cwd());
+  } catch (error) {
+    console.error(`wazuh-ctx sync: ${(error as Error).message}`);
+    return { code: 2 };
+  }
+
+  const cacheRoot = resolve(process.cwd(), ".cache");
+  const io = createFetchIo();
+
+  let fetchOutcome: Awaited<ReturnType<typeof fetchRepos>>;
+  try {
+    fetchOutcome = await fetchRepos({
+      repos: sources.repos,
+      ref,
+      cacheRoot,
+      refresh: values.refresh === true,
+      io,
+    });
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      console.error(`wazuh-ctx sync: git not found on PATH (${err.message})`);
+      return { code: 2 };
+    }
+    throw error;
+  }
+
+  const kindByName = new Map(sources.repos.map((repo) => [repo.name, repo.kind]));
+  const targets = fetchOutcome.fetched
+    .map((f) => {
+      const kind = kindByName.get(f.repo);
+      return kind === undefined ? null : { repo: f.repo, repoKind: kind, dir: f.dir };
+    })
+    .filter((t): t is NonNullable<typeof t> => t !== null);
+
+  const loaded = await loadSkills(targets);
+  const skippedRepos = fetchOutcome.skipped.map((s) => ({
+    repo: s.repo,
+    included: false,
+    reason: `not fetched: ${s.reason}`,
+  }));
+  const allRepos = [...loaded.repos, ...skippedRepos];
+
+  const skillsDiff = buildSkillsDiffJson({
+    ref,
+    generatedAt: new Date().toISOString(),
+    tool: TOOL,
+    repos: allRepos,
+    variantsBySkill: loaded.variantsBySkill,
+    singleRepoSkills: loaded.singleRepoSkills,
+  });
+
+  return { extracted: skillsDiff.skills.map((skill) => extractSkill(skill)) };
+}
+
+function isExtractionFailure(
+  outcome: { readonly extracted: readonly ExtractedSkill[] } | CommandResult,
+): outcome is CommandResult {
+  return !("extracted" in outcome);
+}
+
+/**
+ * `sync` — SPEC 2.3. Plans before it writes (design decision 1): `planSync`
+ * decides what would be distributed and what is blocked, `applySync`
+ * performs exactly that. An anchor that has become ambiguous since
+ * extraction is a FATAL error (SPEC 2.1.1), not a warning — it surfaces here
+ * as a thrown `Error` from `planSync` (which resolves every override anchor
+ * through `reconstructRepo`/`resolveAnchor` before anything is written), and
+ * is reported with a non-zero exit distinct from "every skill blocked",
+ * which is success (see below).
+ */
+async function runSync(values: Record<string, unknown>): Promise<CommandResult> {
+  const repo = values.repo as string | undefined;
+  const target = values.target as string | undefined;
+
+  if (!repo) {
+    console.error("wazuh-ctx sync: --repo <name> is required.");
+    return { code: 64 };
+  }
+  if (!target) {
+    console.error("wazuh-ctx sync: --target <dir> is required.");
+    return { code: 64 };
+  }
+
+  const outcome = await loadExtractionForSync(values);
+  if (isExtractionFailure(outcome)) return outcome;
+
+  let plan: ReturnType<typeof planSync>;
+  try {
+    plan = planSync(outcome.extracted, repo, TOOL);
+  } catch (error) {
+    console.error(`wazuh-ctx sync: ${(error as Error).message}`);
+    return { code: 1 };
+  }
+
+  const { written } = await applySync(plan, target);
+
+  const total = plan.distributed.length + plan.blocked.length;
+  console.log(`repo             ${repo}`);
+  console.log(`target           ${target}`);
+  console.log(`distributed      ${plan.distributed.length} of ${total} distributed`);
+  for (const blocked of [...plan.blocked].sort((a, b) => a.skill.localeCompare(b.skill))) {
+    console.log(`blocked          ${blocked.skill}: ${blocked.reasons.join("; ")}`);
+  }
+  for (const path of written) console.log(`written          ${path}`);
+
+  // "Every skill blocked" is the tool working as designed, not a failure
+  // (SPEC: "sync with everything blocked is reported, not failed") — a
+  // fatal anchor ambiguity above already returned non-zero, and that is the
+  // only condition that does.
+  return { code: 0 };
+}
+
+/**
+ * `check` — SPEC 2.3/2.4. Three states, never a boolean (design decision 3):
+ * `not-applicable` and `in-sync` both exit `0`, `drifted` exits non-zero —
+ * the ONLY place in this project that exit-code mapping is decided, kept
+ * out of the pure `verifyStandards` on purpose.
+ */
+async function runCheck(values: Record<string, unknown>): Promise<CommandResult> {
+  const target = values.target as string | undefined;
+  if (!target) {
+    console.error("wazuh-ctx check: --target <dir> is required.");
+    return { code: 64 };
+  }
+
+  const result = await checkStandards(target, TOOL);
+
+  console.log(`target           ${target}`);
+  console.log(`state            ${result.state}`);
+  console.log(result.message);
+  for (const drifted of result.drifted) {
+    console.log(`drifted          ${drifted.path} (${drifted.reason})`);
+  }
+
+  return { code: result.state === "drifted" ? 1 : 0 };
+}
+
 function notImplemented(command: string, specSection: string): CommandResult {
   console.error(
     `wazuh-ctx ${command}: not implemented yet. See SPEC ${specSection}.\n` +
@@ -635,6 +795,8 @@ async function main(): Promise<number> {
         refresh: { type: "boolean" },
         strict: { type: "boolean" },
         extract: { type: "boolean" },
+        repo: { type: "string" },
+        target: { type: "string" },
         indexer: { type: "string" },
         "indexer-skip-tls-verify": { type: "boolean" },
         format: { type: "string" },
@@ -659,9 +821,9 @@ async function main(): Promise<number> {
     case "skills-diff":
       return (await runSkillsDiff(parsed.values)).code;
     case "sync":
-      return notImplemented("sync", "2.3").code;
+      return (await runSync(parsed.values)).code;
     case "check":
-      return notImplemented("check", "2.3").code;
+      return (await runCheck(parsed.values)).code;
     case "serve":
       // Moved to LAST in the build order (SPEC 7, 2026-09-16): an inspector
       // built now would show 9 plugins and 3 unknowns; built after Phases 2

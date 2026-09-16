@@ -27,6 +27,8 @@ import type { FetchLike, HttpResponseLike } from "./indexer/types.ts";
 import { scanIndexReferences } from "./parse/index-references.ts";
 import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
 import { buildSkillsDiffJson } from "./skills/diff.ts";
+import { emitExtraction } from "./skills/emit.ts";
+import { extractSkill } from "./skills/extract.ts";
 import { loadSkills } from "./skills/load.ts";
 import { renderSkillsDiffMarkdown } from "./skills/render.ts";
 import { loadSources } from "./sources.ts";
@@ -48,6 +50,7 @@ COMMANDS
   matrix        Generate out/<ref>/matrix.json and MATRIX.md
   crosscheck    Declared indices vs indices the dashboard actually references
   skills-diff   Cross-repo diff of the shared .claude skills, classified and reported
+                --extract also writes core/, overrides/<repo>/, conflicts/ (SPEC 2.1)
   sync          Materialise .claude/standards/ from the package
   check         Verify .claude/standards/ against the package
   serve         Local inspector UI
@@ -58,6 +61,7 @@ OPTIONS
   --fixtures            Build from bundled fixtures; no clone, no network
   --refresh             Refresh cached checkouts in place instead of reusing them
   --strict              Exit non-zero when unknowns[] is non-empty
+  --extract             skills-diff: also project core/, overrides/<repo>/, conflicts/
   --frozen-time <iso>   Pin meta.generatedAt for reproducible runs
   --out <dir>           Output directory (default: out)
   --indexer <url>       crosscheck: also compare against a running indexer (read-only)
@@ -545,6 +549,53 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
   console.log(`written          ${join(target, "skills-diff.json")}`);
   console.log(`                 ${join(target, "SKILLS-DIFF.md")}`);
 
+  if (values.extract === true) {
+    const extracted = skillsDiff.skills.map((skill) => extractSkill(skill));
+
+    // `skill.name -> repo -> that repo's original flattened body` — the
+    // ONLY place this exists, since `extractSkill`'s output does not retain
+    // the inputs it was built from (the proof is that reconstruction
+    // recovers them, not that they were kept around). Built from the same
+    // `loaded.variantsBySkill` `skillsDiff` itself was built from, so this
+    // never drifts from what was actually diffed.
+    const originalsBySkill = new Map(
+      skillsDiff.skills.map((skill) => {
+        const variants = loaded.variantsBySkill.get(skill.skill) ?? [];
+        const repoLines = new Map(
+          variants.map((v) => [v.repo, v.skill.sections.flatMap((s) => s.lines)] as const),
+        );
+        return [skill.skill, repoLines] as const;
+      }),
+    );
+
+    const { written, report } = await emitExtraction(target, extracted, originalsBySkill);
+
+    const distributable = extracted.filter((e) => e.distributable).length;
+    console.log(`extracted        ${extracted.length} skills`);
+    console.log(`distributable    ${distributable} of ${extracted.length}`);
+    console.log(`core share       ${(report.overall.coreShare * 100).toFixed(1)}% of core+overrides (floor ${(report.overall.floor * 100).toFixed(0)}%)`);
+    console.log(`conflicts share  ${(report.overall.conflictsShare * 100).toFixed(1)}% of core+overrides+conflicts (reported only, not gated)`);
+    if (report.overall.reconstruction) {
+      console.log(
+        `reconstructed    ${report.overall.reconstruction.reconstructed} of ${report.overall.reconstruction.total} ` +
+          `(${report.overall.reconstruction.lossy} lossy)`,
+      );
+    }
+    for (const path of written) console.log(`written          ${path}`);
+
+    // SPEC 2.4's companion to reconstruction: byte-identical reconstruction
+    // alone is trivially satisfiable (an empty core, every file whole as
+    // its own override) and proves nothing about whether the split means
+    // anything. This is a HARD gate, independent of reconstruction success.
+    if (!report.overall.meetsFloor) {
+      console.error(
+        `wazuh-ctx skills-diff --extract: core share ${(report.overall.coreShare * 100).toFixed(1)}% is ` +
+          `below the ${(report.overall.floor * 100).toFixed(0)}% floor required by SPEC 2.4.`,
+      );
+      return { code: 1 };
+    }
+  }
+
   // A conflict is the expected output of an analysis, not a failure (SPEC 2.1.1).
   return { code: 0 };
 }
@@ -583,6 +634,7 @@ async function main(): Promise<number> {
         fixtures: { type: "boolean" },
         refresh: { type: "boolean" },
         strict: { type: "boolean" },
+        extract: { type: "boolean" },
         indexer: { type: "string" },
         "indexer-skip-tls-verify": { type: "boolean" },
         format: { type: "string" },

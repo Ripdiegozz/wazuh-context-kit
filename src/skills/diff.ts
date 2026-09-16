@@ -205,8 +205,22 @@ function entryLines(entry: RepoBody): readonly string[] {
   return entry.body === ABSENT ? [] : entry.body;
 }
 
+/**
+ * `body.join("\n")` looked sufficient and is not: it is not INJECTIVE.
+ * `[].join("\n")` and `[""].join("\n")` are both `""`, so a body with no
+ * lines and a body with one blank line collide onto the same key — and so
+ * do any two bodies whose lines differ only in where a newline falls, e.g.
+ * `["a", "b"]` and `["a\nb"]`. `skills-diff`'s own report never surfaced
+ * this: it never needed to tell "no lines" apart from "one blank line" for
+ * a human reading a divergence table. `skills-core`'s reconstruction does —
+ * measured on the real corpus as two consecutive blank lines colliding into
+ * one position instead of two, tracing back to exactly this join. Encoding
+ * via `JSON.stringify` is injective for string arrays (every distinct array
+ * produces a distinct string), which a delimiter-joined string can never
+ * guarantee.
+ */
 function bodyKey(body: readonly string[] | typeof ABSENT): string {
-  return body === ABSENT ? " ABSENT " : body.join("\n");
+  return body === ABSENT ? " ABSENT " : JSON.stringify(body);
 }
 
 function groupByExactContent<T>(entries: readonly T[], keyOf: (entry: T) => string): T[][] {
@@ -228,14 +242,21 @@ function groupByExactContent<T>(entries: readonly T[], keyOf: (entry: T) => stri
 /**
  * Grouping key for one repo's content at one slot. `isAbsentSection` is part
  * of the key, not just `text`: an ABSENT section and a PRESENT section with
- * no lines at this slot both produce `text = []`, and `"".join("\n")` cannot
- * tell them apart on its own — a real section a repo does not have and a
- * real section it has with an empty body are different facts (design
- * decision 1, task 2.8), and collapsing them would invent content for the
- * absent repo or erase the presence of an intentionally empty one.
+ * no lines at this slot both produce `text = []`, and encoding `text` alone
+ * cannot tell them apart — a real section a repo does not have and a real
+ * section it has with an empty body are different facts (design decision 1,
+ * task 2.8), and collapsing them would invent content for the absent repo
+ * or erase the presence of an intentionally empty one.
+ *
+ * `text` itself is encoded with `JSON.stringify`, not `text.join("\n")` —
+ * the join is not injective (`[]` and `[""]` both join to `""`), which
+ * silently merged "nothing here" with "one blank line here" into one
+ * `SectionGroup` and, upstream in `classifySection`, hid a genuine
+ * divergence between two variants who disagreed on exactly that. Measured
+ * on the real corpus as two consecutive blank lines colliding into one.
  */
 function slotContentKey(e: { readonly text: readonly string[]; readonly isAbsentSection: boolean }): string {
-  return `${e.isAbsentSection ? "absent" : "present"}\u0000${e.text.join("\n")}`;
+  return `${e.isAbsentSection ? "absent" : "present"}\u0000${JSON.stringify(e.text)}`;
 }
 
 function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): LineMagnitude {
@@ -280,6 +301,7 @@ function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): Li
 function classifyPosition(
   slotEntries: readonly { repo: string; indices: readonly number[]; text: readonly string[]; section: ParsedSection | undefined; isAbsentSection: boolean }[],
   sectionTotal: number,
+  slot: number,
 ): DivergentBlock[] {
   const contentGroups = groupByExactContent(slotEntries, slotContentKey);
 
@@ -301,7 +323,7 @@ function classifyPosition(
 
   // No marker anywhere at this position: one plain conflict, unchanged.
   if (namedGroups.length === 0 && unnamedGroups.length === 0) {
-    return [{ category: "conflict", groups, magnitude: magnitudeFor(groups, sectionTotal) }];
+    return [{ category: "conflict", groups, magnitude: magnitudeFor(groups, sectionTotal), slot }];
   }
 
   // Two or more DISTINCT unmarked variants are unexplained divergence among
@@ -312,16 +334,22 @@ function classifyPosition(
   // present becomes its own separate block, never folded into the conflict.
   if (unmarkedGroups.length > 1) {
     const blocks: DivergentBlock[] = [
-      { category: "conflict", groups: unmarkedGroups, magnitude: magnitudeFor(unmarkedGroups, sectionTotal) },
+      { category: "conflict", groups: unmarkedGroups, magnitude: magnitudeFor(unmarkedGroups, sectionTotal), slot },
     ];
     if (namedGroups.length > 0) {
-      blocks.push({ category: "override", groups: namedGroups, magnitude: magnitudeFor(namedGroups, sectionTotal) });
+      blocks.push({
+        category: "override",
+        groups: namedGroups,
+        magnitude: magnitudeFor(namedGroups, sectionTotal),
+        slot,
+      });
     }
     if (unnamedGroups.length > 0) {
       blocks.push({
         category: "sharedOverride",
         groups: unnamedGroups,
         magnitude: magnitudeFor(unnamedGroups, sectionTotal),
+        slot,
       });
     }
     return blocks;
@@ -333,7 +361,7 @@ function classifyPosition(
   // oracle's `common`/`override` counts exactly — unchanged.
   if (namedGroups.length === 0 || unnamedGroups.length === 0) {
     const category: SectionCategory = unnamedGroups.length > 0 ? "sharedOverride" : "override";
-    return [{ category, groups, magnitude: magnitudeFor(groups, sectionTotal) }];
+    return [{ category, groups, magnitude: magnitudeFor(groups, sectionTotal), slot }];
   }
 
   // Both kinds present: split, never collapse. Each split keeps the same
@@ -345,11 +373,12 @@ function classifyPosition(
   const overrideGroups = [...namedGroups, ...unmarkedGroups];
   const sharedOverrideGroups = [...unnamedGroups, ...unmarkedGroups];
   return [
-    { category: "override", groups: overrideGroups, magnitude: magnitudeFor(overrideGroups, sectionTotal) },
+    { category: "override", groups: overrideGroups, magnitude: magnitudeFor(overrideGroups, sectionTotal), slot },
     {
       category: "sharedOverride",
       groups: sharedOverrideGroups,
       magnitude: magnitudeFor(sharedOverrideGroups, sectionTotal),
+      slot,
     },
   ];
 }
@@ -358,7 +387,12 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
   const wholeBodyGroups = groupByExactContent(entries, (e) => bodyKey(e.body));
 
   if (wholeBodyGroups.length === 1) {
-    return { path, blocks: [] }; // fully common — nothing to classify
+    // Fully common — nothing to classify. `entryLines` rather than raw
+    // `body` because `body` may be `ABSENT`; a section present in every
+    // variant (the only way to reach this branch, see the module docblock
+    // on `classifySection`'s caller) never actually has an ABSENT entry, so
+    // `entryLines` on any member is that one shared body.
+    return { path, blocks: [], wholeLines: entryLines(entries[0]!), anchors: [], commonSlots: [] };
   }
 
   const distinctBodies = wholeBodyGroups.map((g) => entryLines(g[0]!));
@@ -371,6 +405,7 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
   }
 
   const blocks: DivergentBlock[] = [];
+  const commonSlots: (readonly string[] | null)[] = [];
   const slotCount = anchors.length + 1;
   for (let slot = 0; slot < slotCount; slot++) {
     const slotEntries = entries.map((entry) => {
@@ -386,12 +421,108 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
     });
 
     const distinctContents = new Set(slotEntries.map(slotContentKey));
-    if (distinctContents.size <= 1) continue; // nothing diverges at this position
+    if (distinctContents.size <= 1) {
+      // Every entry agrees here, even though `anchors` did not select this
+      // position (see `ClassifiedSection.commonSlots`'s docblock) — any
+      // entry's own text is the shared content, since they all match.
+      commonSlots.push([...slotEntries[0]!.text]);
+      continue;
+    }
 
-    blocks.push(...classifyPosition(slotEntries, sectionTotal));
+    commonSlots.push(null);
+    blocks.push(...classifyPosition(slotEntries, sectionTotal, slot));
   }
 
-  return { path, blocks };
+  return { path, blocks, wholeLines: null, anchors, commonSlots };
+}
+
+/**
+ * Orders every distinct heading path seen across `variants` so it matches
+ * the TRUE relative document order — not "first-seen while scanning variants
+ * in array order," which silently reorders sections whenever an EARLY
+ * variant happens to be missing one a LATER variant has.
+ *
+ * Concretely: if variant 1 lacks heading A (present in variants 2-7, always
+ * right before B), first-seen-order sees variant 1's own sequence (B, C, …)
+ * before ever reaching variant 2, so A gets appended AFTER B and C instead
+ * of before them — a heading absent for one repo silently reorders it for
+ * EVERY repo, including the six who have it in the right place. `diffSkill`'s
+ * own classification is unaffected (grouping is by path, not position), so
+ * `skills-diff`'s report never surfaced this. `skills-core`'s reconstruction
+ * measured it directly: same line count, wrong position — SPEC 2.1's
+ * byte-identical requirement fails on relative order as much as on content.
+ *
+ * The fix treats each variant's own sequence as a partial order (`path[i]`
+ * before `path[i+1]`) and topologically merges all seven partial orders,
+ * Kahn's-algorithm style. A path with no constraint against another is
+ * placed by first-seen index, so the ORDINARY case (every variant agrees)
+ * is unaffected and still reads as "the order they were first encountered
+ * in" — the fix only changes behavior when variants actually disagree,
+ * which absence-of-a-section is the common real cause of.
+ */
+function orderSectionPaths(variants: readonly SkillVariant[]): string[] {
+  const firstSeenIndex = new Map<string, number>();
+  for (const v of variants) {
+    for (const section of v.skill.sections) {
+      const key = JSON.stringify(section.path);
+      if (!firstSeenIndex.has(key)) firstSeenIndex.set(key, firstSeenIndex.size);
+    }
+  }
+
+  const successors = new Map<string, Set<string>>();
+  const inDegree = new Map<string, number>();
+  for (const key of firstSeenIndex.keys()) inDegree.set(key, 0);
+
+  for (const v of variants) {
+    const keys = v.skill.sections.map((s) => JSON.stringify(s.path));
+    for (let i = 0; i < keys.length - 1; i++) {
+      const from = keys[i]!;
+      const to = keys[i + 1]!;
+      if (from === to) continue;
+      let toSet = successors.get(from);
+      if (!toSet) {
+        toSet = new Set();
+        successors.set(from, toSet);
+      }
+      if (!toSet.has(to)) {
+        toSet.add(to);
+        inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
+      }
+    }
+  }
+
+  const byFirstSeen = (a: string, b: string) => firstSeenIndex.get(a)! - firstSeenIndex.get(b)!;
+  const remaining = new Set(firstSeenIndex.keys());
+  const degree = new Map(inDegree);
+  const available = [...remaining].filter((key) => (degree.get(key) ?? 0) === 0).sort(byFirstSeen);
+
+  const result: string[] = [];
+  while (available.length > 0) {
+    const next = available.shift()!;
+    if (!remaining.has(next)) continue;
+    remaining.delete(next);
+    result.push(next);
+    const toInsert: string[] = [];
+    for (const to of successors.get(next) ?? []) {
+      const d = (degree.get(to) ?? 0) - 1;
+      degree.set(to, d);
+      if (d === 0) toInsert.push(to);
+    }
+    if (toInsert.length > 0) {
+      available.push(...toInsert);
+      available.sort(byFirstSeen);
+    }
+  }
+
+  // A genuine cycle across variants (one repo orders A before B, another B
+  // before A) cannot be resolved without picking a side — deterministic
+  // fallback by first-seen index for whatever is left, rather than an
+  // infinite loop or a thrown error over a real document's own contents.
+  if (remaining.size > 0) {
+    result.push(...[...remaining].sort(byFirstSeen));
+  }
+
+  return result;
 }
 
 export function diffSkill(skillName: string, variants: readonly SkillVariant[]): SkillDiff {
@@ -407,17 +538,7 @@ export function diffSkill(skillName: string, variants: readonly SkillVariant[]):
     description: v.skill.frontmatter.description,
   }));
 
-  const allPaths: string[] = [];
-  const seenPathKeys = new Set<string>();
-  for (const v of variants) {
-    for (const section of v.skill.sections) {
-      const key = JSON.stringify(section.path);
-      if (!seenPathKeys.has(key)) {
-        seenPathKeys.add(key);
-        allPaths.push(key);
-      }
-    }
-  }
+  const allPaths = orderSectionPaths(variants);
 
   const sections: ClassifiedSection[] = allPaths.map((key) => {
     const path = JSON.parse(key) as string[];

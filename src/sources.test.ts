@@ -28,6 +28,38 @@ describe("loadSources", () => {
     await expect(loadSources(join(FIXTURES_ROOT, "bad"))).rejects.toThrow(/kind/);
   });
 
+  /**
+   * SPEC: credentials come from the environment, never from committed
+   * configuration ("a `sources.yml` carrying a username or password field" —
+   * the requirement does not scope this to one shape). `sources.yml` is
+   * committed, so a username or password field in it is a credential in git
+   * -- it must be rejected outright, not silently stripped and quietly
+   * ignored.
+   *
+   * CodeRabbit finding (PR #14): only the repo-nested shape was ever tested.
+   * `sourcesFileSchema` is a plain (non-strict) `z.object()` at the top level
+   * -- deliberately, so the real `docsVersionMap` block keeps working -- and
+   * a plain `z.object()` STRIPS an unrecognised key instead of rejecting it.
+   * A `username`/`password` field at the TOP level of the file therefore
+   * validated successfully and vanished silently: a passing test for an
+   * unmet requirement, which is worse than no test at all.
+   */
+  test("rejects a repo entry carrying a username or password field, rather than honouring it", async () => {
+    await expect(loadSources(join(FIXTURES_ROOT, "creds"))).rejects.toThrow(/username|password/);
+  });
+
+  test("rejects a TOP-LEVEL username or password field, rather than silently stripping it", async () => {
+    await expect(loadSources(join(FIXTURES_ROOT, "creds-top-level"))).rejects.toThrow(/username|password/);
+  });
+
+  test("a legitimate top-level block (docsVersionMap) still loads fine", async () => {
+    const projectRoot = join(import.meta.dir, "..");
+    // The real sources.yml carries docsVersionMap at the top level (SPEC
+    // 3.1); rejecting username/password there must not collaterally reject
+    // this or any other legitimate top-level block.
+    await expect(loadSources(projectRoot)).resolves.toBeDefined();
+  });
+
   test("throws naming the path when sources.yml is missing", async () => {
     const missingRoot = join(FIXTURES_ROOT, "does-not-exist");
 

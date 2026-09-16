@@ -878,12 +878,22 @@ inversa quedó sin cubrir. Lo que no se hace, se dice.
       corrida termina en 0. **Verificado**: `plugins/main/common/constants.ts` y
       `plugins/wazuh-core/common/constants.ts` comparten `.wazuh-settings` y
       `wazuh-events-v5*`.
-- [ ] **NO cumplido, y queda escrito.** El cruce compara dos repositorios, no el
-      sistema corriendo. Un índice puede estar declarado, tener datos y ser
-      consultado, y aun así aparecer sin consumidor si el código lo nombra de un
-      modo que el scanner no reconoce. Pasó: seis índices vivos se reportaron
-      muertos antes de arreglar el scanner. Cerrarlo de verdad requiere contrastar
-      contra un indexer levantado —`--indexer <url>`— y eso es un cambio aparte.
+- [x] El cruce contrasta contra el sistema corriendo, no solo dos repositorios.
+      **Verificado el 2026-09-15 contra OpenSearch 3.6.0 (`wazuh-cluster`)**: 42
+      patterns declarados contra 103 nombres instalados. La respuesta esperada se
+      calculó con un oráculo independiente ANTES de escribir el código, y la
+      implementación se contrastó contra ese oráculo en vez de contra sí misma.
+      Eso encontró dos defectos sin una línea escrita —`_cat/indices` oculta los
+      índices hidden por defecto (52 de 103), y `wazuh-threatintel-filters` está
+      declarado sin el asterisco final— y la corrida real encontró un tercero que
+      una suite de 231 tests en verde no vio: el set de declarados excluía los
+      patterns de los módulos WCS, lo que acusaba en falso a `.wazuh-internal-state`
+      de no estar declarado. Detalle en
+      `openspec/changes/archive/*-crosscheck-live-indexer/verify-report.md`.
+
+      El modo es opcional y no contamina nada: `out/<ref>/` queda **byte-idéntico**
+      con y sin `--indexer`, comprobado con `diff -r` contra el cluster real. La
+      comparación va a stdout; CI nunca la corre porque no tiene stack.
 
 # FASE 1.5 — Inspector (`wazuh-ctx serve`)
 

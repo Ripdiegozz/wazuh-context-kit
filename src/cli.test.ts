@@ -10,10 +10,15 @@
  * are the contract here and an in-process call cannot observe `process.exit`.
  * None of them touch the network: the `--fixtures` runs never fetch, and the
  * two failure paths both abort before the first remote call.
+ *
+ * The `crosscheck --indexer` group at the bottom additionally requires a warm
+ * `.cache/` in this checkout and is skipped without one — see `HAS_WARM_CACHE`
+ * below for why that gate exists and why it is not keyed on the network flag.
  */
 
 import { describe, expect, test } from "bun:test";
-import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { copyFile, mkdtemp, readFile, rm, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -21,6 +26,34 @@ const REPO_ROOT = join(import.meta.dir, "..");
 const CLI = join(REPO_ROOT, "src", "cli.ts");
 const REF = "5.0.0";
 const FROZEN_TIME = "2026-01-01T00:00:00Z";
+
+/**
+ * The `crosscheck --indexer` tests below need a warm `.cache/` in this
+ * checkout, and `.cache/` is gitignored.
+ *
+ * So their premise lives outside the repository: they pass on a machine that
+ * has run `wazuh-ctx matrix` at least once, and fail on a fresh clone for a
+ * reason that has nothing to do with the code under test. That is the whole
+ * failure mode this project exists to remove, and leaving it in a test suite
+ * would be the least defensible place to keep it.
+ *
+ * The gate is cache presence, NOT `WAZUH_CTX_NETWORK`, because that is the
+ * real dependency: these tests reach no network at all — `fetchRepos` without
+ * `--refresh` cache-hits on a purely local `git rev-parse`. A developer with a
+ * warm checkout gets the coverage offline, and `regenerate.yml` gets it in CI
+ * too, because it regenerates before running the suite and so has a warm cache
+ * by the time the tests start. The hermetic PR job skips them, which is what
+ * "hermetic on purpose" (see `.github/workflows/ci.yml`) asks for.
+ */
+const HAS_WARM_CACHE = existsSync(join(REPO_ROOT, ".cache"));
+const cachedTest = HAS_WARM_CACHE ? test : test.skip;
+
+if (!HAS_WARM_CACHE) {
+  console.warn(
+    "[cli.test] Skipping 4 `crosscheck --indexer` tests: this checkout has no .cache/.\n" +
+      "[cli.test] Warm it once with `bun run ./src/cli.ts matrix --ref 5.0.0`, then rerun.",
+  );
+}
 
 /**
  * The `--fixtures` payload hash, pinned deliberately.
@@ -81,6 +114,92 @@ async function workdirWithSources(fixture: "ok" | "bad"): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), `wazuh-ctx-cli-${fixture}-`));
   await copyFile(join(REPO_ROOT, "fixtures", "sources", fixture, "sources.yml"), join(dir, "sources.yml"));
   return dir;
+}
+
+/**
+ * A throwaway working directory that reaches NO network at all, by reusing
+ * this checkout's own warm `.cache/` through a symlink.
+ *
+ * `fetchRepos` without `--refresh` cache-hits on `git -C <dir> rev-parse
+ * HEAD`, which is a fully local git invocation -- no `git ls-remote`, no
+ * clone. Symlinking (rather than copying) the 264 MB cache keeps this cheap.
+ * This is what makes a REAL, full `crosscheck` run usable as a test fixture
+ * without either touching the network or violating "no test may depend on a
+ * fixture file that encodes the same assumption as the code" -- the content
+ * here is a real repository checkout, not a fixture anyone wrote by hand.
+ */
+async function workdirWithWarmCache(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), "wazuh-ctx-cli-warm-"));
+  await copyFile(join(REPO_ROOT, "fixtures", "sources", "ok", "sources.yml"), join(dir, "sources.yml"));
+  await symlink(join(REPO_ROOT, ".cache"), join(dir, ".cache"));
+  return dir;
+}
+
+/**
+ * A throwaway, self-signed TLS keypair for the fake local indexer below.
+ *
+ * Built with `openssl` at test time rather than committed as a fixture: a
+ * committed cert eventually expires, and generating it fresh means this test
+ * never rots. `-days 1` is plenty for a run that finishes in milliseconds.
+ */
+async function generateSelfSignedCert(dir: string): Promise<{ cert: string; key: string }> {
+  const keyPath = join(dir, "key.pem");
+  const certPath = join(dir, "cert.pem");
+  const proc = Bun.spawn(
+    [
+      "openssl",
+      "req",
+      "-x509",
+      "-newkey",
+      "rsa:2048",
+      "-nodes",
+      "-keyout",
+      keyPath,
+      "-out",
+      certPath,
+      "-days",
+      "1",
+      "-subj",
+      "/CN=127.0.0.1",
+    ],
+    { stdout: "ignore", stderr: "pipe" },
+  );
+  const code = await proc.exited;
+  if (code !== 0) {
+    const stderr = await new Response(proc.stderr).text();
+    throw new Error(`openssl failed generating a test certificate: ${stderr}`);
+  }
+  const [cert, key] = await Promise.all([readFile(certPath, "utf8"), readFile(keyPath, "utf8")]);
+  return { cert, key };
+}
+
+/**
+ * A minimal fake indexer, answering the three endpoints `fetchClusterState`
+ * queries. Loopback-only and self-contained: no real cluster, no ambient
+ * network dependency, deterministic on any machine including a cold CI
+ * runner.
+ */
+async function startFakeIndexer(certDir: string): Promise<{ url: string; stop: () => void }> {
+  const { cert, key } = await generateSelfSignedCert(certDir);
+  const server = Bun.serve({
+    port: 0,
+    hostname: "127.0.0.1",
+    tls: { cert, key },
+    fetch(req) {
+      const url = new URL(req.url);
+      if (url.pathname === "/_cat/indices") {
+        return Response.json([{ index: "wazuh-alerts-4.x-2026.01.01" }]);
+      }
+      if (url.pathname === "/_data_stream") {
+        return Response.json({ data_streams: [] });
+      }
+      if (url.pathname === "/_index_template") {
+        return Response.json({ index_templates: [] });
+      }
+      return new Response("not found", { status: 404 });
+    },
+  });
+  return { url: `https://127.0.0.1:${server.port}`, stop: () => server.stop(true) };
 }
 
 describe("wazuh-ctx matrix --fixtures", () => {
@@ -248,4 +367,163 @@ describe("wazuh-ctx argument handling", () => {
       await rm(emptyPath, { recursive: true, force: true });
     }
   }, 60_000);
+});
+
+describe("wazuh-ctx crosscheck --indexer (crosscheck-live-indexer)", () => {
+  cachedTest(
+    "an unreachable --indexer produces out/<ref> byte-identical to running without it",
+    async () => {
+      const cwdWithout = await workdirWithWarmCache();
+      const cwdWith = await workdirWithWarmCache();
+      try {
+        const without = await runCli(
+          ["crosscheck", "--ref", REF, "--frozen-time", FROZEN_TIME, "--out", join(cwdWithout, "out")],
+          { cwd: cwdWithout },
+        );
+        expect(without.code).toBe(0);
+
+        // Port 1 refuses the connection immediately and needs no cluster:
+        // the point is exercising the ordering (writeFile happens BEFORE the
+        // indexer is ever contacted), not reaching a real indexer.
+        const withIndexer = await runCli(
+          [
+            "crosscheck",
+            "--ref",
+            REF,
+            "--frozen-time",
+            FROZEN_TIME,
+            "--out",
+            join(cwdWith, "out"),
+            "--indexer",
+            "https://127.0.0.1:1",
+          ],
+          { cwd: cwdWith },
+        );
+        // The tool failed to reach the indexer -- that is a real failure,
+        // not drift -- but both committed artifacts must already be on disk
+        // by the time that failure happens.
+        expect(withIndexer.code).not.toBe(0);
+
+        const readBoth = (file: string) =>
+          Promise.all([
+            readFile(join(cwdWithout, "out", REF, file), "utf8"),
+            readFile(join(cwdWith, "out", REF, file), "utf8"),
+          ]);
+
+        const [jsonWithout, jsonWith] = await readBoth("crosscheck.json");
+        const [mdWithout, mdWith] = await readBoth("CROSSCHECK.md");
+
+        expect(jsonWith).toBe(jsonWithout);
+        expect(mdWith).toBe(mdWithout);
+      } finally {
+        await rm(cwdWithout, { recursive: true, force: true });
+        await rm(cwdWith, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  cachedTest(
+    "an unreachable indexer exits non-zero and names the URL",
+    async () => {
+      const cwd = await workdirWithWarmCache();
+      try {
+        const result = await runCli(
+          [
+            "crosscheck",
+            "--ref",
+            REF,
+            "--frozen-time",
+            FROZEN_TIME,
+            "--out",
+            join(cwd, "out"),
+            "--indexer",
+            "https://127.0.0.1:1",
+          ],
+          { cwd },
+        );
+        expect(result.code).not.toBe(0);
+        expect(result.stderr).toContain("127.0.0.1:1");
+        expect(result.stderr).not.toContain("disagreement");
+      } finally {
+        await rm(cwd, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  cachedTest(
+    "absent --indexer leaves behaviour unchanged: no live section, exit 0",
+    async () => {
+      const cwd = await workdirWithWarmCache();
+      try {
+        const result = await runCli(
+          ["crosscheck", "--ref", REF, "--frozen-time", FROZEN_TIME, "--out", join(cwd, "out")],
+          { cwd },
+        );
+        expect(result.code).toBe(0);
+        expect(result.stdout).not.toContain("Live comparison");
+      } finally {
+        await rm(cwd, { recursive: true, force: true });
+      }
+    },
+    60_000,
+  );
+
+  cachedTest(
+    "--format json with --indexer: stdout parses as JSON with no preprocessing, and nothing else",
+    async () => {
+      // CodeRabbit finding (PR #14, Major): the human summary
+      // (`ref`, `declared indices`, `written ...`) printed to stdout BEFORE
+      // the JSON, so `--format json | jq` failed on real output despite the
+      // documented "machine-readable stream" contract in
+      // docs/live-indexer.md. Parsing the WHOLE of stdout with no
+      // preprocessing is the only assertion that actually proves the
+      // contract; anything that greps a substring out first would pass on
+      // the very output that broke `jq`.
+      const certDir = await mkdtemp(join(tmpdir(), "wazuh-ctx-cli-cert-"));
+      const cwd = await workdirWithWarmCache();
+      const indexer = await startFakeIndexer(certDir);
+      try {
+        const result = await runCli(
+          [
+            "crosscheck",
+            "--ref",
+            REF,
+            "--frozen-time",
+            FROZEN_TIME,
+            "--out",
+            join(cwd, "out"),
+            "--indexer",
+            indexer.url,
+            "--indexer-skip-tls-verify",
+            "--format",
+            "json",
+          ],
+          { cwd },
+        );
+
+        expect(result.code).toBe(0);
+
+        const parsed = JSON.parse(result.stdout) as Record<string, unknown>;
+        expect(Object.keys(parsed).sort()).toEqual(
+          [
+            "declaredNotInstalled",
+            "installedNotDeclared",
+            "templatesOnlyInCluster",
+            "sameSubjectMismatches",
+          ].sort(),
+        );
+
+        // The human summary must still exist -- just not on stdout in JSON
+        // mode, where it would corrupt the machine-readable stream.
+        expect(result.stderr).toContain("written");
+      } finally {
+        indexer.stop();
+        await rm(cwd, { recursive: true, force: true });
+        await rm(certDir, { recursive: true, force: true });
+      }
+    },
+    30_000,
+  );
 });

@@ -48,7 +48,7 @@ function prefixOf(pattern: string): string {
  *   reference glob  -> its family must include the exact declaration.
  *   both exact      -> equality, and nothing else.
  */
-function covers(declared: string, reference: string): boolean {
+export function covers(declared: string, reference: string): boolean {
   const d = prefixOf(declared);
   const r = prefixOf(reference);
 

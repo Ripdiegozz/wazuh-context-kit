@@ -65,9 +65,12 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
           sections: [
             {
               path: ["Workflow", "3. Typecheck"],
+              wholeLines: null,
+              anchors: [],
               blocks: [
                 {
                   category: "conflict",
+                  slot: 0,
                   magnitude: { total: 2, common: 1, differing: 1 },
                   groups: [
                     { repos: ["wazuh-dashboard"], body: "run\ntypecheck: yes", diffLines: ["typecheck: yes"], marker: "none" },
@@ -108,9 +111,12 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
           sections: [
             {
               path: ["Issue source"],
+              wholeLines: null,
+              anchors: [],
               blocks: [
                 {
                   category: "override",
+                  slot: 0,
                   magnitude: { total: 3, common: 2, differing: 1 },
                   groups: [
                     { repos: ["wazuh-dashboard-plugins"], body: "a\nb\nc", diffLines: [], marker: "none" },
@@ -148,9 +154,12 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
           sections: [
             {
               path: ["Workflow", "1. Plan"],
+              wholeLines: null,
+              anchors: [],
               blocks: [
                 {
                   category: "conflict",
+                  slot: 0,
                   magnitude: { total: 7, common: 6, differing: 1 },
                   groups: [
                     { repos: ["wazuh-dashboard"], body: "affected area", diffLines: ["affected area"], marker: "none" },
@@ -164,6 +173,7 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
                 },
                 {
                   category: "override",
+                  slot: 0,
                   magnitude: { total: 7, common: 6, differing: 1 },
                   groups: [
                     { repos: ["wazuh-dashboard-plugins"], body: null, diffLines: [], marker: "none" },
@@ -212,9 +222,12 @@ describe("a diff line containing a backtick renders with a safe delimiter (CodeR
           sections: [
             {
               path: ["Workflow"],
+              wholeLines: null,
+              anchors: [],
               blocks: [
                 {
                   category: "conflict",
+                  slot: 0,
                   magnitude: { total: 2, common: 1, differing: 1 },
                   groups: [
                     { repos: ["wazuh-dashboard"], body: lineWithBacktick, diffLines: [lineWithBacktick], marker: "none" },
@@ -249,9 +262,12 @@ describe("a diff line containing a backtick renders with a safe delimiter (CodeR
           sections: [
             {
               path: ["Workflow"],
+              wholeLines: null,
+              anchors: [],
               blocks: [
                 {
                   category: "conflict",
+                  slot: 0,
                   magnitude: { total: 2, common: 1, differing: 1 },
                   groups: [
                     { repos: ["wazuh-dashboard"], body: doubleBacktick, diffLines: [doubleBacktick], marker: "none" },

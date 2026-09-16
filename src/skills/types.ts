@@ -98,14 +98,40 @@ export interface DivergentBlock {
   readonly category: SectionCategory;
   readonly groups: readonly SectionGroup[];
   readonly magnitude: LineMagnitude;
+  /**
+   * The 0-based gap this block occupies among the section's `anchors`
+   * (`0` is "before the first anchor", `anchors.length` is "after the
+   * last"). `skills-core`'s extraction (design decision 1) needs this to
+   * know WHERE to anchor its patch op — two blocks can share a `slot` when
+   * `classifyPosition` splits a mixed-marker position, and extraction must
+   * treat them as the same location, not two.
+   */
+  readonly slot: number;
 }
 
-/** `blocks` is empty for a fully common section — nothing diverged, so there
+/**
+ * `blocks` is empty for a fully common section — nothing diverged, so there
  * is nothing to classify (SPEC 2.4: "todo bloque divergente", not "toda
- * sección"). */
+ * sección").
+ *
+ * `wholeLines` and `anchors` exist for `skills-core` (design: "extraction is
+ * a projection of [the diff result], not a second analysis"): without them,
+ * a projection would have to re-run `commonAcrossGroups` itself to recover
+ * the section's shared skeleton, which is exactly the "two analyses of the
+ * same corpus drift" trap this module's own docblock warns against. Exactly
+ * one of the two is populated, matching `blocks`:
+ *
+ * - `blocks.length === 0` (fully common): `wholeLines` holds the section's
+ *   one shared body; `anchors` is empty — there is nothing to anchor.
+ * - `blocks.length > 0` (divergent): `anchors` holds the lines common to
+ *   every distinct body, in order — the skeleton `blocks[].slot` indexes
+ *   into; `wholeLines` is `null` — there is no single shared body.
+ */
 export interface ClassifiedSection {
   readonly path: readonly string[];
   readonly blocks: readonly DivergentBlock[];
+  readonly wholeLines: readonly string[] | null;
+  readonly anchors: readonly string[];
 }
 
 export interface DescriptionRow {

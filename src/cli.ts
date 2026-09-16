@@ -27,6 +27,8 @@ import type { FetchLike, HttpResponseLike } from "./indexer/types.ts";
 import { scanIndexReferences } from "./parse/index-references.ts";
 import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
 import { buildSkillsDiffJson } from "./skills/diff.ts";
+import { emitExtraction } from "./skills/emit.ts";
+import { extractSkill } from "./skills/extract.ts";
 import { loadSkills } from "./skills/load.ts";
 import { renderSkillsDiffMarkdown } from "./skills/render.ts";
 import { loadSources } from "./sources.ts";
@@ -48,6 +50,7 @@ COMMANDS
   matrix        Generate out/<ref>/matrix.json and MATRIX.md
   crosscheck    Declared indices vs indices the dashboard actually references
   skills-diff   Cross-repo diff of the shared .claude skills, classified and reported
+                --extract also writes core/, overrides/<repo>/, conflicts/ (SPEC 2.1)
   sync          Materialise .claude/standards/ from the package
   check         Verify .claude/standards/ against the package
   serve         Local inspector UI
@@ -58,6 +61,7 @@ OPTIONS
   --fixtures            Build from bundled fixtures; no clone, no network
   --refresh             Refresh cached checkouts in place instead of reusing them
   --strict              Exit non-zero when unknowns[] is non-empty
+  --extract             skills-diff: also project core/, overrides/<repo>/, conflicts/
   --frozen-time <iso>   Pin meta.generatedAt for reproducible runs
   --out <dir>           Output directory (default: out)
   --indexer <url>       crosscheck: also compare against a running indexer (read-only)
@@ -545,6 +549,16 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
   console.log(`written          ${join(target, "skills-diff.json")}`);
   console.log(`                 ${join(target, "SKILLS-DIFF.md")}`);
 
+  if (values.extract === true) {
+    const extracted = skillsDiff.skills.map((skill) => extractSkill(skill));
+    const { written } = await emitExtraction(target, extracted);
+
+    const distributable = extracted.filter((e) => e.distributable).length;
+    console.log(`extracted        ${extracted.length} skills`);
+    console.log(`distributable    ${distributable} of ${extracted.length}`);
+    for (const path of written) console.log(`written          ${path}`);
+  }
+
   // A conflict is the expected output of an analysis, not a failure (SPEC 2.1.1).
   return { code: 0 };
 }
@@ -583,6 +597,7 @@ async function main(): Promise<number> {
         fixtures: { type: "boolean" },
         refresh: { type: "boolean" },
         strict: { type: "boolean" },
+        extract: { type: "boolean" },
         indexer: { type: "string" },
         "indexer-skip-tls-verify": { type: "boolean" },
         format: { type: "string" },

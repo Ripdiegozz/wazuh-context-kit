@@ -280,6 +280,7 @@ function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): Li
 function classifyPosition(
   slotEntries: readonly { repo: string; indices: readonly number[]; text: readonly string[]; section: ParsedSection | undefined; isAbsentSection: boolean }[],
   sectionTotal: number,
+  slot: number,
 ): DivergentBlock[] {
   const contentGroups = groupByExactContent(slotEntries, slotContentKey);
 
@@ -301,7 +302,7 @@ function classifyPosition(
 
   // No marker anywhere at this position: one plain conflict, unchanged.
   if (namedGroups.length === 0 && unnamedGroups.length === 0) {
-    return [{ category: "conflict", groups, magnitude: magnitudeFor(groups, sectionTotal) }];
+    return [{ category: "conflict", groups, magnitude: magnitudeFor(groups, sectionTotal), slot }];
   }
 
   // Two or more DISTINCT unmarked variants are unexplained divergence among
@@ -312,16 +313,22 @@ function classifyPosition(
   // present becomes its own separate block, never folded into the conflict.
   if (unmarkedGroups.length > 1) {
     const blocks: DivergentBlock[] = [
-      { category: "conflict", groups: unmarkedGroups, magnitude: magnitudeFor(unmarkedGroups, sectionTotal) },
+      { category: "conflict", groups: unmarkedGroups, magnitude: magnitudeFor(unmarkedGroups, sectionTotal), slot },
     ];
     if (namedGroups.length > 0) {
-      blocks.push({ category: "override", groups: namedGroups, magnitude: magnitudeFor(namedGroups, sectionTotal) });
+      blocks.push({
+        category: "override",
+        groups: namedGroups,
+        magnitude: magnitudeFor(namedGroups, sectionTotal),
+        slot,
+      });
     }
     if (unnamedGroups.length > 0) {
       blocks.push({
         category: "sharedOverride",
         groups: unnamedGroups,
         magnitude: magnitudeFor(unnamedGroups, sectionTotal),
+        slot,
       });
     }
     return blocks;
@@ -333,7 +340,7 @@ function classifyPosition(
   // oracle's `common`/`override` counts exactly — unchanged.
   if (namedGroups.length === 0 || unnamedGroups.length === 0) {
     const category: SectionCategory = unnamedGroups.length > 0 ? "sharedOverride" : "override";
-    return [{ category, groups, magnitude: magnitudeFor(groups, sectionTotal) }];
+    return [{ category, groups, magnitude: magnitudeFor(groups, sectionTotal), slot }];
   }
 
   // Both kinds present: split, never collapse. Each split keeps the same
@@ -345,11 +352,12 @@ function classifyPosition(
   const overrideGroups = [...namedGroups, ...unmarkedGroups];
   const sharedOverrideGroups = [...unnamedGroups, ...unmarkedGroups];
   return [
-    { category: "override", groups: overrideGroups, magnitude: magnitudeFor(overrideGroups, sectionTotal) },
+    { category: "override", groups: overrideGroups, magnitude: magnitudeFor(overrideGroups, sectionTotal), slot },
     {
       category: "sharedOverride",
       groups: sharedOverrideGroups,
       magnitude: magnitudeFor(sharedOverrideGroups, sectionTotal),
+      slot,
     },
   ];
 }
@@ -358,7 +366,12 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
   const wholeBodyGroups = groupByExactContent(entries, (e) => bodyKey(e.body));
 
   if (wholeBodyGroups.length === 1) {
-    return { path, blocks: [] }; // fully common — nothing to classify
+    // Fully common — nothing to classify. `entryLines` rather than raw
+    // `body` because `body` may be `ABSENT`; a section present in every
+    // variant (the only way to reach this branch, see the module docblock
+    // on `classifySection`'s caller) never actually has an ABSENT entry, so
+    // `entryLines` on any member is that one shared body.
+    return { path, blocks: [], wholeLines: entryLines(entries[0]!), anchors: [] };
   }
 
   const distinctBodies = wholeBodyGroups.map((g) => entryLines(g[0]!));
@@ -388,10 +401,10 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
     const distinctContents = new Set(slotEntries.map(slotContentKey));
     if (distinctContents.size <= 1) continue; // nothing diverges at this position
 
-    blocks.push(...classifyPosition(slotEntries, sectionTotal));
+    blocks.push(...classifyPosition(slotEntries, sectionTotal, slot));
   }
 
-  return { path, blocks };
+  return { path, blocks, wholeLines: null, anchors };
 }
 
 export function diffSkill(skillName: string, variants: readonly SkillVariant[]): SkillDiff {

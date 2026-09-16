@@ -175,3 +175,48 @@ discovered by a later change failing it.
   construction. The profile above is evidence about it, not a test of it.
 - `.claude/settings.json` is out of scope by design, and the SPEC 2.4 criterion
   naming it stays open. Stated, not hidden.
+
+## Post-review: the oracle was the one that was wrong
+
+Four review findings, all real, plus three the implementer spotted and flagged
+rather than silently fixing. One of the four was mine and it is the worst:
+
+**The spec-merge script destroyed 6 of the 8 existing requirements in
+`openspec/specs/repo-fetch/spec.md`.** The cause was
+`open(dst,'w').write(open(dst).read() + body)` — Python truncates on
+`open(dst,'w')` before the read runs, so the delta was appended to an empty
+file. The script printed `repo-fetch merged`, the commit landed, CI passed and
+305 tests passed over six deleted requirements. Restored from master,
+deduplicated, and every other capability spec checked for the same damage
+(`crosscheck`, `matrix-pipeline`, `source-parse` all intact).
+
+**The residual oracle disagreement is closed, in the implementation's favour.**
+Traced the 8 disputed lines: in `develop-issue`, the block containing
+`(use the \`no-changelog\` label on the PR).` has all three groups carrying
+`marker: "none"`. It is a genuine conflict. The oracle called it `override`
+because it merges every variant at a position into one classification, and a
+named marker existed in a *different* variant there.
+
+That is exactly the laundering bug the implementation was asked to fix two
+rounds earlier, sitting in the oracle itself. It is left unfixed on purpose: the
+oracle exists to disagree usefully, and it did — it found three real defects
+before being wrong about the residue. So 17-vs-18 is not an open question.
+
+**The collapsing bug was closed at five levels**, each found after the previous
+fix: section → block → group → category → unmarked plurality. Every one was the
+same mistake — reducing a set to a single label and losing what the set knew.
+The oracle made the mirror-image error once as well (one finding per group, 236
+conflicts over 61 sections), which is the same loss pointing outward.
+
+Also fixed: skipped repositories were absent from the artifact, so the
+denominator read "7 of 9" when `sources.yml` has ten and
+`wazuh-dashboard-ml-commons` had simply vanished; pairwise LCS reduction could
+discard a line present in every variant; absent sections keyed identically to
+present-but-empty ones; `~~~` code fences were not recognised while backtick
+ones were; and rendered diff lines containing backticks broke the markdown
+tables a human actually reads.
+
+Final state, confirmed against the real repositories: 7 of 10 repos, 6 skills,
+3 reported single-repo, 21 common, 18 override, 2 sharedOverride, 50 conflict.
+313 tests, 0 failures. Invariant holds with 0 violations. Output byte-identical
+across runs.

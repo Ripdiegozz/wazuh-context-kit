@@ -132,7 +132,7 @@ defects.
       wrong no matter what the tests say.
 - [~] 6.3 STRUCK. This expectation was wrong: `wazuh-ai-assistant-sessions` IS
       covered by a declared pattern. It is unreferenced only in the offline
-      dashboard-reference sense, a different question. See `verification.md`.
+      dashboard-reference sense, a different question. See `verify-report.md`.
 - [x] 6.4 Confirm no `.ds-*` backing index appears anywhere in the output.
 - [x] 6.5 Confirm `git status` reports `out/` unchanged after the live run.
 - [x] 6.6 Run once WITHOUT `--indexer-skip-tls-verify` and confirm it fails with

@@ -111,6 +111,61 @@ describe("fetchClusterState — the three endpoints, read-only", () => {
   });
 });
 
+describe("fetchClusterState — HTTPS is mandatory (CWE-319)", () => {
+  // CodeRabbit finding (PR #14, Major/security): `--indexer` accepted an
+  // `http:` URL, and the client then attached a Basic Authorization header
+  // to every request over that plaintext connection -- credentials sent in
+  // cleartext. This quietly undoes the entire "verification on by default,
+  // explicit flag to weaken it" story: there was a door with no TLS at all,
+  // and no flag was even needed to walk through it.
+  test("a plain http:// URL is rejected before any request is attempted", async () => {
+    const { transport, requests } = recordingTransport(respondToKnownEndpoints);
+
+    try {
+      await fetchClusterState(
+        transport,
+        "http://indexer.example.internal:9200",
+        { username: "admin", password: "admin" },
+        { skipTlsVerify: false },
+      );
+      throw new Error("expected fetchClusterState to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(IndexerError);
+      expect((error as IndexerError).code).toBe("insecure");
+      expect((error as IndexerError).message).toContain("http://indexer.example.internal:9200");
+      expect((error as IndexerError).message.toLowerCase()).toContain("https");
+    }
+
+    // The whole point: not one request left this process over plaintext.
+    expect(requests).toHaveLength(0);
+  });
+
+  test("--indexer-skip-tls-verify does NOT authorise cleartext: http:// is still rejected", async () => {
+    const { transport, requests } = recordingTransport(respondToKnownEndpoints);
+
+    try {
+      await fetchClusterState(
+        transport,
+        "http://indexer.example.internal:9200",
+        undefined,
+        { skipTlsVerify: true },
+      );
+      throw new Error("expected fetchClusterState to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(IndexerError);
+      expect((error as IndexerError).code).toBe("insecure");
+    }
+    expect(requests).toHaveLength(0);
+  });
+
+  test("an https:// URL is unaffected", async () => {
+    const { transport } = recordingTransport(respondToKnownEndpoints);
+    await expect(
+      fetchClusterState(transport, URL, undefined, { skipTlsVerify: false }),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe("fetchClusterState — failure taxonomy", () => {
   test("a 401 surfaces as an auth error naming both env vars, and no credential value", async () => {
     const transport: FetchLike = async () => jsonResponse(401, {});
@@ -145,6 +200,32 @@ describe("fetchClusterState — failure taxonomy", () => {
       const error = new TypeError("unable to verify the first certificate");
       (error as NodeJS.ErrnoException).code = "UNABLE_TO_VERIFY_LEAF_SIGNATURE";
       throw error;
+    };
+
+    try {
+      await fetchClusterState(transport, URL, undefined, { skipTlsVerify: false });
+      throw new Error("expected fetchClusterState to reject");
+    } catch (error) {
+      expect(error).toBeInstanceOf(IndexerError);
+      expect((error as IndexerError).code).toBe("certificate");
+      expect((error as IndexerError).message).toContain("--indexer-skip-tls-verify");
+    }
+  });
+
+  test("a hostname mismatch, nested under .cause the way Node's fetch actually reports it, still surfaces as certificate", async () => {
+    // CodeRabbit finding (PR #14, Minor): Node's global `fetch` wraps a TLS
+    // failure as `TypeError: fetch failed` with the REAL system error nested
+    // in `.cause` -- `error.code` is undefined on the outer error, and
+    // `error.cause.code` carries `ERR_TLS_CERT_ALTNAME_INVALID` for a
+    // hostname mismatch. `classifyTransportError` read only the outer code,
+    // so this fell through to "unreachable" and the user got no hint that
+    // `--indexer-skip-tls-verify` was the flag that would actually help.
+    // Built as the real nested shape on purpose, not a flat object
+    // constructed to match the code the implementation happens to read.
+    const transport: FetchLike = async () => {
+      const cause = new Error("Hostname/IP does not match certificate's altnames") as NodeJS.ErrnoException;
+      cause.code = "ERR_TLS_CERT_ALTNAME_INVALID";
+      throw new TypeError("fetch failed", { cause });
     };
 
     try {

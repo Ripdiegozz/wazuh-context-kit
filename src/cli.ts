@@ -348,24 +348,36 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
   );
   await writeFile(join(target, "CROSSCHECK.md"), renderCrosscheckMarkdown(crosscheck), "utf8");
 
-  console.log(`ref                    ${crosscheck.ref}`);
-  console.log(`declared indices       ${declared.length}`);
-  console.log(`recovered names        ${crosscheck.coverage.recoveredNames}`);
-  console.log(`repos scanned          ${scannedRepos.length}`);
-  console.log(`declared unreferenced  ${crosscheck.declaredUnreferenced.length}`);
-  console.log(`referenced undeclared  ${crosscheck.referencedUndeclared.length}`);
-  console.log(`wcs without consumer   ${crosscheck.wcsWithoutConsumer.length}`);
-  console.log(`competing catalogs     ${crosscheck.competingCatalogs.length}`);
-  console.log(`UNCOVERED mechanisms   ${crosscheck.coverage.uncovered.length}  <- this report is not complete`);
-  console.log(`written                ${join(target, "crosscheck.json")}`);
-  console.log(`                       ${join(target, "CROSSCHECK.md")}`);
+  const indexerUrl = values.indexer as string | undefined;
+  const format = (values.format as string | undefined) ?? "text";
+  // `--format json` is a documented machine-readable STREAM (docs/live-
+  // indexer.md: "get the comparison as a machine-readable stream"). That
+  // promise means stdout carries the JSON document and nothing else, so
+  // `--indexer ... --format json | jq` works on the real output. The human
+  // summary below still has somewhere to go -- stderr -- it just cannot
+  // share stdout with the JSON. Text mode (the default, and the case with no
+  // `--indexer` at all) is unaffected: the summary stays on stdout, which is
+  // the existing, read-by-humans behaviour.
+  const jsonStdoutOnly = indexerUrl !== undefined && format === "json";
+  const summary = jsonStdoutOnly ? console.error : console.log;
+
+  summary(`ref                    ${crosscheck.ref}`);
+  summary(`declared indices       ${declared.length}`);
+  summary(`recovered names        ${crosscheck.coverage.recoveredNames}`);
+  summary(`repos scanned          ${scannedRepos.length}`);
+  summary(`declared unreferenced  ${crosscheck.declaredUnreferenced.length}`);
+  summary(`referenced undeclared  ${crosscheck.referencedUndeclared.length}`);
+  summary(`wcs without consumer   ${crosscheck.wcsWithoutConsumer.length}`);
+  summary(`competing catalogs     ${crosscheck.competingCatalogs.length}`);
+  summary(`UNCOVERED mechanisms   ${crosscheck.coverage.uncovered.length}  <- this report is not complete`);
+  summary(`written                ${join(target, "crosscheck.json")}`);
+  summary(`                       ${join(target, "CROSSCHECK.md")}`);
 
   // The live comparison, strictly after both writeFile calls above. This is
   // what makes the byte-identical guarantee (SPEC: "runtime data never
   // enters the committed artifact") hold BY CONSTRUCTION: nothing below this
   // line can reach the values already written to out/<ref>/, because by the
   // time it runs they are already on disk.
-  const indexerUrl = values.indexer as string | undefined;
   if (indexerUrl !== undefined) {
     const username = process.env.WAZUH_CTX_INDEXER_USERNAME;
     const password = process.env.WAZUH_CTX_INDEXER_PASSWORD;
@@ -374,7 +386,6 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
     // invent for "half-supplied".
     const credentials = username !== undefined && password !== undefined ? { username, password } : undefined;
     const skipTlsVerify = values["indexer-skip-tls-verify"] === true;
-    const format = (values.format as string | undefined) ?? "text";
 
     // Bun's `fetch` already accepts the per-request `tls` override this
     // client needs (design decision 5); this closure is the one place that
@@ -391,8 +402,14 @@ async function runCrosscheck(values: Record<string, unknown>): Promise<CommandRe
       // declaredFromWcsModules's docblock for the defect this fixes.
       const liveDeclared = [...declared, ...declaredFromWcsModules(parsed.wcsModules)];
       const live = buildLiveComparison(state, liveDeclared);
-      console.log("");
-      console.log(format === "json" ? renderLiveComparisonJson(live) : renderLiveComparisonText(live));
+      if (jsonStdoutOnly) {
+        // Nothing else may touch stdout in this mode -- not even a leading
+        // blank line -- or the stream stops being valid JSON.
+        console.log(renderLiveComparisonJson(live));
+      } else {
+        console.log("");
+        console.log(renderLiveComparisonText(live));
+      }
     } catch (error) {
       if (error instanceof IndexerError) {
         console.error(`wazuh-ctx crosscheck: ${error.message}`);

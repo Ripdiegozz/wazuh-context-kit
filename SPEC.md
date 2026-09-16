@@ -889,7 +889,7 @@ inversa quedó sin cubrir. Lo que no se hace, se dice.
       una suite de 231 tests en verde no vio: el set de declarados excluía los
       patterns de los módulos WCS, lo que acusaba en falso a `.wazuh-internal-state`
       de no estar declarado. Detalle en
-      `openspec/changes/archive/*-crosscheck-live-indexer/verification.md`.
+      `openspec/changes/archive/*-crosscheck-live-indexer/verify-report.md`.
 
       El modo es opcional y no contamina nada: `out/<ref>/` queda **byte-idéntico**
       con y sin `--indexer`, comprobado con `diff -r` contra el cluster real. La

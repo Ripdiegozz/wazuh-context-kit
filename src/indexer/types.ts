@@ -60,7 +60,7 @@ export interface IndexerCredentials {
  * branches on; `message` is what a human reads. Neither ever carries a
  * credential value.
  */
-export type IndexerErrorCode = "certificate" | "auth" | "unreachable" | "timeout";
+export type IndexerErrorCode = "certificate" | "auth" | "unreachable" | "timeout" | "insecure";
 
 export class IndexerError extends Error {
   readonly code: IndexerErrorCode;

@@ -36,6 +36,11 @@ const CERTIFICATE_ERROR_CODES = new Set([
   "SELF_SIGNED_CERT_IN_CHAIN",
   "UNABLE_TO_GET_ISSUER_CERT_LOCALLY",
   "CERT_HAS_EXPIRED",
+  // A hostname/IP that does not match the certificate's altnames -- e.g.
+  // reaching the indexer by an IP or an alias the cert was never issued for.
+  // CodeRabbit finding (PR #14): Node's global `fetch` reports this nested in
+  // `error.cause.code`, not on the error itself (see classifyTransportError).
+  "ERR_TLS_CERT_ALTNAME_INVALID",
 ]);
 
 export interface FetchClusterStateOptions {
@@ -60,13 +65,22 @@ function buildHeaders(credentials: IndexerCredentials | undefined): Record<strin
  * (TCP, TLS) never carries credentials in.
  */
 function classifyTransportError(error: unknown, url: string): IndexerError {
-  const err = error as { code?: string; name?: string };
+  const err = error as { code?: string; name?: string; cause?: { code?: string } };
+  // Node's global `fetch` wraps the real system error in `.cause`: the outer
+  // rejection is a generic `TypeError: fetch failed` with no `code` of its
+  // own, and the TLS/socket error with the actual `code` (including a
+  // hostname mismatch's `ERR_TLS_CERT_ALTNAME_INVALID`) is nested one level
+  // down. Reading only `err.code` silently missed every one of those and
+  // fell through to "unreachable" with no TLS guidance. Bun's fake
+  // transports in these tests also throw a flat error, so both shapes are
+  // checked, outer first.
+  const code = err.code ?? err.cause?.code;
 
   // No "wazuh-ctx:" prefix here: `src/cli.ts` already prefixes every printed
   // error with "wazuh-ctx crosscheck: ". Adding a second one here doubled it
   // on a real run -- "wazuh-ctx crosscheck: wazuh-ctx: certificate
   // verification failed ...". One place adds the prefix; this is not it.
-  if (err.code && CERTIFICATE_ERROR_CODES.has(err.code)) {
+  if (code && CERTIFICATE_ERROR_CODES.has(code)) {
     return new IndexerError(
       "certificate",
       `certificate verification failed for ${url}. ` +
@@ -78,7 +92,7 @@ function classifyTransportError(error: unknown, url: string): IndexerError {
     return new IndexerError("timeout", `timed out reaching ${url}.`);
   }
 
-  if (err.code === "ECONNREFUSED" || err.code === "ENOTFOUND" || err.code === "EHOSTUNREACH") {
+  if (code === "ECONNREFUSED" || code === "ENOTFOUND" || code === "EHOSTUNREACH") {
     return new IndexerError("unreachable", `could not reach indexer at ${url}.`);
   }
 
@@ -147,12 +161,44 @@ interface RawIndexTemplatesBody {
   }[];
 }
 
+/**
+ * Refuses anything but `https:` (CWE-319, CodeRabbit finding on PR #14).
+ *
+ * `--indexer-skip-tls-verify` weakens CERTIFICATE VERIFICATION for a
+ * connection that is still encrypted; it is not, and must never become, an
+ * escape hatch for skipping encryption entirely. Without this check, an
+ * `http://` URL would carry a Basic Authorization header over a completely
+ * plaintext connection -- the whole "verification on by default, an
+ * explicit flag to weaken it" story, undone through a door that needed no
+ * flag at all. Checked before anything else in this function: not one
+ * request may leave the process over plaintext, so this throws before the
+ * transport is ever called.
+ */
+function assertHttps(url: string): void {
+  let protocol: string;
+  try {
+    protocol = new URL(url).protocol;
+  } catch {
+    throw new IndexerError("unreachable", `not a valid URL: ${url}.`);
+  }
+  if (protocol !== "https:") {
+    throw new IndexerError(
+      "insecure",
+      `refusing to use ${url}: only https:// indexer URLs are supported. ` +
+        "Credentials must never be sent in cleartext, and " +
+        "--indexer-skip-tls-verify weakens certificate verification -- it does not authorise plaintext.",
+    );
+  }
+}
+
 export async function fetchClusterState(
   transport: FetchLike,
   url: string,
   credentials: IndexerCredentials | undefined,
   options: FetchClusterStateOptions,
 ): Promise<RawClusterState> {
+  assertHttps(url);
+
   const base = url.endsWith("/") ? url.slice(0, -1) : url;
 
   // `expand_wildcards=all` on `_cat/indices` ONLY (design decision 8 /

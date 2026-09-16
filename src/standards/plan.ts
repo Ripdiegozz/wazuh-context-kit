@@ -33,6 +33,7 @@
  */
 
 import { createHash } from "node:crypto";
+import { headingLabel } from "../skills/extract.ts";
 import type { ExtractedSkill } from "../skills/extract.ts";
 import { reconstructRepo } from "../skills/reconstruct.ts";
 
@@ -54,11 +55,36 @@ export interface DistributedFile {
   readonly hash: string;
 }
 
+/** One heading path's conflict count, for the readable summary
+ * (`render.ts`). Grouping and deduplicating by heading — rather than
+ * printing one line per `PatchOp` — is what turns "14 conflicts" from a wall
+ * of repeated conflict bodies into something a person can act on: WHERE the
+ * conflicts are, and how many sit at each position, never the disputed text
+ * itself (that already lives in `conflicts/<skill>.yml`). */
+export interface ConflictHeadingCount {
+  readonly heading: string;
+  readonly count: number;
+}
+
 export interface BlockedSkill {
   readonly skill: string;
   /** Never empty — a skill is only `blocked`, never merely absent, and
-   * every entry here is something a person can act on. */
+   * every entry here is something a person can act on. Machine-oriented:
+   * one string per blocking position (heading + anchor), unchanged since
+   * `extractSkill` computed it. `render.ts` does NOT use this field for the
+   * human-facing summary — see `conflictHeadings`. */
   readonly reasons: readonly string[];
+  /**
+   * The SAME conflicts as `reasons`, grouped by heading path and counted —
+   * built directly from `ExtractedSkill.conflicts`, never re-derived from
+   * `reasons`' formatted strings (a heading can legitimately contain its own
+   * colon, e.g. "Issue source: public vs internal", which makes parsing
+   * `reasons` back apart ambiguous; going to the structured source avoids
+   * that entirely). Empty when this skill is blocked for a reason that is
+   * not a conflict (e.g. the target repository has no copy of it) — there,
+   * `reasons` alone carries the explanation.
+   */
+  readonly conflictHeadings: readonly ConflictHeadingCount[];
 }
 
 export interface ManifestFile {
@@ -89,6 +115,20 @@ function standardPath(skill: string): string {
   return `skills/${skill}/SKILL.md`;
 }
 
+/** Groups `conflicts` by heading path, counted, sorted by heading — the
+ * structured basis for the readable summary (design: never re-derive this
+ * from the pre-formatted `blockingConflicts` strings). */
+function groupConflictsByHeading(conflicts: ExtractedSkill["conflicts"]): ConflictHeadingCount[] {
+  const counts = new Map<string, number>();
+  for (const op of conflicts) {
+    const heading = headingLabel(op.heading);
+    counts.set(heading, (counts.get(heading) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .map(([heading, count]) => ({ heading, count }))
+    .sort((a, b) => a.heading.localeCompare(b.heading));
+}
+
 /**
  * Builds `SyncPlan` for `repo` from `extracted` — every `ExtractedSkill` the
  * caller wants considered, typically every skill a `skills-diff --extract`
@@ -105,12 +145,20 @@ export function planSync(extracted: readonly ExtractedSkill[], repo: string, too
 
   for (const skill of sorted) {
     if (!skill.repos.includes(repo)) {
-      blocked.push({ skill: skill.skill, reasons: [`repository '${repo}' has no copy of this skill`] });
+      blocked.push({
+        skill: skill.skill,
+        reasons: [`repository '${repo}' has no copy of this skill`],
+        conflictHeadings: [],
+      });
       continue;
     }
 
     if (!skill.distributable) {
-      blocked.push({ skill: skill.skill, reasons: skill.blockingConflicts });
+      blocked.push({
+        skill: skill.skill,
+        reasons: skill.blockingConflicts,
+        conflictHeadings: groupConflictsByHeading(skill.conflicts),
+      });
       continue;
     }
 

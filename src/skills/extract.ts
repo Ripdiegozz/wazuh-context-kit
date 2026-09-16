@@ -210,7 +210,10 @@ export interface ExtractedSkill {
   readonly tiedPositions: readonly string[];
 }
 
-function headingLabel(heading: readonly string[]): string {
+/** Exported so `src/standards/plan.ts` groups blocking conflicts by the SAME
+ * heading label this module already uses to build `blockingConflicts` —
+ * one rendering of a heading path, not two that could drift apart. */
+export function headingLabel(heading: readonly string[]): string {
   return heading.length === 0 ? "(preamble)" : heading.join(" > ");
 }
 

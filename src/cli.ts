@@ -35,6 +35,7 @@ import { renderSkillsDiffMarkdown } from "./skills/render.ts";
 import { loadSources } from "./sources.ts";
 import { applySync, checkStandards } from "./standards/apply.ts";
 import { planSync } from "./standards/plan.ts";
+import { renderSyncSummary } from "./standards/render.ts";
 
 const VERSION = "0.1.0";
 const TOOL = `wazuh-ctx@${VERSION}`;
@@ -719,13 +720,8 @@ async function runSync(values: Record<string, unknown>): Promise<CommandResult> 
 
   const { written } = await applySync(plan, target);
 
-  const total = plan.distributed.length + plan.blocked.length;
-  console.log(`repo             ${repo}`);
+  console.log(renderSyncSummary(plan));
   console.log(`target           ${target}`);
-  console.log(`distributed      ${plan.distributed.length} of ${total} distributed`);
-  for (const blocked of [...plan.blocked].sort((a, b) => a.skill.localeCompare(b.skill))) {
-    console.log(`blocked          ${blocked.skill}: ${blocked.reasons.join("; ")}`);
-  }
   for (const path of written) console.log(`written          ${path}`);
 
   // "Every skill blocked" is the tool working as designed, not a failure

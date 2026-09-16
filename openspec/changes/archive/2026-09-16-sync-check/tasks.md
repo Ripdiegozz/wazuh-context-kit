@@ -75,25 +75,25 @@ filesystem, because a mock agrees with whatever the code does.
 
 ## 7. Against reality — this closes the change
 
-- [ ] 7.1 Run `sync` against the real extraction. **Expect 0 of 6 distributed**,
+- [x] 7.1 Run `sync` against the real extraction. **Expect 0 of 6 distributed**,
       each with its blocking conflicts named. That is the designed behaviour, not
       a defect.
-- [ ] 7.2 Run `check` against a cached clone. Expect `not applicable` — no
+- [x] 7.2 Run `check` against a cached clone. Expect `not applicable` — no
       `wazuh/*` repo has `.claude/standards/`.
-- [ ] 7.3 Confirm `git status` shows `.cache/` and `out/` untouched.
-- [ ] 7.4 Run the three-step fixture demonstration and record each step's result.
-- [ ] 7.5 Record every result, marking each confirmed-against-real-repos or
+- [x] 7.3 Confirm `git status` shows `.cache/` and `out/` untouched.
+- [x] 7.4 Run the three-step fixture demonstration and record each step's result.
+- [x] 7.5 Record every result, marking each confirmed-against-real-repos or
       asserted-by-fixture — and state plainly that the mechanism ships **inert**,
       because no real target exists.
 
 ## 8. Documentation
 
-- [ ] 8.1 Tick the SPEC 2.4 criteria this change closes, with an evidence header.
-- [ ] 8.2 State which criterion remains and why — `settings.json`, held open
+- [x] 8.1 Tick the SPEC 2.4 criteria this change closes, with an evidence header.
+- [x] 8.2 State which criterion remains and why — `settings.json`, held open
       deliberately since `skills-diff`.
-- [ ] 8.3 Record that the ambiguous-anchor test is **constructed**, and that the
+- [x] 8.3 Record that the ambiguous-anchor test is **constructed**, and that the
       real corpus no longer exercises that path. Say it rather than implying
       coverage.
-- [ ] 8.4 Document the deliberate exit-code divergence: `check` fails on drift
+- [x] 8.4 Document the deliberate exit-code divergence: `check` fails on drift
       while the crosscheck does not, because one is a gate and the other a
       diagnostic.

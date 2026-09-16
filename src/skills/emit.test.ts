@@ -55,19 +55,22 @@ function assertAnchorsResolve(extracted: ExtractedSkill): void {
   }
 }
 
-/** Same weaker, cheaper companion guard as `extract.test.ts` and
- * `reconstruct.test.ts` — see `extract.test.ts` for the full rationale. */
-function assertReconstructionPreservesLineCount(
+/** Same blanket round-trip guard as `extract.test.ts` and
+ * `reconstruct.test.ts` — see `extract.test.ts` for the full rationale,
+ * including why a line-count-only version of this missed a real
+ * section-ordering bug that a byte-equality check catches. */
+function assertReconstructionMatchesOriginal(
   extracted: ExtractedSkill,
   variants: readonly { repo: string; skill: { sections: readonly { lines: readonly string[] }[] } }[],
 ): void {
   for (const v of variants) {
-    const expectedLength = v.skill.sections.reduce((sum, s) => sum + s.lines.length, 0);
-    const actualLength = reconstructRepo(extracted, v.repo).length;
-    if (actualLength !== expectedLength) {
+    const expected = v.skill.sections.flatMap((s) => s.lines);
+    const actual = reconstructRepo(extracted, v.repo);
+    const matches = actual.length === expected.length && actual.every((line, i) => line === expected[i]);
+    if (!matches) {
       throw new Error(
-        `assertReconstructionPreservesLineCount: skill '${extracted.skill}' repo '${v.repo}' ` +
-          `reconstructed ${actualLength} lines, expected ${expectedLength} — a line was dropped or duplicated`,
+        `assertReconstructionMatchesOriginal: skill '${extracted.skill}' repo '${v.repo}' did not ` +
+          `round-trip — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
       );
     }
   }
@@ -77,7 +80,7 @@ function extractSkill(skillName: string, variants: readonly SkillVariant[]): Ext
   const result = extractSkillUnchecked(diffSkill(skillName, variants));
   assertNoBlankAnchor(result);
   assertAnchorsResolve(result);
-  assertReconstructionPreservesLineCount(result, variants);
+  assertReconstructionMatchesOriginal(result, variants);
   return result;
 }
 

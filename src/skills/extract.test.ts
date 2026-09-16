@@ -91,27 +91,28 @@ function assertAnchorsResolve(extracted: ExtractedSkill): void {
 }
 
 /**
- * The WEAKER, cheaper companion to full round-trip equality: reconstruction
- * must preserve the LINE COUNT for every repo, even in tests that never
- * assert full byte equality themselves (most of this file's tests check one
- * op's attribution, not the whole reconstructed body). Two consecutive
- * blank lines collapsing into one, or a trailing blank vanishing — the
- * real-corpus bug found in `diff.ts`'s `bodyKey`/`slotContentKey` — changes
- * the line count, so this catches that whole class in one cheap stroke,
- * across every extraction this file builds, not just the ones with a
- * dedicated round-trip assertion.
+ * The blanket round-trip guard, applied to EVERY extraction this file
+ * builds, not just the ones with a dedicated round-trip test. A weaker,
+ * line-COUNT-only version of this lived here first and missed a real bug: a
+ * section-ordering defect in `diffSkill` moved a block of lines to the
+ * wrong position while leaving the total count untouched (`check-standards`,
+ * `wazuh-dashboard-alerting` — 101 reconstructed lines, 101 expected, 13 of
+ * them 17 lines out of place). Line count is necessary and not sufficient;
+ * only full byte equality catches a REORDERING, not just a loss or a
+ * duplication.
  */
-function assertReconstructionPreservesLineCount(
+function assertReconstructionMatchesOriginal(
   extracted: ExtractedSkill,
   variants: readonly { repo: string; skill: { sections: readonly { lines: readonly string[] }[] } }[],
 ): void {
   for (const v of variants) {
-    const expectedLength = v.skill.sections.reduce((sum, s) => sum + s.lines.length, 0);
-    const actualLength = reconstructRepo(extracted, v.repo).length;
-    if (actualLength !== expectedLength) {
+    const expected = v.skill.sections.flatMap((s) => s.lines);
+    const actual = reconstructRepo(extracted, v.repo);
+    const matches = actual.length === expected.length && actual.every((line, i) => line === expected[i]);
+    if (!matches) {
       throw new Error(
-        `assertReconstructionPreservesLineCount: skill '${extracted.skill}' repo '${v.repo}' ` +
-          `reconstructed ${actualLength} lines, expected ${expectedLength} — a line was dropped or duplicated`,
+        `assertReconstructionMatchesOriginal: skill '${extracted.skill}' repo '${v.repo}' did not ` +
+          `round-trip — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
       );
     }
   }
@@ -121,7 +122,7 @@ function extractSkill(skillName: string, variants: readonly SkillVariant[]): Ext
   const result = extractSkillUnchecked(diffSkill(skillName, variants));
   assertNoBlankAnchor(result);
   assertAnchorsResolve(result);
-  assertReconstructionPreservesLineCount(result, variants);
+  assertReconstructionMatchesOriginal(result, variants);
   return result;
 }
 

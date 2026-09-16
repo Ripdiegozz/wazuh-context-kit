@@ -68,19 +68,21 @@ function assertAnchorsResolve(extracted: ExtractedSkill): void {
   }
 }
 
-/** Same weaker, cheaper companion guard as `extract.test.ts` — see that
- * file for the full rationale. */
-function assertReconstructionPreservesLineCount(
+/** Same blanket round-trip guard as `extract.test.ts` — see that file for
+ * the full rationale, including why a line-count-only version of this
+ * missed a real section-ordering bug that a byte-equality check catches. */
+function assertReconstructionMatchesOriginal(
   extracted: ExtractedSkill,
   variants: readonly { repo: string; skill: { sections: readonly { lines: readonly string[] }[] } }[],
 ): void {
   for (const v of variants) {
-    const expectedLength = v.skill.sections.reduce((sum, s) => sum + s.lines.length, 0);
-    const actualLength = reconstructRepo(extracted, v.repo).length;
-    if (actualLength !== expectedLength) {
+    const expected = v.skill.sections.flatMap((s) => s.lines);
+    const actual = reconstructRepo(extracted, v.repo);
+    const matches = actual.length === expected.length && actual.every((line, i) => line === expected[i]);
+    if (!matches) {
       throw new Error(
-        `assertReconstructionPreservesLineCount: skill '${extracted.skill}' repo '${v.repo}' ` +
-          `reconstructed ${actualLength} lines, expected ${expectedLength} — a line was dropped or duplicated`,
+        `assertReconstructionMatchesOriginal: skill '${extracted.skill}' repo '${v.repo}' did not ` +
+          `round-trip — expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
       );
     }
   }
@@ -90,7 +92,7 @@ function extractSkill(skillName: string, variants: readonly SkillVariant[]): Ext
   const result = extractSkillUnchecked(diffSkill(skillName, variants));
   assertNoBlankAnchor(result);
   assertAnchorsResolve(result);
-  assertReconstructionPreservesLineCount(result, variants);
+  assertReconstructionMatchesOriginal(result, variants);
   return result;
 }
 
@@ -317,6 +319,38 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
       variant("a", [{ path: ["Section"], lines: minority, markers: [{ lineIndex: 2, repo: "a" }] }]),
       variant("b", [{ path: ["Section"], lines: majority }]),
       variant("c", [{ path: ["Section"], lines: majority }]),
+    ];
+
+    const extracted = extractSkill("a-skill", variants);
+
+    for (const v of variants) {
+      expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
+    }
+  });
+
+  test("REGRESSION: a heading missing from the FIRST variant does not reorder it for every repo", () => {
+    // The `check-standards` crash: same line count, wrong position — a
+    // block landed 17 lines earlier than its original spot. Root cause was
+    // in `diffSkill`, not in anchor/occurrence arithmetic: `allPaths` used
+    // to collect heading paths by "first-seen while scanning variants in
+    // array order." Repo "a" here has no "Heading A" at all — only "Heading
+    // B" — so a first-seen scan meets "Heading B" before ever reaching
+    // "Heading A" (introduced later, by repo "b"), and appends A AFTER B
+    // for every repo, including "b" and "c" who both actually have A
+    // BEFORE B in their own files. `orderSectionPaths`'s topological merge
+    // fixes this by treating each variant's own adjacency as a constraint
+    // ("A before B") rather than trusting whichever variant is scanned
+    // first.
+    const variants = [
+      variant("a", [{ path: ["Heading B"], lines: ["b content"] }]), // no "Heading A" at all
+      variant("b", [
+        { path: ["Heading A"], lines: ["a content"] },
+        { path: ["Heading B"], lines: ["b content"] },
+      ]),
+      variant("c", [
+        { path: ["Heading A"], lines: ["a content"] },
+        { path: ["Heading B"], lines: ["b content"] },
+      ]),
     ];
 
     const extracted = extractSkill("a-skill", variants);

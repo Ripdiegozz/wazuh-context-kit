@@ -436,6 +436,95 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
   return { path, blocks, wholeLines: null, anchors, commonSlots };
 }
 
+/**
+ * Orders every distinct heading path seen across `variants` so it matches
+ * the TRUE relative document order — not "first-seen while scanning variants
+ * in array order," which silently reorders sections whenever an EARLY
+ * variant happens to be missing one a LATER variant has.
+ *
+ * Concretely: if variant 1 lacks heading A (present in variants 2-7, always
+ * right before B), first-seen-order sees variant 1's own sequence (B, C, …)
+ * before ever reaching variant 2, so A gets appended AFTER B and C instead
+ * of before them — a heading absent for one repo silently reorders it for
+ * EVERY repo, including the six who have it in the right place. `diffSkill`'s
+ * own classification is unaffected (grouping is by path, not position), so
+ * `skills-diff`'s report never surfaced this. `skills-core`'s reconstruction
+ * measured it directly: same line count, wrong position — SPEC 2.1's
+ * byte-identical requirement fails on relative order as much as on content.
+ *
+ * The fix treats each variant's own sequence as a partial order (`path[i]`
+ * before `path[i+1]`) and topologically merges all seven partial orders,
+ * Kahn's-algorithm style. A path with no constraint against another is
+ * placed by first-seen index, so the ORDINARY case (every variant agrees)
+ * is unaffected and still reads as "the order they were first encountered
+ * in" — the fix only changes behavior when variants actually disagree,
+ * which absence-of-a-section is the common real cause of.
+ */
+function orderSectionPaths(variants: readonly SkillVariant[]): string[] {
+  const firstSeenIndex = new Map<string, number>();
+  for (const v of variants) {
+    for (const section of v.skill.sections) {
+      const key = JSON.stringify(section.path);
+      if (!firstSeenIndex.has(key)) firstSeenIndex.set(key, firstSeenIndex.size);
+    }
+  }
+
+  const successors = new Map<string, Set<string>>();
+  const inDegree = new Map<string, number>();
+  for (const key of firstSeenIndex.keys()) inDegree.set(key, 0);
+
+  for (const v of variants) {
+    const keys = v.skill.sections.map((s) => JSON.stringify(s.path));
+    for (let i = 0; i < keys.length - 1; i++) {
+      const from = keys[i]!;
+      const to = keys[i + 1]!;
+      if (from === to) continue;
+      let toSet = successors.get(from);
+      if (!toSet) {
+        toSet = new Set();
+        successors.set(from, toSet);
+      }
+      if (!toSet.has(to)) {
+        toSet.add(to);
+        inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
+      }
+    }
+  }
+
+  const byFirstSeen = (a: string, b: string) => firstSeenIndex.get(a)! - firstSeenIndex.get(b)!;
+  const remaining = new Set(firstSeenIndex.keys());
+  const degree = new Map(inDegree);
+  const available = [...remaining].filter((key) => (degree.get(key) ?? 0) === 0).sort(byFirstSeen);
+
+  const result: string[] = [];
+  while (available.length > 0) {
+    const next = available.shift()!;
+    if (!remaining.has(next)) continue;
+    remaining.delete(next);
+    result.push(next);
+    const toInsert: string[] = [];
+    for (const to of successors.get(next) ?? []) {
+      const d = (degree.get(to) ?? 0) - 1;
+      degree.set(to, d);
+      if (d === 0) toInsert.push(to);
+    }
+    if (toInsert.length > 0) {
+      available.push(...toInsert);
+      available.sort(byFirstSeen);
+    }
+  }
+
+  // A genuine cycle across variants (one repo orders A before B, another B
+  // before A) cannot be resolved without picking a side — deterministic
+  // fallback by first-seen index for whatever is left, rather than an
+  // infinite loop or a thrown error over a real document's own contents.
+  if (remaining.size > 0) {
+    result.push(...[...remaining].sort(byFirstSeen));
+  }
+
+  return result;
+}
+
 export function diffSkill(skillName: string, variants: readonly SkillVariant[]): SkillDiff {
   const names = new Set(variants.map((v) => v.skill.frontmatter.name));
   if (names.size > 1) {
@@ -449,17 +538,7 @@ export function diffSkill(skillName: string, variants: readonly SkillVariant[]):
     description: v.skill.frontmatter.description,
   }));
 
-  const allPaths: string[] = [];
-  const seenPathKeys = new Set<string>();
-  for (const v of variants) {
-    for (const section of v.skill.sections) {
-      const key = JSON.stringify(section.path);
-      if (!seenPathKeys.has(key)) {
-        seenPathKeys.add(key);
-        allPaths.push(key);
-      }
-    }
-  }
+  const allPaths = orderSectionPaths(variants);
 
   const sections: ClassifiedSection[] = allPaths.map((key) => {
     const path = JSON.parse(key) as string[];

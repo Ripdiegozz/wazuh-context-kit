@@ -193,29 +193,31 @@ that".
 A green suite does not close this. Three previous cycles had one and shipped
 defects that only real data found.
 
-- [ ] 7.1 Refresh the cache with the widened path set. **Record the observed
+- [x] 7.1 Refresh the cache with the widened path set. **Record the observed
       cold-clone time and the resulting `.cache/` size as real numbers.** It was
       264 MB entering this change.
-- [ ] 7.2 Run `skills-diff` against all seven repositories. Record the counts.
-- [ ] 7.3 Confirm 42 `SKILL.md` files were read — not 18, not 45. A different
+- [x] 7.2 Run `skills-diff` against all seven repositories. Record the counts.
+- [x] 7.3 Confirm 42 `SKILL.md` files were read — not 18, not 45. A different
       number means the selection rule is wrong.
-- [ ] 7.4 Confirm `wazuh-dashboard` is included despite being `kind: platform`.
-- [ ] 7.5 Confirm the three known conflicts appear: `typecheck` in
+- [x] 7.4 Confirm `wazuh-dashboard` is included despite being `kind: platform`.
+- [x] 7.5 Confirm the three known conflicts appear: `typecheck` in
       `check-standards`, the `no-changelog` label, OSD `changelogs/fragments`.
-- [ ] 7.6 Confirm 15 markers land in `sharedOverride` and none of them is
-      attributed to a repository.
-- [ ] 7.7 Confirm the measured divergence profile: `analyze-dashboard-vuln`
+- [~] 7.6 STRUCK. The expectation was wrong: 15 counts unnamed marker LINES
+      across the 42 files, and most sit in sections identical across all seven
+      repos, so they never become a divergence at all. Observed: 2
+      `sharedOverride` blocks, 4 unnamed-marker groups. See `verify-report.md`.
+- [x] 7.7 Confirm the measured divergence profile: `analyze-dashboard-vuln`
       mostly common, the other five roughly half divergent. **This is the number
       that tells us whether the ≥ 35 of 42 reconstruction bar is real**, before
       anyone builds against it.
-- [ ] 7.8 Confirm no finding concerns `settings.json`.
-- [ ] 7.9 Record every result in the verification report, marking each as
+- [x] 7.8 Confirm no finding concerns `settings.json`.
+- [x] 7.9 Record every result in the verification report, marking each as
       confirmed-against-real-repos or asserted-by-fixture.
 
 ## 8. Documentation
 
-- [ ] 8.1 Tick the criteria this change closes in SPEC 2.4, with an evidence
+- [x] 8.1 Tick the criteria this change closes in SPEC 2.4, with an evidence
       header.
-- [ ] 8.2 State explicitly which SPEC 2.4 criterion stays open and why — the
+- [x] 8.2 State explicitly which SPEC 2.4 criterion stays open and why — the
       `settings.json` one. A debt named is not a debt hidden.
-- [ ] 8.3 Record the measured cache cost from 7.1 in the repo-fetch docs.
+- [x] 8.3 Record the measured cache cost from 7.1 in the repo-fetch docs.

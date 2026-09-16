@@ -941,7 +941,7 @@ la trata como tal.
 
 ## 2.1 Extracción, no reescritura
 
-Tomar las 6 skills de los 3 repos del dashboard y hacer diff a 3 bandas por
+Tomar las 6 skills de los **7** repos que las tienen y hacer diff a 7 bandas por
 archivo. Clasificar cada bloque divergente en:
 
 - **común** → va a `core/skills/<skill>/SKILL.md`,
@@ -956,6 +956,52 @@ El patrón de override ya existe en sus archivos y hay que formalizarlo tal cual
 ```
 
 Hoy vive incrustado dentro de archivos duplicados. Pasa a ser una capa real.
+
+### 2.1.0 Corrección de alcance — medido el 2026-09-16
+
+**El primer borrador decía "3 repos" y "18 archivos". Los dos números eran de
+antes de contar.** Medido con `git ls-tree -r HEAD` dentro de cada clon del
+cache —no sobre el disco, porque `.claude/` no está en el sparse-checkout de
+ningún repo y `find` devuelve vacío aunque el árbol sí lo tenga:
+
+| | Primer borrador | Medido |
+| --- | --- | --- |
+| Repos con las 6 skills | 3 | **7** |
+| Archivos `SKILL.md` | 18 | **42** |
+
+Los siete: `wazuh-dashboard`, `wazuh-dashboard-plugins`, `wazuh-dashboard-alerting`,
+`wazuh-dashboard-notifications`, `wazuh-dashboard-reporting`,
+`wazuh-dashboard-security-analytics`, `wazuh-security-dashboards-plugin`.
+
+Ojo con el primero: `wazuh-dashboard` está declarado `kind: platform` en
+`sources.yml`, no `dashboard`. O sea que "los repos del dashboard" y "los repos
+que tienen estas skills" son dos conjuntos distintos, y el ejemplo de override
+que este SPEC cita sale justamente del que no es `dashboard`. El alcance se
+define por **tener las skills**, no por el `kind`.
+
+`wazuh-dashboard-ml-commons` no tiene rama `5.0.0` y nunca se clonó.
+`wazuh-indexer-security-analytics` no tiene `.claude/` en todo su árbol.
+
+**La divergencia no es uniforme, y eso cuestiona el modelo, no solo el número.**
+Medido por líneas distintas contra `wazuh-dashboard` como base:
+
+| skill | base | líneas distintas |
+| --- | --- | --- |
+| `analyze-dashboard-vuln` | 130 | 2–6 |
+| `check-standards` | 101 | 57–71 |
+
+`analyze-dashboard-vuln` es boilerplate con el nombre del repo cambiado. Los
+otros cinco difieren en más de la mitad de sus líneas. "Núcleo común + pequeños
+overrides intencionales" describe bien al primero y mal a los otros cinco:
+cuando la mitad del archivo diverge no hay un core con parches, hay seis
+archivos parientes, y forzar un core produce un `core/` que nadie reconoce más
+una pila de overrides más grande que el core.
+
+**Queda abierto**, y se decide con el `skills-diff` en la mano, no antes: si los
+cinco skills muy divergentes entran al mismo modelo de core+overrides, o si se
+reportan como familia sin core hasta que alguien decida qué debería ser común.
+Inventar un core para archivos que no lo tienen es exactamente el tipo de
+respuesta plausible y falsa que esta fase existe para evitar.
 
 ### 2.1.1 Formato de override — parche anclado, no blob
 
@@ -979,6 +1025,14 @@ ops:
     match: "yarn lint\n"
     content: "yarn lint\nyarn typecheck\n"
 ```
+
+**Hay dos subformatos del marcador, no uno.** Medidos: 97 marcadores
+`> **repo-specific`, de los cuales **15 no llevan nombre de repo** entre
+paréntesis —se leen `> **repo-specific:**` a secas, típicamente sobre cosas que
+valen para varios repos a la vez. El modelo de parche anclado tiene que
+manejarlos como caso distinto: un marcador sin repo no le pertenece a un
+`overrides/<repo>/` en particular, y meterlo a la fuerza en uno inventa una
+atribución que el archivo no hace.
 
 Operaciones admitidas: `insert-after`, `insert-before`, `replace-block`,
 `delete-block`. Regla dura: **un ancla que resuelve a cero o a más de una
@@ -1032,14 +1086,33 @@ puede probar hoy, y es lo único que se afirma.
 
 ## 2.4 Criterios de aceptación — Fase 2
 
-- [ ] `wazuh-ctx skills-diff` clasifica los 6 archivos × 3 repos sin excepción.
+> Reescritos el 2026-09-16 contra lo medido. Los números viejos —3 repos, 18
+> archivos, ≥ 15 de 18— eran del primer borrador y se escribieron antes de
+> contar. Ver 2.1.0.
+
+- [ ] `wazuh-ctx skills-diff` clasifica los **42** archivos (6 skills × 7 repos)
+      sin excepción.
 - [ ] Todo bloque divergente cae en común / override / CONFLICTO. Ninguno sin clasificar.
+- [ ] Los dos subformatos del marcador se distinguen: `repo-specific (<repo>)` y
+      `repo-specific` sin repo. Ninguno de los 15 sin nombre se atribuye a un
+      repo que el archivo no nombra.
 - [ ] Los conflictos conocidos aparecen listados: typecheck en `check-standards`,
-      label `no-changelog`, `changelogs/fragments` de OSD, divergencia de `settings.json`.
-- [ ] `core/` + `overrides/<repo>/` reconstruyen **byte-idénticos ≥ 15 de los 18**
-      SKILL.md originales (6 skills × 3 repos).
-- [ ] Los ≤ 3 restantes están listados en `lossy[]` con el diff exacto de lo que
-      no se pudo reconstruir. `reconstruidos + lossy == 18` siempre.
+      label `no-changelog`, `changelogs/fragments` de OSD, divergencia de
+      `settings.json` —que son **5 variantes distintas sobre 7 repos**, con
+      `alerting`, `notifications` y `security-analytics` idénticos entre sí, y
+      que además **no es un `SKILL.md`** y no sale del skills-diff por sí solo.
+- [ ] `core/` + `overrides/<repo>/` reconstruyen **byte-idénticos ≥ 35 de los 42**
+      SKILL.md originales.
+- [ ] Los ≤ 7 restantes están listados en `lossy[]` con el diff exacto de lo que
+      no se pudo reconstruir. `reconstruidos + lossy == 42` siempre.
+
+> El umbral de 35 es la misma proporción que el viejo 15/18 trasladada a 42, y
+> **no está validado contra la divergencia real**. Cinco de los seis skills
+> difieren en más de la mitad de sus líneas (2.1.0). Si el `skills-diff` muestra
+> que 35 es inalcanzable, se baja el umbral **con el número medido escrito al
+> lado**; lo que no se hace es aflojar la reconstrucción byte-idéntica para
+> llegar. `lossy[]` con el diff exacto es el mecanismo honesto; un umbral
+> cumplido por relajar la definición no mide nada.
 - [ ] Un ancla de override que resuelve a cero o a más de una posición hace
       fallar el `sync`. Test con un ancla ambigua a propósito.
 - [ ] Sobre el repo de fixture: `sync` materializa `.claude/standards/`, `check`

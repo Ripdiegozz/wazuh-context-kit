@@ -484,7 +484,11 @@ async function main(): Promise<number> {
     case "check":
       return notImplemented("check", "2.3").code;
     case "serve":
-      return notImplemented("serve", "Phase 1.5").code;
+      // Moved to LAST in the build order (SPEC 7, 2026-09-16): an inspector
+      // built now would show 9 plugins and 3 unknowns; built after Phases 2
+      // and 3 it shows the standards package and the MCP surface too. The
+      // "1.5" in its name no longer indicates its position.
+      return notImplemented("serve", "Phase 1.5, now last in SPEC 7").code;
     case "mcp":
       return notImplemented("mcp", "Phase 3").code;
     default:

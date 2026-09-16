@@ -1212,17 +1212,32 @@ Si `matrix/` importa el reloj, la propiedad se pierde.
 ## 7. Orden de ejecución
 
 ```
-1. src/matrix/ puro + fixtures     ← todo el pensamiento difícil (1.5) vive acá
-2. wazuh-ctx serve (Fase 1.5)      ← inspector sobre los fixtures
-3. src/parse/ + src/fetch/         ← lo aburrido, ya sabiendo la forma de los datos
-4. Fase 2                          ← independiente de Fase 3
-5. Fase 3                          ← depende del dataset de Fase 1
+1. src/matrix/ puro + fixtures     ← HECHO
+2. src/parse/ + src/fetch/         ← HECHO
+3. Fase 2                          ← independiente de Fase 3
+4. Fase 3                          ← depende del dataset de Fase 1
+5. wazuh-ctx serve (Fase 1.5)      ← último, sobre datos reales
 ```
 
-Se empieza por `matrix/` y no por `fetch/` aunque `fetch` sea el paso 1
-cronológico. Toda la lógica de 1.5 se testea con fixtures de veinte líneas, sin
-clonar nada. Arrancar por el fetch significa pelear con git y sparse-checkout
-antes de escribir una línea de la lógica que importa.
+Se empezó por `matrix/` y no por `fetch/` aunque `fetch` sea el paso 1
+cronológico. Toda la lógica se testeó con fixtures de veinte líneas, sin clonar
+nada. Arrancar por el fetch significaba pelear con git y sparse-checkout antes
+de escribir una línea de la lógica que importa.
+
+**El inspector se movió del paso 2 al último (2026-09-16), y el nombre "Fase
+1.5" ya no indica su posición.** El motivo original para construirlo temprano
+—"inspector sobre los fixtures", para no depender del fetch— se consumió: los
+pasos 1 y 2 están cerrados y hay datos reales. Lo que queda es el argumento
+contrario. Un inspector construido hoy muestra 9 plugins y 3 unknowns;
+construido después de Fase 2 y Fase 3 muestra además el paquete de estándares,
+los CONFLICTOS del diff a 3 bandas y lo que el agente consume por MCP. Es el
+mismo trabajo sobre mucha más superficie, y el grafo bipartito —la única parte
+que markdown no puede hacer— se diseña una sola vez contra el dominio completo
+en lugar de contra un tercio de él.
+
+El riesgo aceptado, y queda escrito: hasta entonces `decisions.yml` y
+`annotations.yml` se editan a mano. Con 3 unknowns eso es tolerable; si esa
+cifra crece mucho antes de Fase 3, la decisión se revisa.
 
 ## 8. Decisiones abiertas para Diego
 

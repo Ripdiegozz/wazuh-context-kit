@@ -39,7 +39,7 @@ function sameHeading(a: readonly string[], b: readonly string[]): boolean {
  * whatever order the caller's `Map`/array happens to iterate in, ops at one
  * position are always replayed in this order, never insertion order. */
 function opSortKey(op: PatchOp): string {
-  return JSON.stringify([op.attribution, [...op.repos].sort(), op.content]);
+  return JSON.stringify([op.attribution, [...op.repos].sort(), op.anchor, op.offset, op.content]);
 }
 
 function opsForRepoAndHeading(
@@ -89,10 +89,16 @@ export function reconstructRepo(extracted: ExtractedSkill, repo: string): readon
      * `.find` rather than looping every op, unlike the OLD insert-only
      * model, where several unrelated ops could legally coexist at one
      * anchor because nothing there ever replaced anything.
+     *
+     * `op.anchor` is never a blank line (`extract.ts`'s `nominateAnchor`) —
+     * it names the nearest NON-BLANK anchor, and `op.offset` is how many
+     * blank anchors sit between that anchor and the actual target. This
+     * inverts `nominateAnchor`'s arithmetic exactly: `resolvedIndex + 1 +
+     * offset` gets back to the same `slot` that produced the op.
      */
     function contentAt(index: number): readonly string[] {
       const op = ops.find((candidate) => {
-        if (candidate.anchor === null) return index === 0;
+        if (candidate.anchor === null) return candidate.offset === index;
         const resolved = resolveAnchor({
           skill: extracted.skill,
           repo,
@@ -100,7 +106,7 @@ export function reconstructRepo(extracted: ExtractedSkill, repo: string): readon
           lines: section.anchors,
           anchor: candidate.anchor,
         });
-        return resolved + 1 === index;
+        return resolved + 1 + candidate.offset === index;
       });
       return op ? op.content : section.slots[index]!;
     }

@@ -24,9 +24,39 @@
 
 import { describe, expect, test } from "bun:test";
 import { diffSkill } from "./diff.ts";
-import { extractSkill } from "./extract.ts";
+import { extractSkill as extractSkillUnchecked } from "./extract.ts";
 import type { CoreSection, ExtractedSkill } from "./extract.ts";
-import type { SectionMarker, SkillVariant } from "./types.ts";
+import type { SectionMarker, SkillDiff, SkillVariant } from "./types.ts";
+
+/**
+ * The invariant this file exists to hold, applied to EVERY test in this
+ * file, not just the one written for it — the same blanket style as
+ * `diff.test.ts`'s `assertNoDiscardedAttribution`. A blank anchor is
+ * ambiguous by construction (it occurs everywhere a blank line does), and
+ * the first real-corpus run crashed on exactly this: `nominateAnchor`
+ * walking back past blank lines is `extract.ts`'s job, and a regression
+ * here would surface as a crash in `reconstruct.ts`, several calls away
+ * from the actual bug — this check catches it at the source instead.
+ */
+function assertNoBlankAnchor(extracted: ExtractedSkill): void {
+  const allOps = [...[...extracted.overrides.values()].flat(), ...extracted.conflicts];
+  for (const op of allOps) {
+    if (op.anchor !== null && op.anchor.trim().length === 0) {
+      throw new Error(
+        `assertNoBlankAnchor: skill '${extracted.skill}' has an op at heading ` +
+          `${JSON.stringify(op.heading)} anchored to a blank/whitespace-only line ` +
+          `(${JSON.stringify(op.anchor)}) — blank lines occur everywhere and must ` +
+          "never be nominated as an anchor",
+      );
+    }
+  }
+}
+
+function extractSkill(diff: SkillDiff): ExtractedSkill {
+  const result = extractSkillUnchecked(diff);
+  assertNoBlankAnchor(result);
+  return result;
+}
 
 const REPOS = ["wazuh-dashboard", "wazuh-dashboard-plugins", "wazuh-indexer"] as const;
 

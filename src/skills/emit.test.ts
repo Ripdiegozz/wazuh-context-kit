@@ -14,8 +14,20 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { diffSkill } from "./diff.ts";
 import { extractSkill } from "./extract.ts";
+import type { ExtractedSkill } from "./extract.ts";
 import { emitExtraction } from "./emit.ts";
 import type { SectionMarker, SkillVariant } from "./types.ts";
+
+/** Same blanket guard as `extract.test.ts` and `reconstruct.test.ts` —
+ * applied to the one extraction this file builds and reuses everywhere. */
+function assertNoBlankAnchor(extracted: ExtractedSkill): void {
+  const allOps = [...[...extracted.overrides.values()].flat(), ...extracted.conflicts];
+  for (const op of allOps) {
+    if (op.anchor !== null && op.anchor.trim().length === 0) {
+      throw new Error(`assertNoBlankAnchor: skill '${extracted.skill}' has a blank/whitespace-only anchor`);
+    }
+  }
+}
 
 function variant(
   repo: string,
@@ -61,7 +73,9 @@ function sampleExtraction() {
       { path: ["Disputed"], lines: ["area"] },
     ]),
   ];
-  return extractSkill(diffSkill("a-skill", variants));
+  const extracted = extractSkill(diffSkill("a-skill", variants));
+  assertNoBlankAnchor(extracted);
+  return extracted;
 }
 
 async function listFilesRecursively(dir: string): Promise<string[]> {

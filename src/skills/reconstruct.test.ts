@@ -21,9 +21,32 @@
 
 import { describe, expect, test } from "bun:test";
 import { diffSkill } from "./diff.ts";
-import { extractSkill } from "./extract.ts";
+import { extractSkill as extractSkillUnchecked } from "./extract.ts";
+import type { ExtractedSkill } from "./extract.ts";
 import { reconstructAndVerify, reconstructRepo } from "./reconstruct.ts";
-import type { SectionMarker, SkillVariant } from "./types.ts";
+import type { SectionMarker, SkillDiff, SkillVariant } from "./types.ts";
+
+/** Same blanket guard as `extract.test.ts` — this file builds its own
+ * extractions directly rather than importing that file's wrapper, so it
+ * needs its own copy to get the same protection on every call here. */
+function assertNoBlankAnchor(extracted: ExtractedSkill): void {
+  const allOps = [...[...extracted.overrides.values()].flat(), ...extracted.conflicts];
+  for (const op of allOps) {
+    if (op.anchor !== null && op.anchor.trim().length === 0) {
+      throw new Error(
+        `assertNoBlankAnchor: skill '${extracted.skill}' has an op at heading ` +
+          `${JSON.stringify(op.heading)} anchored to a blank/whitespace-only line ` +
+          `(${JSON.stringify(op.anchor)})`,
+      );
+    }
+  }
+}
+
+function extractSkill(diff: SkillDiff): ExtractedSkill {
+  const result = extractSkillUnchecked(diff);
+  assertNoBlankAnchor(result);
+  return result;
+}
 
 function variant(
   repo: string,
@@ -47,27 +70,44 @@ function originalBody(v: SkillVariant): readonly string[] {
 
 describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)", () => {
   test("a skill mixing a common section, a named override, an unnamed shared override, a conflict, and an absent section", () => {
+    // Blank lines throughout, on purpose — real `SKILL.md` files are full of
+    // them (around headings, between list items, as paragraph breaks), and
+    // this is the shape that crashed the first real-corpus run: a blank
+    // line sitting where a naive implementation would nominate it as the
+    // anchor for the divergent line right after it.
     const variants: SkillVariant[] = [
       variant("wazuh-dashboard", [
-        { path: ["Common"], lines: ["Run the standard checks.", "Ship it."] },
+        { path: ["Common"], lines: ["Run the standard checks.", "", "Ship it."] },
         {
           path: ["Workflow", "1. Plan"],
-          lines: ["Confirm the branch.", "> **repo-specific (wazuh-dashboard):** notify the release channel."],
-          markers: [{ lineIndex: 1, repo: "wazuh-dashboard" }],
+          lines: [
+            "Confirm the branch.",
+            "",
+            "> **repo-specific (wazuh-dashboard):** notify the release channel.",
+          ],
+          markers: [{ lineIndex: 2, repo: "wazuh-dashboard" }],
         },
-        { path: ["Shared bit"], lines: ["Base line.", "> **repo-specific:** applies to two of three."], markers: [{ lineIndex: 1, repo: null }] },
+        {
+          path: ["Shared bit"],
+          lines: ["Base line.", "", "> **repo-specific:** applies to two of three."],
+          markers: [{ lineIndex: 2, repo: null }],
+        },
         { path: ["Disputed"], lines: ["area"] },
         { path: ["Only here"], lines: ["wazuh-dashboard-only content"] },
       ]),
       variant("wazuh-dashboard-plugins", [
-        { path: ["Common"], lines: ["Run the standard checks.", "Ship it."] },
-        { path: ["Workflow", "1. Plan"], lines: ["Confirm the branch.", "Push when ready."] },
-        { path: ["Shared bit"], lines: ["Base line.", "> **repo-specific:** applies to two of three."], markers: [{ lineIndex: 1, repo: null }] },
+        { path: ["Common"], lines: ["Run the standard checks.", "", "Ship it."] },
+        { path: ["Workflow", "1. Plan"], lines: ["Confirm the branch.", "", "Push when ready."] },
+        {
+          path: ["Shared bit"],
+          lines: ["Base line.", "", "> **repo-specific:** applies to two of three."],
+          markers: [{ lineIndex: 2, repo: null }],
+        },
         { path: ["Disputed"], lines: ["plugin(s)"] },
       ]),
       variant("wazuh-indexer", [
-        { path: ["Common"], lines: ["Run the standard checks.", "Ship it."] },
-        { path: ["Workflow", "1. Plan"], lines: ["Confirm the branch.", "Push when ready."] },
+        { path: ["Common"], lines: ["Run the standard checks.", "", "Ship it."] },
+        { path: ["Workflow", "1. Plan"], lines: ["Confirm the branch.", "", "Push when ready."] },
         { path: ["Shared bit"], lines: ["Base line."] },
         { path: ["Disputed"], lines: ["area"] },
       ]),
@@ -105,6 +145,47 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
     for (const v of variants) {
       expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
     }
+  });
+
+  test("REGRESSION: a divergent position preceded by blank lines never nominates a blank anchor", () => {
+    // Real `SKILL.md` files are full of exactly this shape — a blank line
+    // before a heading, blank lines between list items. Two blank anchors
+    // in the SAME section (at indices 1 and 3) reproduce the crash the
+    // coordinator hit on `analyze-dashboard-vuln`: `resolveAnchor` called
+    // with anchor `""`, matching every blank line in the section instead of
+    // exactly one. Without `nominateAnchor` walking back to "Middle line."
+    // this test fails with "ambiguous anchor ... matched 2 positions",
+    // the same shape as the real crash's "matched 6 positions".
+    const majorityTail = ["Intro line.", "", "Middle line.", "", "Majority tail."];
+    const minorityTail = [
+      "Intro line.",
+      "",
+      "Middle line.",
+      "",
+      "> **repo-specific (wazuh-dashboard):** minority tail.",
+    ];
+
+    const variants = [
+      variant("wazuh-dashboard", [
+        { path: ["Section"], lines: minorityTail, markers: [{ lineIndex: 4, repo: "wazuh-dashboard" }] },
+      ]),
+      variant("wazuh-dashboard-plugins", [{ path: ["Section"], lines: majorityTail }]),
+      variant("wazuh-indexer", [{ path: ["Section"], lines: majorityTail }]),
+    ];
+
+    const extracted = extractSkill(diffSkill("a-skill", variants));
+
+    for (const v of variants) {
+      expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
+    }
+
+    // The override op exists (wazuh-dashboard is the minority) and its
+    // anchor is never blank — the fix, made an explicit assertion, not just
+    // an absence of a thrown error.
+    const op = extracted.overrides.get("wazuh-dashboard")!.find((o) => o.attribution === "override");
+    expect(op).toBeDefined();
+    expect(op!.anchor).not.toBeNull();
+    expect(op!.anchor!.trim().length).toBeGreaterThan(0);
   });
 });
 

@@ -61,7 +61,7 @@ export function renderCoreMarkdown(core: readonly CoreSection[]): string {
 }
 
 function opSortKey(op: PatchOp): string {
-  return JSON.stringify([op.heading, op.anchor, op.content, op.attribution, [...op.repos].sort()]);
+  return JSON.stringify([op.heading, op.anchor, op.offset, op.content, op.attribution, [...op.repos].sort()]);
 }
 
 function serializeOp(op: PatchOp): Record<string, unknown> {

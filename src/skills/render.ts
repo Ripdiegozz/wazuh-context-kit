@@ -29,13 +29,38 @@ function cell(value: string): string {
   return value.replaceAll("|", "\\|");
 }
 
+/**
+ * Wraps `value` in a Markdown inline code span using a backtick run LONGER
+ * than any run already inside it — CommonMark's own rule for nesting a
+ * backtick inside a code span.
+ *
+ * These reports render literal `SKILL.md` lines verbatim, and those lines
+ * are themselves full of inline code spans (`` `gh pr create` ``,
+ * `` `check-standards` ``). A fixed single backtick delimiter breaks the
+ * instant the wrapped value contains one of its own: the value's OWN closing
+ * backtick closes the outer span early, and everything after it leaks as raw
+ * markdown into the table or list it was rendered into. The finding is still
+ * legible in the JSON either way; only the report a human actually opens was
+ * mangled.
+ */
+function codeSpan(value: string): string {
+  const runs = value.match(/`+/g) ?? [];
+  const longestRun = runs.reduce((max, run) => Math.max(max, run.length), 0);
+  const fence = "`".repeat(longestRun + 1);
+  // CommonMark: a code span whose content starts or ends with a backtick
+  // needs a padding space on that side, or the fence visually merges into it.
+  const leadingSpace = value.startsWith("`") ? " " : "";
+  const trailingSpace = value.endsWith("`") ? " " : "";
+  return `${fence}${leadingSpace}${value}${trailingSpace}${fence}`;
+}
+
 function pathLabel(path: readonly string[]): string {
   return path.length === 0 ? "(preamble)" : path.join(" > ");
 }
 
 function renderGroup(g: SectionGroup): string[] {
   const lines: string[] = [];
-  const repos = g.repos.map((r) => `\`${cell(r)}\``).join(", ");
+  const repos = g.repos.map((r) => codeSpan(cell(r))).join(", ");
   const markerNote = g.marker === "named" ? " (named marker)" : g.marker === "unnamed" ? " (unnamed marker)" : "";
   if (g.body === null) {
     lines.push(`    - ${repos}: section absent${markerNote}`);
@@ -46,7 +71,7 @@ function renderGroup(g: SectionGroup): string[] {
     lines.push("      - (no lines unique to this group)");
   } else {
     for (const line of g.diffLines) {
-      lines.push(`      - \`${cell(line)}\``);
+      lines.push(`      - ${codeSpan(cell(line))}`);
     }
   }
   return lines;
@@ -84,14 +109,14 @@ function renderCategory(
 
 function renderSkill(skill: SkillDiff): string[] {
   const lines: string[] = [];
-  lines.push(`### \`${cell(skill.skill)}\``);
+  lines.push(`### ${codeSpan(cell(skill.skill))}`);
   lines.push("");
 
   if (skill.descriptions.length > 0) {
     lines.push("| repo | description |");
     lines.push("|---|---|");
     for (const d of skill.descriptions) {
-      lines.push(`| \`${cell(d.repo)}\` | ${cell(d.description)} |`);
+      lines.push(`| ${codeSpan(cell(d.repo))} | ${cell(d.description)} |`);
     }
     lines.push("");
   }
@@ -131,7 +156,7 @@ export function renderSkillsDiffMarkdown(diff: SkillsDiffJson): string {
   lines.push("| repo | included | reason |");
   lines.push("|---|---|---|");
   for (const r of diff.repos) {
-    lines.push(`| \`${cell(r.repo)}\` | ${r.included ? "yes" : "no"} | ${cell(r.reason)} |`);
+    lines.push(`| ${codeSpan(cell(r.repo))} | ${r.included ? "yes" : "no"} | ${cell(r.reason)} |`);
   }
   lines.push("");
 
@@ -149,7 +174,7 @@ export function renderSkillsDiffMarkdown(diff: SkillsDiffJson): string {
     lines.push("| skill | repo | description |");
     lines.push("|---|---|---|");
     for (const s of diff.singleRepoSkills) {
-      lines.push(`| \`${cell(s.skill)}\` | \`${cell(s.repo)}\` | ${cell(s.description)} |`);
+      lines.push(`| ${codeSpan(cell(s.skill))} | ${codeSpan(cell(s.repo))} | ${cell(s.description)} |`);
     }
   }
   lines.push("");
@@ -157,7 +182,7 @@ export function renderSkillsDiffMarkdown(diff: SkillsDiffJson): string {
   lines.push("## Out of scope");
   lines.push("");
   for (const item of diff.outOfScope) {
-    lines.push(`- \`${cell(item.path)}\` — ${cell(item.reason)}. Open criterion: ${cell(item.openCriterion)}.`);
+    lines.push(`- ${codeSpan(cell(item.path))} — ${cell(item.reason)}. Open criterion: ${cell(item.openCriterion)}.`);
   }
   lines.push("");
 
@@ -167,7 +192,7 @@ export function renderSkillsDiffMarkdown(diff: SkillsDiffJson): string {
   lines.push("|---|---|---|---|---|---|");
   for (const skill of diff.skills) {
     const c = skill.counts;
-    lines.push(`| \`${cell(skill.skill)}\` | ${c.total} | ${c.common} | ${c.override} | ${c.sharedOverride} | ${c.conflict} |`);
+    lines.push(`| ${codeSpan(cell(skill.skill))} | ${c.total} | ${c.common} | ${c.override} | ${c.sharedOverride} | ${c.conflict} |`);
   }
   lines.push("");
 

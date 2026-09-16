@@ -235,7 +235,7 @@ function groupByExactContent<T>(entries: readonly T[], keyOf: (entry: T) => stri
  * absent repo or erase the presence of an intentionally empty one.
  */
 function slotContentKey(e: { readonly text: readonly string[]; readonly isAbsentSection: boolean }): string {
-  return `${e.isAbsentSection ? "absent" : "present"} ${e.text.join("\n")}`;
+  return `${e.isAbsentSection ? "absent" : "present"}\u0000${e.text.join("\n")}`;
 }
 
 function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): LineMagnitude {
@@ -252,16 +252,30 @@ function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): Li
  *
  * Returns MORE THAN ONE block exactly when the groups at this position
  * disagree on marker KIND (a named group and a bare/unnamed group both
- * present). Collapsing them into one label always destroys one of the two
- * truths: a real `resolve-cve` position carried a group explicitly marked
- * `> **repo-specific (wazuh-dashboard):**` next to a group carrying a bare
- * `> **repo-specific:**`, and folding both into one `sharedOverride` erased
- * the wazuh-dashboard attribution the author actually wrote down. This is the
- * same collapsing bug already fixed twice — section to block, block to
- * group — one level further down: a category must never discard an
- * attribution present in one of its own groups, so a mixed position SPLITS
- * into a named `override` (its own groups) and a separate `sharedOverride`
- * (its own groups) rather than being forced to pick one label for both.
+ * present), OR when two or more distinct unmarked groups coexist with a
+ * marked one. Collapsing any of these into one label always destroys some
+ * of the truth at this position:
+ *
+ * - A real `resolve-cve` position carried a group explicitly marked
+ *   `> **repo-specific (wazuh-dashboard):**` next to a group carrying a bare
+ *   `> **repo-specific:**`, and folding both into one `sharedOverride` erased
+ *   the wazuh-dashboard attribution the author actually wrote down.
+ * - A marked group can also coexist with TWO OR MORE unmarked groups that
+ *   disagree with each other. The unmarked disagreement is a genuine,
+ *   unexplained conflict between those two — design decision 2's
+ *   "deliberately dumb" rule, a marker on a THIRD group cannot explain why
+ *   two unmarked ones disagree — but that conflict must not swallow the
+ *   marked group's own, separate attribution just because they share a
+ *   position. This was latent (0 violations against the real seven
+ *   repositories) precisely because the real data never happened to produce
+ *   three-or-more-way splits at one position; it is exactly the kind of bug
+ *   that stays hidden until a literal test manufactures the shape.
+ *
+ * This is the same collapsing bug already fixed three times — section to
+ * block, block to group, group to category — one level further down: a
+ * category must never discard an attribution present in one of its own
+ * groups, so a mixed or plural position SPLITS into as many blocks as it
+ * needs rather than being forced under one label.
  */
 function classifyPosition(
   slotEntries: readonly { repo: string; indices: readonly number[]; text: readonly string[]; section: ParsedSection | undefined; isAbsentSection: boolean }[],
@@ -285,22 +299,38 @@ function classifyPosition(
   const namedGroups = groups.filter((g) => g.marker === "named");
   const unnamedGroups = groups.filter((g) => g.marker === "unnamed");
 
-  // More than one DISTINCT unmarked variant is unexplained divergence no
-  // matter what else is present — the whole heuristic stays deliberately
-  // dumb (design decision 2): a marker attached to a THIRD group cannot
-  // explain why two unmarked groups disagree with each other.
-  const hasUnexplainedPlurality = unmarkedGroups.length > 1;
-  const hasNoMarker = namedGroups.length === 0 && unnamedGroups.length === 0;
-
-  if (hasUnexplainedPlurality || hasNoMarker) {
-    const category: SectionCategory = "conflict";
-    return [{ category, groups, magnitude: magnitudeFor(groups, sectionTotal) }];
+  // No marker anywhere at this position: one plain conflict, unchanged.
+  if (namedGroups.length === 0 && unnamedGroups.length === 0) {
+    return [{ category: "conflict", groups, magnitude: magnitudeFor(groups, sectionTotal) }];
   }
 
-  // Exactly one marker KIND present (plus at most one unmarked baseline):
-  // the case already measured against the real seven repositories and
-  // matching an independent oracle's `common`/`override` counts exactly —
-  // unchanged.
+  // Two or more DISTINCT unmarked variants are unexplained divergence among
+  // THEMSELVES — design decision 2's "deliberately dumb" rule, a marker on a
+  // THIRD group cannot explain why two unmarked groups disagree with each
+  // other — but that must not swallow a marked group's own attribution. The
+  // unmarked disagreement becomes its own `conflict` block; each marked kind
+  // present becomes its own separate block, never folded into the conflict.
+  if (unmarkedGroups.length > 1) {
+    const blocks: DivergentBlock[] = [
+      { category: "conflict", groups: unmarkedGroups, magnitude: magnitudeFor(unmarkedGroups, sectionTotal) },
+    ];
+    if (namedGroups.length > 0) {
+      blocks.push({ category: "override", groups: namedGroups, magnitude: magnitudeFor(namedGroups, sectionTotal) });
+    }
+    if (unnamedGroups.length > 0) {
+      blocks.push({
+        category: "sharedOverride",
+        groups: unnamedGroups,
+        magnitude: magnitudeFor(unnamedGroups, sectionTotal),
+      });
+    }
+    return blocks;
+  }
+
+  // From here, at most one unmarked group. Exactly one marker KIND present
+  // (plus at most that one unmarked baseline): the case already measured
+  // against the real seven repositories and matching an independent
+  // oracle's `common`/`override` counts exactly — unchanged.
   if (namedGroups.length === 0 || unnamedGroups.length === 0) {
     const category: SectionCategory = unnamedGroups.length > 0 ? "sharedOverride" : "override";
     return [{ category, groups, magnitude: magnitudeFor(groups, sectionTotal) }];

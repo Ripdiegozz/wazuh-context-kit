@@ -195,6 +195,82 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
   });
 });
 
+describe("a diff line containing a backtick renders with a safe delimiter (CodeRabbit PR #16 finding c)", () => {
+  test("a diffLine with an inline code span does not break the markdown code span it is wrapped in", () => {
+    // SKILL.md prose is full of its own inline code spans — `gh pr create`,
+    // `check-standards` — so a fixed single backtick around the whole line
+    // breaks the moment the line contains one of its own. The finding is
+    // legible in the JSON either way; only the rendered report a human
+    // actually opens was mangled.
+    const lineWithBacktick = "run `gh pr create` as a draft";
+    const json = baseJson({
+      skills: [
+        {
+          skill: "create-pr",
+          repos: ["wazuh-dashboard", "wazuh-dashboard-plugins"],
+          descriptions: [],
+          sections: [
+            {
+              path: ["Workflow"],
+              blocks: [
+                {
+                  category: "conflict",
+                  magnitude: { total: 2, common: 1, differing: 1 },
+                  groups: [
+                    { repos: ["wazuh-dashboard"], body: lineWithBacktick, diffLines: [lineWithBacktick], marker: "none" },
+                    { repos: ["wazuh-dashboard-plugins"], body: "run it directly", diffLines: ["run it directly"], marker: "none" },
+                  ],
+                },
+              ],
+            },
+          ],
+          counts: { total: 1, common: 0, override: 0, sharedOverride: 0, conflict: 1 },
+        },
+      ],
+    });
+
+    const md = renderSkillsDiffMarkdown(json);
+
+    // A single backtick immediately after the value's own backtick would
+    // close the span early, leaking `` create` as a draft` `` as raw
+    // markdown. The whole line must appear delimited by a LONGER backtick
+    // run than any run inside it, not split apart.
+    expect(md).toContain("``run `gh pr create` as a draft``");
+  });
+
+  test("a diffLine consisting entirely of a double-backtick span still gets a longer fence", () => {
+    const doubleBacktick = "use ``inline code`` here";
+    const json = baseJson({
+      skills: [
+        {
+          skill: "create-pr",
+          repos: ["wazuh-dashboard", "wazuh-dashboard-plugins"],
+          descriptions: [],
+          sections: [
+            {
+              path: ["Workflow"],
+              blocks: [
+                {
+                  category: "conflict",
+                  magnitude: { total: 2, common: 1, differing: 1 },
+                  groups: [
+                    { repos: ["wazuh-dashboard"], body: doubleBacktick, diffLines: [doubleBacktick], marker: "none" },
+                    { repos: ["wazuh-dashboard-plugins"], body: "plain line", diffLines: ["plain line"], marker: "none" },
+                  ],
+                },
+              ],
+            },
+          ],
+          counts: { total: 1, common: 0, override: 0, sharedOverride: 0, conflict: 1 },
+        },
+      ],
+    });
+
+    const md = renderSkillsDiffMarkdown(json);
+    expect(md).toContain("```use ``inline code`` here```");
+  });
+});
+
 describe("the divergence profile is a per-skill table (task 3.3)", () => {
   test("counts appear as a table a reader can scan without opening files", () => {
     const json = baseJson({

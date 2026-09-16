@@ -17,6 +17,12 @@
  *   `../parse/index-references.ts`, which took a review cycle to get right
  *   there. Fence state is tracked line by line and gates BOTH heading
  *   detection and marker detection, so an example fence cannot forge either.
+ *   Both CommonMark fence characters are recognised, backtick AND tilde —
+ *   an earlier version matched only backticks, which is worse than matching
+ *   neither: the backtick case passing every test suggested the whole class
+ *   was covered, when a `~~~` block was not gated at all. A fence closes
+ *   only with the SAME character, at least as long as the opener, matching
+ *   CommonMark's own rule.
  * - A heading path appearing twice in one file is a loud failure, not a
  *   silent overwrite. A merged section would still parse, still diff, and
  *   still produce a classification — just a wrong one, indistinguishable from
@@ -26,7 +32,7 @@
 import { parse as parseYaml } from "yaml";
 import type { ParsedSection, ParsedSkill, SectionMarker } from "./types.ts";
 
-const FENCE_LINE = /^\s*```/;
+const FENCE_LINE = /^\s*(`{3,}|~{3,})/;
 const HEADING_LINE = /^(#{1,6})\s+(.*)$/;
 const MARKER_LINE = /^>\s*\*\*repo-specific(?:\s*\(([^)]*)\))?:\*\*/;
 
@@ -89,7 +95,11 @@ export function parseSkill(text: string): ParsedSkill {
   let currentPath: string[] = [];
   let currentLines: string[] = [];
   let currentMarkers: SectionMarker[] = [];
-  let inFence = false;
+  // The open fence's character and length, or null when not inside one. A
+  // fence only closes with the SAME character and a run at least as long as
+  // the opener (CommonMark), so a `~~~` line can never close a backtick
+  // fence or vice versa.
+  let openFence: { readonly char: string; readonly length: number } | null = null;
 
   function commitSection(): void {
     const key = pathKey(currentPath);
@@ -103,13 +113,21 @@ export function parseSkill(text: string): ParsedSkill {
   }
 
   for (const line of rest) {
-    if (FENCE_LINE.test(line)) {
-      inFence = !inFence;
+    const fenceMatch = FENCE_LINE.exec(line);
+    if (fenceMatch) {
+      const marker = fenceMatch[1]!;
+      if (openFence === null) {
+        openFence = { char: marker[0]!, length: marker.length };
+      } else if (marker[0] === openFence.char && marker.length >= openFence.length) {
+        openFence = null;
+      }
+      // A fence-looking line that does not close the open fence (wrong
+      // character, or too short) is still just content inside it.
       currentLines.push(line);
       continue;
     }
 
-    if (!inFence) {
+    if (openFence === null) {
       const heading = HEADING_LINE.exec(line);
       if (heading) {
         commitSection();

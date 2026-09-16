@@ -619,3 +619,41 @@ describe("anchors are a true multi-way common subsequence, not a pairwise reduct
     }
   });
 });
+
+describe("a marked group survives even when unmarked groups disagree among themselves (the plurality-collapse defect)", () => {
+  test("a named group coexisting with two or more distinct unmarked groups is reported separately, not folded into their conflict", () => {
+    // Flagged after the resolve-cve fix shipped: `hasUnexplainedPlurality`
+    // forced EVERY group at a position into one `conflict` block the moment
+    // two or more unmarked groups disagreed — even a marked group sharing
+    // that position got swept in, discarding its attribution. Latent on the
+    // real data (0 invariant violations there), which is exactly why it
+    // needed a literal test rather than waiting to be found again.
+    const named = variant(
+      "repo-named",
+      ["> **repo-specific (repo-named):** declared this variant."],
+      [{ lineIndex: 0, repo: "repo-named" }],
+    );
+    const old = variant("repo-old", ["old text"]);
+    const fresh = variant("repo-new", ["new text"]);
+
+    const result = diffSkill("a-skill", [named, old, fresh]);
+    const section = result.sections[0]!;
+
+    // The unexplained disagreement between the two unmarked variants is
+    // still reported as its own conflict...
+    const conflictBlock = section.blocks.find((b) => b.category === "conflict")!;
+    expect(conflictBlock).toBeDefined();
+    expect(conflictBlock.groups.flatMap((g) => g.repos).sort()).toEqual(["repo-new", "repo-old"]);
+    expect(conflictBlock.groups.every((g) => g.marker === "none")).toBe(true);
+
+    // ...but the named group is NOT swept into it: it survives as its own
+    // override, attributed to the repository that declared it.
+    const overrideBlock = section.blocks.find((b) => b.category === "override")!;
+    expect(overrideBlock).toBeDefined();
+    expect(overrideBlock.groups).toHaveLength(1);
+    expect(overrideBlock.groups[0]!.repos).toEqual(["repo-named"]);
+    expect(overrideBlock.groups[0]!.marker).toBe("named");
+
+    expect(section.blocks).toHaveLength(2);
+  });
+});

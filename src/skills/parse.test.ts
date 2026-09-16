@@ -172,6 +172,54 @@ describe("a marker inside a fenced code block is text, not a marker (task 1.5)",
     const second = parsed.sections.find((s) => s.path.length === 1 && s.path[0] === "Second")!;
     expect(second.markers).toEqual([{ lineIndex: 0, repo: null }]);
   });
+
+  test("a ~~~ fence is recognised too, not just backticks (CodeRabbit PR #16 finding b)", () => {
+    // Half-handled is worse than not handled: a backtick-only fence gate
+    // passing every test suggests the whole class of "markers inside a fence
+    // are text" is covered, when a `~~~` fence — equally valid Markdown —
+    // was not gated at all.
+    const text = [
+      "---",
+      "name: x",
+      "description: y",
+      "---",
+      "## Example",
+      "~~~",
+      "> **repo-specific (wazuh-dashboard):** this is example text, not a real marker.",
+      "~~~",
+      "> **repo-specific (wazuh-dashboard):** this one IS real, outside the fence.",
+    ].join("\n");
+
+    const parsed = parseSkill(text);
+    const section = parsed.sections.find((s) => s.path.length > 0)!;
+
+    expect(section.markers).toHaveLength(1);
+    expect(section.markers[0]!.repo).toBe("wazuh-dashboard");
+  });
+
+  test("a fence only closes with the SAME character, at least as long as the opener", () => {
+    // A `~~~` line inside a backtick fence does not close it (and vice
+    // versa) — CommonMark's own rule, and the one that makes a stray tilde
+    // line inside an example backtick block impossible to misread as a real
+    // close.
+    const text = [
+      "---",
+      "name: x",
+      "description: y",
+      "---",
+      "## Example",
+      "```",
+      "~~~",
+      "> **repo-specific (wazuh-dashboard):** still inside the backtick fence.",
+      "```",
+      "> **repo-specific:** this one is real, after the real close.",
+    ].join("\n");
+
+    const parsed = parseSkill(text);
+    const section = parsed.sections.find((s) => s.path.length > 0)!;
+
+    expect(section.markers).toEqual([{ lineIndex: 4, repo: null }]);
+  });
 });
 
 describe("a duplicate heading path fails loudly (task 1.6)", () => {

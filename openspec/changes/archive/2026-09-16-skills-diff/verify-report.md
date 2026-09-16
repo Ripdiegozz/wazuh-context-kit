@@ -36,7 +36,14 @@ The expected answer was computed separately in Python against the same repos,
 before and alongside the implementation, and the implementation was checked
 against that oracle rather than against itself.
 
-Two independent implementations of the same spec converged:
+**Corrected from an earlier draft of this report, which said the two
+implementations "converged" and then tabled `override` at 17 vs 18 with no
+explanation.** A CodeRabbit review on PR #16 flagged exactly that: an
+unexplained count difference reads as convergence when the totals plainly
+differ, and that is an overclaim, not a rounding error.
+
+Stated plainly: the two implementations matched EXACTLY on `repos`, `skills`,
+`sections`, and `common`. They did NOT match on `override` or `conflict`.
 
 | | Oracle | Implementation |
 | --- | --- | --- |
@@ -45,13 +52,29 @@ Two independent implementations of the same spec converged:
 | sections | 61 | 61 |
 | common | 21 | 21 |
 | override | 17 | 18 |
+| conflict | 54 | 50 |
 
-Counts alone would not have been enough. Line-level coverage was compared per
-category: for `conflict` in `create-pr` both cover **the identical 127 lines**,
-with zero lines unique to either side. Where block counts differ (18 vs 14
-there) it is segmentation granularity — the same lines chunked differently — not
-a lost or invented finding. "We count differently" and "you are missing
-findings" look identical in a totals table.
+Counts alone would not have been enough to call this anything. Line-level
+coverage was compared per category: for `conflict` in `create-pr` both cover
+**the identical 127 lines**, with zero lines unique to either side. Where
+block counts differ (18 vs 14 there) it is segmentation granularity — the same
+lines chunked into a different number of blocks — not a lost or invented
+finding. "We count differently" and "you are missing findings" look identical
+in a totals table, and only the line-level check tells them apart.
+
+That line-level check is what made the remaining count difference worth
+chasing rather than shrugging off, and a cause was found: the anchor
+computation (`commonAcrossGroups` in `src/skills/diff.ts`) reduced the common
+line set PAIRWISE — `lcs(lcs(a, b), c)` — which can discard a line present in
+every variant depending on which pairwise alignment the reduction happens to
+pick first. A dropped anchor merges positions that should stay separable,
+changing block boundaries and, downstream, which blocks get counted as
+`override` versus `conflict`. This is the probable cause of the residual
+17-vs-18 and 54-vs-50 difference, though it was found and fixed after this
+report's run and is not itself re-verified against the real repos here — see
+`src/skills/diff.ts`'s `commonAcrossGroups` docblock and `diff.test.ts`'s
+"anchors are a true multi-way common subsequence" test for the fix and its
+regression coverage.
 
 The oracle found three defects, and was itself wrong twice:
 

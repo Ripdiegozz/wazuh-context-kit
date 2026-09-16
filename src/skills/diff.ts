@@ -74,22 +74,92 @@ function lcs(a: readonly string[], b: readonly string[]): string[] {
   return result;
 }
 
+/** Whether `candidate` appears, in order, as a subsequence of `body`. */
+function isSubsequence(candidate: readonly string[], body: readonly string[]): boolean {
+  let ci = 0;
+  for (const line of body) {
+    if (ci < candidate.length && line === candidate[ci]) ci++;
+  }
+  return ci === candidate.length;
+}
+
 /**
- * The lines common to EVERY group's body, computed as a reduction rather than
- * a comparison against one chosen group (design decision 1: "there is no base
- * repository"). LCS(LCS(a, b), c) is a subsequence of a, b AND c, so folding
- * groups in one at a time — in a fixed, sorted order for determinism — always
- * yields a sequence that is a true subsequence of every group's lines,
- * regardless of which order they were folded in. These common lines double
- * as the ANCHORS that segment a section into independent blocks (layer 2).
+ * The lines common to EVERY group's body — the ANCHORS that segment a
+ * section into independent blocks (layer 2).
+ *
+ * An earlier version reduced this PAIRWISE: `lcs(lcs(a, b), c)`. That is
+ * unsound, not just imprecise — an independent oracle found the exact
+ * counter-example: reducing `["a","b"]` against `["b","a"]` can select `"b"`
+ * (a valid, but not the only, optimal 2-way LCS), and reducing THAT against
+ * `["a"]` then finds no match at all, even though `"a"` is present in every
+ * one of the three bodies. A dropped anchor merges positions that should be
+ * separable, which silently changes block boundaries and therefore
+ * classifications.
+ *
+ * The fix computes a genuine multi-way common subsequence in two steps:
+ *
+ * 1. SEED from a value-multiplicity lower bound — for each distinct line,
+ *    the minimum number of times it occurs across ALL bodies at once. This
+ *    is order-agnostic (a set/multiset intersection), so it cannot be fooled
+ *    by which pairwise alignment a 2-way LCS happens to pick: a line present
+ *    in every body always has a multiplicity of at least 1. Scanning one
+ *    reference body while respecting this per-value budget yields a
+ *    candidate that already contains everything that COULD be universal.
+ * 2. REPAIR by validating the candidate is an actual ordered subsequence of
+ *    every body, shrinking it via a real LCS only against a body where
+ *    validation concretely fails (never on a guess or a tie-break). Each
+ *    repair strictly shortens the candidate, so this always terminates, and
+ *    the result is verified, not assumed, to be a true subsequence of every
+ *    body.
+ *
+ * Bodies are still folded with no group privileged as "the reference" for
+ * MEANING (design decision 1: "there is no base repository") — `bodies[0]`
+ * is only where the scan starts; every body constrains the multiplicity
+ * budget equally, and every body is validated against, including the first.
  */
 function commonAcrossGroups(bodies: readonly (readonly string[])[]): string[] {
   if (bodies.length === 0) return [];
-  let common: string[] = [...bodies[0]!];
-  for (const body of bodies.slice(1)) {
-    common = lcs(common, body);
+  if (bodies.length === 1) return [...bodies[0]!];
+
+  const countsPerBody = bodies.map((body) => {
+    const counts = new Map<string, number>();
+    for (const line of body) counts.set(line, (counts.get(line) ?? 0) + 1);
+    return counts;
+  });
+
+  const allValues = new Set<string>();
+  for (const counts of countsPerBody) {
+    for (const value of counts.keys()) allValues.add(value);
   }
-  return common;
+
+  const minCount = new Map<string, number>();
+  for (const value of allValues) {
+    let min = Infinity;
+    for (const counts of countsPerBody) min = Math.min(min, counts.get(value) ?? 0);
+    minCount.set(value, min);
+  }
+
+  const budget = new Map(minCount);
+  let candidate: string[] = [];
+  for (const line of bodies[0]!) {
+    const remaining = budget.get(line) ?? 0;
+    if (remaining > 0) {
+      candidate.push(line);
+      budget.set(line, remaining - 1);
+    }
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const body of bodies) {
+      if (isSubsequence(candidate, body)) continue;
+      candidate = lcs(candidate, body);
+      changed = true;
+    }
+  }
+
+  return candidate;
 }
 
 /**
@@ -155,6 +225,19 @@ function groupByExactContent<T>(entries: readonly T[], keyOf: (entry: T) => stri
   return order.map((key) => byKey.get(key)!);
 }
 
+/**
+ * Grouping key for one repo's content at one slot. `isAbsentSection` is part
+ * of the key, not just `text`: an ABSENT section and a PRESENT section with
+ * no lines at this slot both produce `text = []`, and `"".join("\n")` cannot
+ * tell them apart on its own — a real section a repo does not have and a
+ * real section it has with an empty body are different facts (design
+ * decision 1, task 2.8), and collapsing them would invent content for the
+ * absent repo or erase the presence of an intentionally empty one.
+ */
+function slotContentKey(e: { readonly text: readonly string[]; readonly isAbsentSection: boolean }): string {
+  return `${e.isAbsentSection ? "absent" : "present"} ${e.text.join("\n")}`;
+}
+
 function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): LineMagnitude {
   const differing = Math.max(...groups.map((g) => g.diffLines.length));
   return { total: sectionTotal, common: sectionTotal - differing, differing };
@@ -184,7 +267,7 @@ function classifyPosition(
   slotEntries: readonly { repo: string; indices: readonly number[]; text: readonly string[]; section: ParsedSection | undefined; isAbsentSection: boolean }[],
   sectionTotal: number,
 ): DivergentBlock[] {
-  const contentGroups = groupByExactContent(slotEntries, (e) => e.text.join("\n"));
+  const contentGroups = groupByExactContent(slotEntries, slotContentKey);
 
   const groups: SectionGroup[] = contentGroups.map((members) => {
     const representative = members[0]!;
@@ -272,7 +355,7 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
       };
     });
 
-    const distinctContents = new Set(slotEntries.map((e) => e.text.join("\n")));
+    const distinctContents = new Set(slotEntries.map(slotContentKey));
     if (distinctContents.size <= 1) continue; // nothing diverges at this position
 
     blocks.push(...classifyPosition(slotEntries, sectionTotal));

@@ -489,11 +489,27 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
 
   const loaded = await loadSkills(targets);
 
+  // `fetchRepos` reports non-fatal skips SEPARATELY from what it fetched
+  // (e.g. `wazuh-dashboard-ml-commons`, skipped because it has no `5.0.0`
+  // branch). Left out of `repos`, a skipped repository would simply vanish
+  // from the artifact and the denominator — the exact "resolved and
+  // contributed nothing" vs "could not be resolved" collapse
+  // `repo-fetch`'s own requirement forbids ("A repository contributing no
+  // facts is still reported"). Each skip becomes its own excluded
+  // `RepoSelection`, with a reason distinct from "no .claude/skills", merged
+  // in before building the artifact.
+  const skippedRepos = fetchOutcome.skipped.map((s) => ({
+    repo: s.repo,
+    included: false,
+    reason: `not fetched: ${s.reason}`,
+  }));
+  const allRepos = [...loaded.repos, ...skippedRepos];
+
   const skillsDiff = buildSkillsDiffJson({
     ref,
     generatedAt: frozenTime ?? new Date().toISOString(),
     tool: TOOL,
-    repos: loaded.repos,
+    repos: allRepos,
     variantsBySkill: loaded.variantsBySkill,
     singleRepoSkills: loaded.singleRepoSkills,
   });
@@ -507,7 +523,7 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
   );
   await writeFile(join(target, "SKILLS-DIFF.md"), renderSkillsDiffMarkdown(skillsDiff), "utf8");
 
-  const included = loaded.repos.filter((r) => r.included).length;
+  const included = skillsDiff.repos.filter((r) => r.included).length;
   const totalCounts = skillsDiff.skills.reduce(
     (sum, s) => ({
       common: sum.common + s.counts.common,
@@ -519,7 +535,7 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
   );
 
   console.log(`ref              ${skillsDiff.ref}`);
-  console.log(`repos included   ${included} of ${loaded.repos.length}`);
+  console.log(`repos included   ${included} of ${skillsDiff.repos.length}`);
   console.log(`skills           ${skillsDiff.skills.length}`);
   console.log(`single-repo      ${skillsDiff.singleRepoSkills.length} (reported, not diffed)`);
   console.log(`common           ${totalCounts.common}`);

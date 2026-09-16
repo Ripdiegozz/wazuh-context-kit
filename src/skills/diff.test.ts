@@ -477,6 +477,40 @@ describe("absence is divergence too (task 2.8)", () => {
     const presentGroup = block.groups.find((g) => g.body !== null)!;
     expect(presentGroup.diffLines).toEqual(present);
   });
+
+  test("a present-but-EMPTY section and a genuinely ABSENT section are never merged (CodeRabbit PR #16 finding 3)", () => {
+    // Both produce zero lines at a slot, so keying purely on joined text
+    // (`"".join("\\n")`) makes them indistinguishable. A section a repo does
+    // not have and a section it has with no body are different facts, and
+    // collapsing them invents content for the absent repo (or erases the
+    // presence of an intentionally empty one).
+    const withBody = ["Body line."];
+    const majority = REPOS.slice(0, 5).map((repo) => variant(repo, withBody));
+    const presentEmpty = variant(REPOS[5], []); // the heading exists; nothing follows it
+    const absent: SkillVariant = {
+      repo: REPOS[6],
+      skill: { frontmatter: { name: "a-skill", description: "x" }, sections: [] },
+    };
+
+    const result = diffSkill("a-skill", [...majority, presentEmpty, absent]);
+    const section = result.sections[0]!;
+
+    expect(section.blocks).toHaveLength(1);
+    const block = section.blocks[0]!;
+
+    // Three distinct groups, not two: the present-empty and absent repos
+    // must NOT collapse into one.
+    expect(block.groups).toHaveLength(3);
+
+    const absentGroup = block.groups.find((g) => g.repos.includes(REPOS[6]))!;
+    const presentEmptyGroup = block.groups.find((g) => g.repos.includes(REPOS[5]))!;
+    expect(absentGroup.repos).toEqual([REPOS[6]]);
+    expect(absentGroup.body).toBeNull();
+    expect(presentEmptyGroup.repos).toEqual([REPOS[5]]);
+    // Present-but-empty is real content (an empty string), not absence.
+    expect(presentEmptyGroup.body).toBe("");
+    expect(presentEmptyGroup.body).not.toBeNull();
+  });
 });
 
 describe("classification is total (task 2.9)", () => {
@@ -549,5 +583,39 @@ describe("per-skill counts (task 2.11)", () => {
     expect(Object.keys(result.counts).sort()).toEqual(
       ["total", "common", "override", "sharedOverride", "conflict"].sort(),
     );
+  });
+});
+
+describe("anchors are a true multi-way common subsequence, not a pairwise reduction (the resolve-cve/create-pr defect)", () => {
+  test("a line present in every variant is never dropped, even when a pairwise reduction would drop it", () => {
+    // The exact counter-example an independent oracle reported: reducing
+    // ["a","b"] against ["b","a"] pairwise can select "b" (a valid, but not
+    // the only, optimal 2-way LCS); reducing THAT against ["a"] then finds
+    // NO match, even though "a" is present in all three bodies. A dropped
+    // anchor merges positions that should stay separable and silently
+    // changes block boundaries — likely the source of the residual
+    // disagreement in override/conflict counts against the real repos.
+    const variants: SkillVariant[] = [
+      variant("repo-1", ["a", "b"]),
+      variant("repo-2", ["b", "a"]),
+      variant("repo-3", ["a"]),
+    ];
+
+    const result = diffSkill("a-skill", variants);
+    const section = result.sections[0]!;
+
+    // "a" is common to every variant, so it must never appear as a
+    // differing line in ANY block — it is context, not a finding.
+    for (const block of section.blocks) {
+      for (const group of block.groups) {
+        expect(group.diffLines).not.toContain("a");
+      }
+    }
+
+    // And the magnitude must reflect that "a" was recognised as shared: at
+    // least one line of the 2-line section is common, in every block.
+    for (const block of section.blocks) {
+      expect(block.magnitude.common).toBeGreaterThan(0);
+    }
   });
 });

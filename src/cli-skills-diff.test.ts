@@ -237,3 +237,46 @@ describe("a different-family repository's own skills are reported, not merged in
     }
   }, 30_000);
 });
+
+describe("a skipped repository stays visible in the artifact (CodeRabbit PR #16 finding 2)", () => {
+  test("a repo fetchRepos could not resolve appears as excluded, with a reason distinct from 'no .claude/skills', and counts in the denominator", async () => {
+    // `fetchRepos` reports non-fatal skips SEPARATELY from what it fetched
+    // (e.g. a repo with no matching ref branch). An invalid repository name
+    // is the hermetic way to force a skip here — `fetchOneRepo` rejects it
+    // before ever touching git or the network, so this test needs no
+    // fixture beyond a bad name in sources.yml.
+    const badName = "not a valid repo name!";
+    const cwd = await buildWarmWorkdir(
+      { "wazuh-dashboard": "platform", "wazuh-dashboard-plugins": "dashboard", [badName]: "dashboard" },
+      {
+        "wazuh-dashboard": { ".claude/skills/create-pr/SKILL.md": skillMd("create-pr", "for wazuh-dashboard", "Shared line.") },
+        "wazuh-dashboard-plugins": {
+          ".claude/skills/create-pr/SKILL.md": skillMd("create-pr", "for wazuh-dashboard-plugins", "Shared line."),
+        },
+      },
+    );
+    try {
+      const out = join(cwd, "out");
+      const result = await runCli(["skills-diff", "--ref", REF, "--frozen-time", FROZEN_TIME, "--out", out], cwd);
+      expect(result.code).toBe(0);
+
+      const json = JSON.parse(await readFile(join(out, REF, "skills-diff.json"), "utf8")) as {
+        repos: Array<{ repo: string; included: boolean; reason: string }>;
+      };
+
+      // Present, not vanished, and distinguishable from "no .claude/skills".
+      const skippedEntry = json.repos.find((r) => r.repo === badName);
+      expect(skippedEntry).toBeDefined();
+      expect(skippedEntry!.included).toBe(false);
+      expect(skippedEntry!.reason).not.toContain("no .claude/skills");
+      expect(skippedEntry!.reason.toLowerCase()).toContain("invalid");
+
+      // The denominator counts it: 3 repos considered, 2 actually included.
+      expect(json.repos).toHaveLength(3);
+      expect(json.repos.filter((r) => r.included)).toHaveLength(2);
+      expect(result.stdout).toContain("repos included   2 of 3");
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  }, 30_000);
+});

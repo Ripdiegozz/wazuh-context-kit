@@ -27,7 +27,8 @@ import { resolveAnchor } from "./anchor.ts";
 import { diffSkill } from "./diff.ts";
 import { extractSkill as extractSkillUnchecked } from "./extract.ts";
 import type { CoreSection, ExtractedSkill } from "./extract.ts";
-import type { SectionMarker, SkillDiff, SkillVariant } from "./types.ts";
+import { reconstructRepo } from "./reconstruct.ts";
+import type { SectionMarker, SkillVariant } from "./types.ts";
 
 /**
  * The invariant this file exists to hold, applied to EVERY test in this
@@ -89,10 +90,38 @@ function assertAnchorsResolve(extracted: ExtractedSkill): void {
   }
 }
 
-function extractSkill(diff: SkillDiff): ExtractedSkill {
-  const result = extractSkillUnchecked(diff);
+/**
+ * The WEAKER, cheaper companion to full round-trip equality: reconstruction
+ * must preserve the LINE COUNT for every repo, even in tests that never
+ * assert full byte equality themselves (most of this file's tests check one
+ * op's attribution, not the whole reconstructed body). Two consecutive
+ * blank lines collapsing into one, or a trailing blank vanishing — the
+ * real-corpus bug found in `diff.ts`'s `bodyKey`/`slotContentKey` — changes
+ * the line count, so this catches that whole class in one cheap stroke,
+ * across every extraction this file builds, not just the ones with a
+ * dedicated round-trip assertion.
+ */
+function assertReconstructionPreservesLineCount(
+  extracted: ExtractedSkill,
+  variants: readonly { repo: string; skill: { sections: readonly { lines: readonly string[] }[] } }[],
+): void {
+  for (const v of variants) {
+    const expectedLength = v.skill.sections.reduce((sum, s) => sum + s.lines.length, 0);
+    const actualLength = reconstructRepo(extracted, v.repo).length;
+    if (actualLength !== expectedLength) {
+      throw new Error(
+        `assertReconstructionPreservesLineCount: skill '${extracted.skill}' repo '${v.repo}' ` +
+          `reconstructed ${actualLength} lines, expected ${expectedLength} — a line was dropped or duplicated`,
+      );
+    }
+  }
+}
+
+function extractSkill(skillName: string, variants: readonly SkillVariant[]): ExtractedSkill {
+  const result = extractSkillUnchecked(diffSkill(skillName, variants));
   assertNoBlankAnchor(result);
   assertAnchorsResolve(result);
+  assertReconstructionPreservesLineCount(result, variants);
   return result;
 }
 
@@ -131,7 +160,7 @@ describe("a section with no divergent blocks goes to the core whole (task 2.1)",
     const lines = ["Run the standard checks.", "Nothing repo-specific here."];
     const variants = REPOS.map((repo) => variant(repo, [{ path: ["Section"], lines }]));
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     expect(extracted.core).toHaveLength(1);
     expect(extracted.core[0]!.path).toEqual(["Section"]);
@@ -163,7 +192,7 @@ describe("a divergent position: the MAJORITY lands in core, the minority carries
         : variant(repo, [{ path: ["Section"], lines: base }]),
     );
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     // The majority (wazuh-dashboard-plugins + wazuh-indexer) is the core —
     // "Push when ready." is NOT relegated to an op just because one repo of
@@ -198,7 +227,7 @@ describe("a marked divergence becomes an op attributed to the repos in its group
         : variant(repo, [{ path: ["Section"], lines: base }]),
     );
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     // wazuh-dashboard + wazuh-dashboard-plugins are the majority: "Open the
     // PR." is core, and only wazuh-indexer's deviation is an op.
@@ -225,7 +254,7 @@ describe("an unmarked divergence goes to conflicts, never to any overrides/<repo
       variant("wazuh-indexer", [{ path: ["Section"], lines: ["affected area"] }]),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     expect(flatten(extracted.core[0]!)).toEqual(["affected area"]);
     expect(extracted.conflicts).toHaveLength(1);
@@ -260,7 +289,7 @@ describe("an unnamed-marker divergence is attributed to no single repo (task 2.5
       ),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     expect(flatten(extracted.core[0]!)).toEqual(base);
 
@@ -295,7 +324,7 @@ describe("the core share is computed and reported per skill (task 2.6)", () => {
         : variant(repo, [{ path: ["Section"], lines: base }]),
     );
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
     // Core: "one","two","four","five" (anchors) + "three" (majority slot) = 5
     // lines; the minority op is 1 line. 5 / 6.
     expect(extracted.coreShare).toBeCloseTo(5 / 6, 5);
@@ -311,7 +340,7 @@ describe("the core share is computed and reported per skill (task 2.6)", () => {
       variant("wazuh-indexer", [{ path: ["Section"], lines: ["indexer-only content, wall to wall"] }]),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     // "wazuh-dashboard" sorts first among the three tied candidates.
     expect(flatten(extracted.core[0]!)).toEqual(["dashboard-only content, wall to wall"]);
@@ -329,7 +358,7 @@ describe("a section absent in one variant surfaces as divergence, not silent omi
       variant("wazuh-indexer", []),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
     const section = coreFor(extracted, ["Extra"]);
     expect(section).toBeDefined();
     expect([...section.absentFor].sort()).toEqual(["wazuh-dashboard-plugins", "wazuh-indexer"]);

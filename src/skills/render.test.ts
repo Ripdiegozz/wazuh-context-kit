@@ -67,6 +67,7 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
               path: ["Workflow", "3. Typecheck"],
               wholeLines: null,
               anchors: [],
+              commonSlots: [],
               blocks: [
                 {
                   category: "conflict",
@@ -113,6 +114,7 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
               path: ["Issue source"],
               wholeLines: null,
               anchors: [],
+              commonSlots: [],
               blocks: [
                 {
                   category: "override",
@@ -156,6 +158,7 @@ describe("a non-empty category renders its rows, not just the count (task 3.2)",
               path: ["Workflow", "1. Plan"],
               wholeLines: null,
               anchors: [],
+              commonSlots: [],
               blocks: [
                 {
                   category: "conflict",
@@ -224,6 +227,7 @@ describe("a diff line containing a backtick renders with a safe delimiter (CodeR
               path: ["Workflow"],
               wholeLines: null,
               anchors: [],
+              commonSlots: [],
               blocks: [
                 {
                   category: "conflict",
@@ -264,6 +268,7 @@ describe("a diff line containing a backtick renders with a safe delimiter (CodeR
               path: ["Workflow"],
               wholeLines: null,
               anchors: [],
+              commonSlots: [],
               blocks: [
                 {
                   category: "conflict",

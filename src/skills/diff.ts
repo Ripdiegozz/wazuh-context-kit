@@ -205,8 +205,22 @@ function entryLines(entry: RepoBody): readonly string[] {
   return entry.body === ABSENT ? [] : entry.body;
 }
 
+/**
+ * `body.join("\n")` looked sufficient and is not: it is not INJECTIVE.
+ * `[].join("\n")` and `[""].join("\n")` are both `""`, so a body with no
+ * lines and a body with one blank line collide onto the same key — and so
+ * do any two bodies whose lines differ only in where a newline falls, e.g.
+ * `["a", "b"]` and `["a\nb"]`. `skills-diff`'s own report never surfaced
+ * this: it never needed to tell "no lines" apart from "one blank line" for
+ * a human reading a divergence table. `skills-core`'s reconstruction does —
+ * measured on the real corpus as two consecutive blank lines colliding into
+ * one position instead of two, tracing back to exactly this join. Encoding
+ * via `JSON.stringify` is injective for string arrays (every distinct array
+ * produces a distinct string), which a delimiter-joined string can never
+ * guarantee.
+ */
 function bodyKey(body: readonly string[] | typeof ABSENT): string {
-  return body === ABSENT ? " ABSENT " : body.join("\n");
+  return body === ABSENT ? " ABSENT " : JSON.stringify(body);
 }
 
 function groupByExactContent<T>(entries: readonly T[], keyOf: (entry: T) => string): T[][] {
@@ -228,14 +242,21 @@ function groupByExactContent<T>(entries: readonly T[], keyOf: (entry: T) => stri
 /**
  * Grouping key for one repo's content at one slot. `isAbsentSection` is part
  * of the key, not just `text`: an ABSENT section and a PRESENT section with
- * no lines at this slot both produce `text = []`, and `"".join("\n")` cannot
- * tell them apart on its own — a real section a repo does not have and a
- * real section it has with an empty body are different facts (design
- * decision 1, task 2.8), and collapsing them would invent content for the
- * absent repo or erase the presence of an intentionally empty one.
+ * no lines at this slot both produce `text = []`, and encoding `text` alone
+ * cannot tell them apart — a real section a repo does not have and a real
+ * section it has with an empty body are different facts (design decision 1,
+ * task 2.8), and collapsing them would invent content for the absent repo
+ * or erase the presence of an intentionally empty one.
+ *
+ * `text` itself is encoded with `JSON.stringify`, not `text.join("\n")` —
+ * the join is not injective (`[]` and `[""]` both join to `""`), which
+ * silently merged "nothing here" with "one blank line here" into one
+ * `SectionGroup` and, upstream in `classifySection`, hid a genuine
+ * divergence between two variants who disagreed on exactly that. Measured
+ * on the real corpus as two consecutive blank lines colliding into one.
  */
 function slotContentKey(e: { readonly text: readonly string[]; readonly isAbsentSection: boolean }): string {
-  return `${e.isAbsentSection ? "absent" : "present"}\u0000${e.text.join("\n")}`;
+  return `${e.isAbsentSection ? "absent" : "present"}\u0000${JSON.stringify(e.text)}`;
 }
 
 function magnitudeFor(groups: readonly SectionGroup[], sectionTotal: number): LineMagnitude {
@@ -371,7 +392,7 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
     // variant (the only way to reach this branch, see the module docblock
     // on `classifySection`'s caller) never actually has an ABSENT entry, so
     // `entryLines` on any member is that one shared body.
-    return { path, blocks: [], wholeLines: entryLines(entries[0]!), anchors: [] };
+    return { path, blocks: [], wholeLines: entryLines(entries[0]!), anchors: [], commonSlots: [] };
   }
 
   const distinctBodies = wholeBodyGroups.map((g) => entryLines(g[0]!));
@@ -384,6 +405,7 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
   }
 
   const blocks: DivergentBlock[] = [];
+  const commonSlots: (readonly string[] | null)[] = [];
   const slotCount = anchors.length + 1;
   for (let slot = 0; slot < slotCount; slot++) {
     const slotEntries = entries.map((entry) => {
@@ -399,12 +421,19 @@ function classifySection(path: readonly string[], entries: readonly RepoBody[]):
     });
 
     const distinctContents = new Set(slotEntries.map(slotContentKey));
-    if (distinctContents.size <= 1) continue; // nothing diverges at this position
+    if (distinctContents.size <= 1) {
+      // Every entry agrees here, even though `anchors` did not select this
+      // position (see `ClassifiedSection.commonSlots`'s docblock) — any
+      // entry's own text is the shared content, since they all match.
+      commonSlots.push([...slotEntries[0]!.text]);
+      continue;
+    }
 
+    commonSlots.push(null);
     blocks.push(...classifyPosition(slotEntries, sectionTotal, slot));
   }
 
-  return { path, blocks, wholeLines: null, anchors };
+  return { path, blocks, wholeLines: null, anchors, commonSlots };
 }
 
 export function diffSkill(skillName: string, variants: readonly SkillVariant[]): SkillDiff {

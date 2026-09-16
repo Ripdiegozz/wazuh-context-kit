@@ -310,7 +310,15 @@ export function extractSkill(diff: SkillDiff): ExtractedSkill {
       const groups = presentGroupsAtSlot(blocksAtSlot);
 
       if (groups.length === 0) {
-        slots.push([]);
+        // No classified block at this slot — either genuinely nothing sits
+        // here, or (the bug this branch exists to close) every variant
+        // agreed here and `commonAcrossGroups` simply did not select it
+        // into `anchors` (its budget is GLOBAL, not per-position; see
+        // `ClassifiedSection.commonSlots`'s docblock). `commonSlots[slot]`
+        // carries that content directly when it exists — falling back to
+        // `[]` unconditionally here is exactly what silently collapsed two
+        // consecutive blank lines into one on the first real-corpus run.
+        slots.push([...(section.commonSlots[slot] ?? [])]);
         continue;
       }
 

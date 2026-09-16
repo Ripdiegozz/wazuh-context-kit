@@ -14,9 +14,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolveAnchor } from "./anchor.ts";
 import { diffSkill } from "./diff.ts";
-import { extractSkill } from "./extract.ts";
+import { extractSkill as extractSkillUnchecked } from "./extract.ts";
 import type { ExtractedSkill } from "./extract.ts";
 import { emitExtraction } from "./emit.ts";
+import { reconstructRepo } from "./reconstruct.ts";
 import type { SectionMarker, SkillVariant } from "./types.ts";
 
 /** Same blanket guards as `extract.test.ts` and `reconstruct.test.ts` —
@@ -52,6 +53,32 @@ function assertAnchorsResolve(extracted: ExtractedSkill): void {
       occurrence: op.occurrence,
     });
   }
+}
+
+/** Same weaker, cheaper companion guard as `extract.test.ts` and
+ * `reconstruct.test.ts` — see `extract.test.ts` for the full rationale. */
+function assertReconstructionPreservesLineCount(
+  extracted: ExtractedSkill,
+  variants: readonly { repo: string; skill: { sections: readonly { lines: readonly string[] }[] } }[],
+): void {
+  for (const v of variants) {
+    const expectedLength = v.skill.sections.reduce((sum, s) => sum + s.lines.length, 0);
+    const actualLength = reconstructRepo(extracted, v.repo).length;
+    if (actualLength !== expectedLength) {
+      throw new Error(
+        `assertReconstructionPreservesLineCount: skill '${extracted.skill}' repo '${v.repo}' ` +
+          `reconstructed ${actualLength} lines, expected ${expectedLength} — a line was dropped or duplicated`,
+      );
+    }
+  }
+}
+
+function extractSkill(skillName: string, variants: readonly SkillVariant[]): ExtractedSkill {
+  const result = extractSkillUnchecked(diffSkill(skillName, variants));
+  assertNoBlankAnchor(result);
+  assertAnchorsResolve(result);
+  assertReconstructionPreservesLineCount(result, variants);
+  return result;
 }
 
 function variant(
@@ -98,7 +125,7 @@ function sampleExtraction() {
       { path: ["Disputed"], lines: ["area"] },
     ]),
   ];
-  const extracted = extractSkill(diffSkill("a-skill", variants));
+  const extracted = extractSkill("a-skill", variants);
   assertNoBlankAnchor(extracted);
   assertAnchorsResolve(extracted);
   return extracted;

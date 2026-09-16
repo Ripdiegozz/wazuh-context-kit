@@ -25,7 +25,7 @@ import { diffSkill } from "./diff.ts";
 import { extractSkill as extractSkillUnchecked } from "./extract.ts";
 import type { ExtractedSkill } from "./extract.ts";
 import { reconstructAndVerify, reconstructRepo } from "./reconstruct.ts";
-import type { SectionMarker, SkillDiff, SkillVariant } from "./types.ts";
+import type { SectionMarker, SkillVariant } from "./types.ts";
 
 /** Same blanket guards as `extract.test.ts` — this file builds its own
  * extractions directly rather than importing that file's wrapper, so it
@@ -68,10 +68,29 @@ function assertAnchorsResolve(extracted: ExtractedSkill): void {
   }
 }
 
-function extractSkill(diff: SkillDiff): ExtractedSkill {
-  const result = extractSkillUnchecked(diff);
+/** Same weaker, cheaper companion guard as `extract.test.ts` — see that
+ * file for the full rationale. */
+function assertReconstructionPreservesLineCount(
+  extracted: ExtractedSkill,
+  variants: readonly { repo: string; skill: { sections: readonly { lines: readonly string[] }[] } }[],
+): void {
+  for (const v of variants) {
+    const expectedLength = v.skill.sections.reduce((sum, s) => sum + s.lines.length, 0);
+    const actualLength = reconstructRepo(extracted, v.repo).length;
+    if (actualLength !== expectedLength) {
+      throw new Error(
+        `assertReconstructionPreservesLineCount: skill '${extracted.skill}' repo '${v.repo}' ` +
+          `reconstructed ${actualLength} lines, expected ${expectedLength} — a line was dropped or duplicated`,
+      );
+    }
+  }
+}
+
+function extractSkill(skillName: string, variants: readonly SkillVariant[]): ExtractedSkill {
+  const result = extractSkillUnchecked(diffSkill(skillName, variants));
   assertNoBlankAnchor(result);
   assertAnchorsResolve(result);
+  assertReconstructionPreservesLineCount(result, variants);
   return result;
 }
 
@@ -140,8 +159,7 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
       ]),
     ];
 
-    const diff = diffSkill("a-skill", variants);
-    const extracted = extractSkill(diff);
+    const extracted = extractSkill("a-skill", variants);
 
     for (const v of variants) {
       const actual = reconstructRepo(extracted, v.repo);
@@ -153,7 +171,7 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
     const lines = ["one shared body", "nothing repo-specific"];
     const variants = ["a", "b", "c"].map((repo) => variant(repo, [{ path: ["Section"], lines }]));
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     for (const v of variants) {
       expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
@@ -167,7 +185,7 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
       variant("c", [{ path: ["Section"], lines: ["only c has this, wall to wall"] }]),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     for (const v of variants) {
       expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
@@ -200,7 +218,7 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
       variant("wazuh-indexer", [{ path: ["Section"], lines: majorityTail }]),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     for (const v of variants) {
       expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
@@ -245,7 +263,7 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
       variant("wazuh-indexer", [{ path: ["Workflow", "6. Report"], lines: majorityTail }]),
     ];
 
-    const extracted = extractSkill(diffSkill("check-standards", variants));
+    const extracted = extractSkill("check-standards", variants);
 
     // Two distinct override ops, both anchored to the literal same text,
     // distinguished only by occurrence.
@@ -253,6 +271,55 @@ describe("the round trip: reconstruct(extract(x)) == x, byte for byte (task 3.1)
     expect(ops).toHaveLength(2);
     expect(ops.every((o) => o.anchor === "```")).toBe(true);
     expect([...ops.map((o) => o.occurrence)].sort()).toEqual([1, 2]);
+
+    for (const v of variants) {
+      expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
+    }
+  });
+
+  test("REGRESSION: two consecutive blank lines collapse to one when a minority mutates only one of them", () => {
+    // Root cause, found on the real corpus: `bodyKey`/`slotContentKey` in
+    // `diff.ts` encoded a line array via `.join("\n")`, which is not
+    // injective — `[].join("\n")` and `[""].join("\n")` are BOTH `""`. Two
+    // majority repos with two consecutive blank lines and one minority repo
+    // that replaces only the FIRST of the pair have a DIFFERENT total blank
+    // count, which shifts `commonAcrossGroups`' per-repo greedy anchor
+    // consumption differently per repo — the majority's second blank lands
+    // as ordinary slot content, the minority's surviving blank gets
+    // consumed AS the anchor itself. Fixed by encoding with
+    // `JSON.stringify` instead of a join, which distinguishes `[]` from
+    // `[""]`.
+    const majority = ["```", "", "", "```", "Tail."];
+    const minority = ["```", "> **repo-specific (a):** override", "", "```", "Tail."];
+
+    const variants = [
+      variant("a", [{ path: ["Section"], lines: minority, markers: [{ lineIndex: 1, repo: "a" }] }]),
+      variant("b", [{ path: ["Section"], lines: majority }]),
+      variant("c", [{ path: ["Section"], lines: majority }]),
+    ];
+
+    const extracted = extractSkill("a-skill", variants);
+
+    for (const v of variants) {
+      expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
+    }
+  });
+
+  test("REGRESSION: a trailing blank line at the end of a section is not dropped", () => {
+    // Same root cause, at the END of a section: two majority repos end with
+    // two blank lines, the minority replaces only the FIRST of the two,
+    // leaving a single trailing blank. Before the `JSON.stringify` fix,
+    // the majority's own trailing blank was silently dropped.
+    const majority = ["Body.", "Tail.", "", ""];
+    const minority = ["Body.", "Tail.", "> **repo-specific (a):** override", ""];
+
+    const variants = [
+      variant("a", [{ path: ["Section"], lines: minority, markers: [{ lineIndex: 2, repo: "a" }] }]),
+      variant("b", [{ path: ["Section"], lines: majority }]),
+      variant("c", [{ path: ["Section"], lines: majority }]),
+    ];
+
+    const extracted = extractSkill("a-skill", variants);
 
     for (const v of variants) {
       expect(reconstructRepo(extracted, v.repo)).toEqual(originalBody(v));
@@ -280,7 +347,7 @@ describe("ops applied in shuffled order still reconstruct the same result (task 
       variant("c", [{ path: ["Section"], lines: ["common line"] }]),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     const forward = ["a", "b", "c"].map((repo) => reconstructRepo(extracted, repo));
 
@@ -313,7 +380,7 @@ describe("a file that cannot be reconstructed lands in lossy[] with the exact di
       variant("c", [{ path: ["Section"], lines: ["common line"] }]),
     ];
 
-    const extracted = extractSkill(diffSkill("a-skill", variants));
+    const extracted = extractSkill("a-skill", variants);
 
     // Corrupt repo "a"'s override content — simulates a bug that would
     // otherwise silently ship a wrong reconstruction.
@@ -370,7 +437,7 @@ describe("reconstructed + lossy == input count, as arithmetic over the whole cor
             }
           : v,
       );
-      const extracted = extractSkill(diffSkill(s.name, withMarkers));
+      const extracted = extractSkill(s.name, withMarkers);
       const originals = new Map(withMarkers.map((v) => [v.repo, originalBody(v)]));
       const summary = reconstructAndVerify(extracted, originals);
       totalReconstructed += summary.reconstructed;

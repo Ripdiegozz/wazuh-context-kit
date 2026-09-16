@@ -126,12 +126,39 @@ export interface DivergentBlock {
  * - `blocks.length > 0` (divergent): `anchors` holds the lines common to
  *   every distinct body, in order — the skeleton `blocks[].slot` indexes
  *   into; `wholeLines` is `null` — there is no single shared body.
+ *
+ * `commonSlots` closes a gap `skills-core`'s first real-corpus run found:
+ * `anchors` is a valid common subsequence, but NOT necessarily the maximal
+ * one (`commonAcrossGroups`'s multiplicity budget is GLOBAL over the whole
+ * body, so a line can be common to every variant at a SPECIFIC position and
+ * still not be selected into `anchors`, if an earlier occurrence of the
+ * same value elsewhere already spent the budget). Before `commonSlots`
+ * existed, such a position was invisible to a projection: not in `anchors`
+ * (not selected), and not in `blocks` either, because `classifySection`
+ * correctly treats "every variant agrees here" as nothing to report for a
+ * DIVERGENCE reader. For `skills-diff`'s own purpose that is fine — the
+ * content is uninteresting, not lost, because the report never claimed to
+ * carry every byte. For `skills-core`'s reconstruction it is fatal: content
+ * nobody disagreed on and nobody put anywhere just vanishes. The measured
+ * signature was "two consecutive blank lines collapse to one" — the SECOND
+ * blank was common to every variant, unselected as an anchor, and
+ * unclassified as a block, so nothing ever emitted it.
+ *
+ * `commonSlots[slot]` holds that content directly (any entry's, since a
+ * non-divergent slot means every entry agrees) whenever `blocks` carries no
+ * entry for `slot`; it is `null` exactly where `blocks` DOES cover the
+ * slot (there, the classified groups are what carries the content — two
+ * sources of truth for the same position would be the drift this project
+ * keeps paying to avoid). Length `anchors.length + 1`, matching the number
+ * of slots; empty (`[]`) for a fully common section, where `wholeLines`
+ * already carries everything.
  */
 export interface ClassifiedSection {
   readonly path: readonly string[];
   readonly blocks: readonly DivergentBlock[];
   readonly wholeLines: readonly string[] | null;
   readonly anchors: readonly string[];
+  readonly commonSlots: readonly (readonly string[] | null)[];
 }
 
 export interface DescriptionRow {

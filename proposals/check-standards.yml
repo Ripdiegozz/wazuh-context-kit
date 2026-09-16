@@ -1,0 +1,44 @@
+# Proposed GitHub Actions workflow — NOT installed anywhere (SPEC 2.3).
+#
+# This file is delivered as a proposal only. Nothing in `sync-check` installs
+# it into `.github/workflows/` in this project or in any `wazuh/*` repository
+# — doing that needs a PR this project does not open, and no repository under
+# `wazuh/*` has `.claude/standards/` today for it to check against anyway
+# (exploration.md finding 1). Adopting this workflow, in whichever repository
+# a maintainer chooses, is a decision for a person with permissions over that
+# repository, not something this tool does on its own.
+#
+# What it would do, once `.claude/standards/` exists in a repository and this
+# workflow is copied into that repository's `.github/workflows/`: run
+# `wazuh-ctx check` against the repository's own checkout on every push and
+# pull request, and fail the job when `check` reports drift — SPEC 2.3's gate,
+# wired into CI. `wazuh-ctx sync` is never run here: this workflow only
+# detects drift, it never rewrites a repository's files on its own behalf.
+name: check-standards
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check-standards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.0"
+
+      # Installed from wherever this organisation decides to publish the
+      # `wazuh-context-kit` package (SPEC 2.3: "nothing here needs
+      # organisation permissions" — publishing is a separate decision).
+      - name: Install wazuh-ctx
+        run: bun add --global wazuh-context-kit
+
+      # `--target .` checks THIS repository's own checkout, not a clone this
+      # tool manages — the repository running this workflow owns its own
+      # `.claude/standards/`.
+      - name: wazuh-ctx check
+        run: wazuh-ctx check --target .

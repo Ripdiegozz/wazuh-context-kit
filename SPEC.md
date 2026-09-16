@@ -1173,13 +1173,21 @@ puede probar hoy, y es lo único que se afirma.
 >
 > Por lo tanto el umbral se sostiene y no se baja. Lo que se agrega es la
 > condición que lo hace significar algo.
-- [ ] Un ancla de override que resuelve a cero o a más de una posición hace
-      fallar el `sync`. Test con un ancla ambigua a propósito.
-- [ ] Sobre el repo de fixture: `sync` materializa `.claude/standards/`, `check`
-      pasa, se introduce una edición local y `check` falla. Los tres pasos en el
-      mismo test.
-- [ ] `wazuh-ctx check` contra un repo **sin** `.claude/standards/` reporta
-      "no aplicable", no "todo en orden". Un blanco ausente no es un éxito.
+- [x] Un ancla de override que resuelve a cero o a más de una posición hace
+      fallar el `sync`. **Verificado el 2026-09-16.** El test es **construido**:
+      tras `skills-core` el corpus real produce **cero** anclas ambiguas, así que
+      ese camino ya no lo ejercita el corpus. Se dice, no se insinúa cobertura.
+- [x] Sobre el repo de fixture: `sync` materializa `.claude/standards/`, `check`
+      pasa, se introduce una edición local y `check` falla. **Verificado: los tres
+      pasos en un test, 7 aserciones, contra un directorio real** —no un
+      filesystem mockeado, porque un mock coincide con lo que sea que haga el
+      código.
+- [x] `wazuh-ctx check` contra un repo **sin** `.claude/standards/` reporta
+      "no aplicable", no "todo en orden". **Verificado contra un clon real**:
+      `state not-applicable`, exit 0, mensaje `no .claude/standards/ present —
+      nothing to check`. Los tres estados son un enum, no un booleano con caso
+      especial: así es como "sin blanco" se vuelve "bien" o "falló" según para
+      dónde se incline quien escribe.
 
 ---
 

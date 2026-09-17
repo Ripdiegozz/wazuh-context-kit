@@ -8,13 +8,14 @@
 
 ## Where it stands
 
-**Phases 1, 2 and 3 are complete and closed. Only the Phase 1.5 inspector is
-left.** As of 2026-09-17: **56 of 61 acceptance criteria** are met, and six of
-the seven subcommands work — `matrix`, `crosscheck`, `skills-diff`, `sync`,
-`check` and `mcp`. `serve` is the only surviving `notImplemented`, and it
-survives by the deliberate ordering decision in SPEC section 7, not by neglect.
+**Every phase is complete and closed.** As of 2026-09-17: **61 of 61 acceptance
+criteria** are met and all seven subcommands work — `matrix`, `crosscheck`,
+`skills-diff`, `sync`, `check`, `serve` and `mcp`. There is no `notImplemented`
+stub left; the helper itself was deleted for want of a caller.
 
-The five open criteria are all Phase 1.5.
+What is left is not a phase. It is the ordinary work of a tool that now exists:
+keeping the dataset current, acting on what the crosscheck finds, and watching
+the staleness alarms actually fire.
 
 **Phase 1 is complete and closed.** As of 2026-09-15 that is finally true: the
 crosscheck of SPEC 1.8 exists, and `wazuh-ctx crosscheck` no longer returns
@@ -61,7 +62,8 @@ against a real run. There is now an opt-in guard that does
 | `src/skills/` | Phase 2 — three-band diff, extract, core. Done. |
 | `src/settings/`, `src/standards/` | Phase 2 — settings merge, `sync` / `check`. Done. |
 | `src/mcp/` | Phase 3 — `docs`, `schema`, `runtime`, world detection, telemetry. Done. |
-| `ui/` | Phase 1.5 inspector — **empty**, and the only thing left |
+| `src/serve/` | Phase 1.5 — inspector API, write guard, diff preview. Done. |
+| `ui/` | Phase 1.5 — Vite + React + Tailwind + shadcn dashboard. Done. |
 | `src/crosscheck/` | SPEC 1.8, the index crosscheck. Done. |
 | `.github/workflows/` | `ci.yml` + `regenerate.yml` (SPEC 5.4). Done, see below. |
 

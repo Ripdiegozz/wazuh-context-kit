@@ -925,15 +925,68 @@ un agente vía MCP; el inspector es para las personas que mantienen el dataset.
 Vite `8.3.0` + React `19.3.0`. No es la decisión interesante del proyecto y no se
 la trata como tal.
 
+**Ampliado el 2026-09-17**, por decisión del mantenedor: Tailwind CSS `4.3.3` vía
+`@tailwindcss/vite`, y componentes de shadcn/ui (CLI `4.21.0`). Tailwind 4
+configura desde el CSS, así que no hay `tailwind.config.js`.
+
+La aclaración que importa: **shadcn no es una dependencia, es un generador.** Su
+CLI copia el código fuente de cada componente dentro del repo, así que esos
+archivos pasan a ser código nuestro —los versionamos, los revisamos y los
+mantenemos nosotros—. Eso es exactamente lo que se quiere acá: el inspector es la
+única superficie visual del proyecto y su estilo no debe depender de que un
+paquete externo no cambie de opinión. Pero se dice de frente, porque "agregamos
+shadcn" suena a una línea en `package.json` y no lo es.
+
+Sigue sin ser la decisión interesante del proyecto. El grafo bipartito del
+crosscheck sí lo es, y es lo único que markdown no puede hacer.
+
 ## 1.5.3 Criterios de aceptación — Fase 1.5
 
-- [ ] La UI no escribe fuera de `decisions.yml`, `annotations.yml` y
+**Los cinco verificados el 2026-09-17.** Donde la prueba es automática se nombra
+el test; donde es manual se dice que es manual, porque `ui/` no tiene runner de
+tests y afirmar cobertura que no existe sería exactamente lo que este proyecto
+denuncia en otros lados.
+
+- [x] La UI no escribe fuera de `decisions.yml`, `annotations.yml` y
       `decisions.local.yml`. Test que falla si toca `matrix.json`.
-- [ ] Vista de crosscheck como grafo, con huérfanos de ambos lados visibles.
-- [ ] Toda celda muestra su `evidence.kind` y su origen. Derivadas enlazan al
-      archivo + commit.
-- [ ] Guardar produce un diff YAML mostrado al usuario antes de escribir.
-- [ ] Corre contra fixtures, sin haber clonado ningún repo.
+      **Es un allowlist real, no una convención**: `assertAllowedWrite` es el
+      único punto por el que pasa una escritura, y compara DESPUÉS de
+      normalizar el path. Testeado contra `matrix.json`, `out/5.0.0/matrix.json`,
+      `sources.yml` y un traversal `../../etc/passwd`: los cuatro rechazados.
+- [x] Vista de crosscheck como grafo, con huérfanos de ambos lados visibles.
+      **Hubo que arreglar la fuente para que esto fuera verdad.** `crosscheck.json`
+      guardaba sólo las dos listas de huérfanos: `buildCrosscheck` calculaba el
+      join y persistía únicamente sus sobras, así que un grafo dibujado desde ese
+      artefacto tenía cero aristas, o sea que era una lista. Ahora
+      `CrosscheckJson.matched` sobrevive, y sobre datos reales el grafo tiene
+      **818 aristas, 571 nodos, 5 huérfanos declarados y 24 referenciados**.
+      Un test fija el invariante que lo hace confiable: las tres poblaciones
+      particionan el join, así que un índice no puede dibujarse conectado y
+      abandonado a la vez.
+- [x] Toda celda muestra su `evidence.kind` y su origen. Derivadas enlazan al
+      archivo + commit. **El link lo arma el servidor, no la UI.** La primera
+      versión lo construía en el cliente y admitía en un comentario que el
+      prefijo de la organización era una suposición — el mismo error que 3.1
+      prohíbe. Ahora `src/github.ts` es el único lugar donde vive
+      `github.com/wazuh/<repo>`, y `fetch/`, `docs-validate` y la respuesta de
+      `/api/matrix` lo comparten. **El renderizado es verificación manual**: no
+      hay test automático de UI.
+- [x] Guardar produce un diff YAML mostrado al usuario antes de escribir.
+      Testeado en el servidor: el paso de preview no escribe **nada** —se afirma
+      contenido y `mtime` sin cambios— y el diff nombra las entradas agregadas,
+      cambiadas y removidas.
+
+      > Un defecto encontrado y corregido antes de cerrar: la UI leía las
+      > entradas existentes haciendo POST con `entries: []` y cosechándolas de
+      > `diff.removed`, para después reescribir el arreglo completo. Una lectura
+      > que depende del endpoint de escritura puede **borrar filas que nunca le
+      > mostró a nadie**, en un archivo que después se commitea. Ahora hay
+      > `GET /api/decisions` y `GET /api/annotations`: una lectura es una lectura.
+- [x] Corre contra fixtures, sin haber clonado ningún repo. Testeado: la API
+      entera responde desde `fixtures/` sin red y sin `.cache/`.
+
+El servidor liga **sólo `127.0.0.1`**, sin CORS. Es un instrumento para quien
+mantiene el dataset; el consumidor primario sigue siendo un agente por MCP.
 
 ---
 
@@ -1464,18 +1517,20 @@ Si `matrix/` importa el reloj, la propiedad se pierde.
 2. src/parse/ + src/fetch/         ← HECHO
 3. Fase 2                          ← HECHO
 4. Fase 3                          ← HECHO (2026-09-17)
-5. wazuh-ctx serve (Fase 1.5)      ← lo único que queda
+5. wazuh-ctx serve (Fase 1.5)      ← HECHO (2026-09-17)
 ```
 
-Con Fase 3 cerrada quedan **56 de 61 criterios** cumplidos y seis de los siete
-subcomandos funcionando: `matrix`, `crosscheck`, `skills-diff`, `sync`, `check` y
-`mcp`. El único stub que sobrevive es `serve`, y sobrevive por la razón escrita
-más abajo, no por olvido.
+Con Fase 1.5 cerrada el mismo día, **los 61 criterios están cumplidos y los
+siete subcomandos funcionan**: `matrix`, `crosscheck`, `skills-diff`, `sync`,
+`check`, `serve` y `mcp`. No queda ningún stub; `notImplemented` se borró porque
+ya no tenía a quién servir.
 
-Y ahora el riesgo que 1.5 aceptó por escrito vence: mientras el inspector no
-exista, `decisions.yml` y `annotations.yml` se editan a mano. La cifra que había
-que vigilar sigue en **3 unknowns y 0 conflictos** sobre el dataset de `5.0.0`, o
-sea que la apuesta salió bien. Si esa cifra crece, la decisión se revisa.
+El riesgo que 1.5 había aceptado por escrito —editar `decisions.yml` y
+`annotations.yml` a mano mientras el inspector no existiera— nunca llegó a
+cobrarse: la cifra que había que vigilar se quedó en **3 unknowns y 0
+conflictos**. La apuesta de diferir el inspector para construirlo contra el
+dominio completo se pagó sola, y de hecho se cobró dos veces: construirlo último
+fue lo que destapó que `crosscheck.json` no guardaba las aristas del grafo.
 
 Se empezó por `matrix/` y no por `fetch/` aunque `fetch` sea el paso 1
 cronológico. Toda la lógica se testeó con fixtures de veinte líneas, sin clonar

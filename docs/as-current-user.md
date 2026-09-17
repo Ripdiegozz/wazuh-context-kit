@@ -50,14 +50,25 @@ the collision that actually bites completely untouched.
 ### 1. OpenSearch Dashboards core — indexer RBAC
 
 ```ts
-context.core.opensearch.client.asCurrentUser   // the logged-in user
-context.core.opensearch.client.asInternalUser  // the dashboard's service account
+context.core.opensearch.client.asCurrentUser   // the user logged into the session
+context.core.opensearch.client.asInternalUser  // the user set in the app's configuration
 ```
 
 This governs what the **indexer** will return. `asCurrentUser` runs the query
-under the user's own OpenSearch Security principal, so document-level and
-field-level security apply. `asInternalUser` runs it as the dashboard itself,
-which typically sees everything.
+under the session user's own OpenSearch Security principal, so document-level
+and field-level security apply.
+
+`asInternalUser` runs it as **the account an administrator configured in the
+application's configuration**. Say it that way rather than "as the system": it
+does not bypass RBAC, it answers as a *different principal* that has its own
+RBAC. Its reach is whatever that account was granted — broad in a typical
+deployment, but configured rather than inherent.
+
+The distinction is not pedantry. "Bypasses permissions" invites you to look for
+an escape hatch; "answers as somebody else" tells you the actual question, which
+is *who* that somebody is in the deployment you are reasoning about. Two
+installations can run identical code and give this accessor very different
+reach.
 
 Applies to **both worlds** — Wazuh-native plugins and upstream forks alike.
 

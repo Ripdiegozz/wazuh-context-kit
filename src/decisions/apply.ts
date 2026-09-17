@@ -88,6 +88,12 @@ export function applyHumanLayers(
   plugins: MatrixPlugin[],
   decisions: Decision[],
   annotations: Annotation[],
+  /**
+   * Handles (`"<plugin>::<field>"`) overridden by `decisions.local.yml`, as
+   * computed by `loadHumanLayers`. Pure -- arrives as an argument like every
+   * other input, never read from disk here.
+   */
+  localOverrides: ReadonlySet<string> = new Set(),
 ): ApplyResult {
   const reconciliation: Reconciliation[] = [];
   const resolved = new Set<string>();
@@ -157,6 +163,9 @@ export function applyHumanLayers(
       author: decision.author,
       date: decision.date,
       reason: decision.reason,
+      ...(localOverrides.has(`${decision.plugin}::${decision.field}`)
+        ? { overlay: "local" as const }
+        : {}),
     };
 
     // validateValue above already checked the value against the field's

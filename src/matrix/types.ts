@@ -106,6 +106,15 @@ export interface AssertedEvidence {
   author: string;
   date: string;
   reason: string;
+  /**
+   * Present, and always `"local"`, when this cell's value came from
+   * `decisions.local.yml` -- the gitignored escape hatch (SPEC: "A cell
+   * overridden by decisions.local.yml is marked overlay: 'local'"). Absent
+   * for every other cell, including one resolved by decisions.yml, so that
+   * `canonicalize` drops the key entirely and `payloadHash` stays
+   * byte-identical when there is no local file.
+   */
+  overlay?: "local";
 }
 
 export type Evidence = DerivedEvidence | AssertedEvidence;
@@ -361,4 +370,12 @@ export interface BuildInput {
   decisions?: Decision[];
   /** Layer 3, already parsed. */
   annotations?: Annotation[];
+  /**
+   * Handles (`"<plugin>::<field>"`) overridden by `decisions.local.yml`, as
+   * computed by `loadHumanLayers`. Threaded through so `applyHumanLayers` can
+   * mark those cells `overlay: "local"` (SPEC). Absent/empty when there is no
+   * local file -- the common case, and the one that must leave `payloadHash`
+   * untouched.
+   */
+  localOverrides?: Set<string>;
 }

@@ -272,3 +272,83 @@ describe("the trailing star is the difference between a name and a family", () =
     expect(cc.referencedUndeclared.map((r) => r.name)).toEqual(["wazuh-states-sca"]);
   });
 });
+
+/**
+ * `matched` — the edges of the bipartite graph SPEC 1.5 asks the inspector to
+ * draw.
+ *
+ * These pairs were always computed and always discarded: the two orphan lists
+ * are what a join leaves behind, and only the leftovers were persisted. That
+ * cost nothing while the consumer was a markdown report, where a match is the
+ * boring case. For a graph it costs everything, because the matches ARE the
+ * graph.
+ */
+describe("matched pairs — the graph's edges", () => {
+  test("a declared pattern and the site that reaches it become an edge", () => {
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-states-fim*")],
+        references: [referenced("wazuh-states-fim-files*", "plugins/main/common/constants.ts", 12)],
+      }),
+    );
+
+    expect(cc.matched).toHaveLength(1);
+    expect(cc.matched[0]!.pattern).toBe("wazuh-states-fim*");
+    expect(cc.matched[0]!.template).toContain("templates/states/");
+    expect(cc.matched[0]!.reference.file).toBe("plugins/main/common/constants.ts");
+    expect(cc.matched[0]!.reference.line).toBe(12);
+
+    // A match is not an orphan on either side. If it appeared in both places
+    // the graph would draw the same index as connected and abandoned at once.
+    expect(cc.declaredUnreferenced).toEqual([]);
+    expect(cc.referencedUndeclared).toEqual([]);
+  });
+
+  test("one declaration reached from two sites is two edges, not one", () => {
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-alerts*")],
+        references: [
+          referenced("wazuh-alerts*", "plugins/a/constants.ts", 5),
+          referenced("wazuh-alerts*", "plugins/b/constants.ts", 9),
+        ],
+      }),
+    );
+
+    expect(cc.matched).toHaveLength(2);
+    expect(cc.matched.map((m) => m.reference.file)).toEqual([
+      "plugins/a/constants.ts",
+      "plugins/b/constants.ts",
+    ]);
+  });
+
+  test("the three populations partition the join and cannot disagree", () => {
+    const cc = buildCrosscheck(
+      baseInput({
+        declared: [declared("wazuh-alerts*"), declared("wazuh-states-orphan*")],
+        references: [
+          referenced("wazuh-alerts*", "plugins/a/constants.ts", 5),
+          referenced("wazuh-nowhere*", "plugins/c/constants.ts", 7),
+        ],
+      }),
+    );
+
+    // Every declaration is either matched or orphaned -- never both, never
+    // neither. Same for every reference. This is the invariant that makes the
+    // graph trustworthy: an index cannot be drawn as connected AND abandoned.
+    const matchedPatterns = new Set(cc.matched.map((m) => m.pattern));
+    const orphanPatterns = new Set(cc.declaredUnreferenced.map((d) => d.pattern));
+    expect([...matchedPatterns].filter((p) => orphanPatterns.has(p))).toEqual([]);
+    expect(matchedPatterns.size + orphanPatterns.size).toBe(2);
+
+    const matchedRefFiles = new Set(cc.matched.map((m) => m.reference.file));
+    const orphanRefFiles = new Set(cc.referencedUndeclared.map((r) => r.file));
+    expect([...matchedRefFiles].filter((f) => orphanRefFiles.has(f))).toEqual([]);
+    expect(matchedRefFiles.size + orphanRefFiles.size).toBe(2);
+  });
+
+  test("no declarations and no references is an empty graph, not a crash", () => {
+    const cc = buildCrosscheck(baseInput());
+    expect(cc.matched).toEqual([]);
+  });
+});

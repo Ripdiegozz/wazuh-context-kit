@@ -10,6 +10,7 @@ import type {
   CrosscheckJson,
   DeclaredIndex,
   IndexReference,
+  MatchedIndex,
 } from "../matrix/types.ts";
 import type { CrosscheckInput } from "./types.ts";
 
@@ -97,6 +98,24 @@ export function buildCrosscheck(input: CrosscheckInput): CrosscheckJson {
         a.name.localeCompare(b.name) || a.file.localeCompare(b.file) || a.line - b.line,
     );
 
+  // The join's matches, kept instead of discarded. Same `covers` predicate as
+  // the two filters above, so a pair appears here exactly when it is absent
+  // from both orphan lists -- the three sets partition the join and cannot
+  // disagree about what matched.
+  const matched: MatchedIndex[] = input.declared
+    .flatMap((d) =>
+      input.references
+        .filter((r) => covers(d.pattern, r.name))
+        .map((reference) => ({ pattern: d.pattern, template: d.template, reference })),
+    )
+    .sort(
+      (a, b) =>
+        a.pattern.localeCompare(b.pattern) ||
+        a.reference.name.localeCompare(b.reference.name) ||
+        a.reference.file.localeCompare(b.reference.file) ||
+        a.reference.line - b.reference.line,
+    );
+
   const wcsWithoutConsumer = input.wcsModules
     .filter((module) => !wcsIsConsumed(module, input.references))
     .map((module) => module.name)
@@ -130,6 +149,7 @@ export function buildCrosscheck(input: CrosscheckInput): CrosscheckJson {
     },
     declaredUnreferenced,
     referencedUndeclared,
+    matched,
     wcsWithoutConsumer,
     competingCatalogs,
   };

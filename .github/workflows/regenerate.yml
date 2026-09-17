@@ -271,6 +271,32 @@ jobs:
           # has and has already used. `--required` watches the checks the
           # ruleset actually gates on, so a slow third-party app cannot hold
           # the regeneration hostage; `--fail-fast` stops on the first failure.
+          # `--watch` does NOT wait for checks to exist. With zero checks it
+          # returns non-zero immediately, which is what run 35205464053 hit:
+          # it asked ONE SECOND after opening PR #19, before GitHub had
+          # registered anything, and reported "Required checks did not pass".
+          # The PR was fine --- its three checks passed shortly after, and it
+          # was left open with a failure message that named the wrong cause.
+          #
+          # So wait for at least one check to appear first, and keep the two
+          # outcomes distinguishable: "no check ever appeared" is a workflow
+          # or ruleset problem, "checks ran and failed" is a real regression.
+          # Collapsing them is what sent the last run chasing the wrong thing.
+          echo "Waiting for checks to appear on $pr_url ..."
+          checks_appeared=""
+          for _ in $(seq 1 30); do
+            if [ -n "$(gh pr checks "$pr_url" --json name --jq '.[].name' 2>/dev/null)" ]; then
+              checks_appeared=1
+              break
+            fi
+            sleep 10
+          done
+
+          if [ -z "$checks_appeared" ]; then
+            echo "::error::No check ever reported on $pr_url after 5 minutes. out/ was regenerated and the PR is open, but nothing gated it. This is a workflow or ruleset problem, not a failing test."
+            exit 1
+          fi
+
           echo "Waiting for required checks on $pr_url ..."
           if gh pr checks "$pr_url" --watch --required --fail-fast; then
             gh pr merge "$pr_url" --squash --delete-branch

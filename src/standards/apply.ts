@@ -49,23 +49,37 @@ export interface ApplyResult {
  * Detecting what changed since the last sync is `check`'s job, not `sync`'s.
  */
 export async function applySync(plan: SyncPlan, targetDir: string): Promise<ApplyResult> {
-  if (plan.distributed.length === 0) {
-    return { written: [] };
-  }
-
-  const standardsDir = join(targetDir, STANDARDS_DIR);
   const written: string[] = [];
 
-  for (const file of plan.distributed) {
-    const fullPath = join(standardsDir, file.path);
-    await mkdir(join(fullPath, ".."), { recursive: true });
-    await writeFile(fullPath, file.content, "utf8");
-    written.push(fullPath);
+  if (plan.distributed.length > 0) {
+    const standardsDir = join(targetDir, STANDARDS_DIR);
+
+    for (const file of plan.distributed) {
+      const fullPath = join(standardsDir, file.path);
+      await mkdir(join(fullPath, ".."), { recursive: true });
+      await writeFile(fullPath, file.content, "utf8");
+      written.push(fullPath);
+    }
+
+    const manifestPath = join(standardsDir, MANIFEST_FILE);
+    await writeFile(manifestPath, `${JSON.stringify(plan.manifest, null, 2)}\n`, "utf8");
+    written.push(manifestPath);
   }
 
-  const manifestPath = join(standardsDir, MANIFEST_FILE);
-  await writeFile(manifestPath, `${JSON.stringify(plan.manifest, null, 2)}\n`, "utf8");
-  written.push(manifestPath);
+  // `.claude/settings.json` materialises alongside the skills (task 4.2),
+  // but at its OWN real path, never under `.claude/standards/` — it is not
+  // a generated standard, it is the file Claude Code itself reads. Written
+  // only when the plan actually has something clean to distribute: no
+  // `plan.settings` at all (backward compatible with a caller that never
+  // considered settings), and a blocked settings conflict, both write
+  // nothing here — the same "nothing is written" discipline `applySync`
+  // already applies to an empty `plan.distributed`.
+  if (plan.settings?.distributed) {
+    const settingsPath = join(targetDir, ".claude", "settings.json");
+    await mkdir(join(settingsPath, ".."), { recursive: true });
+    await writeFile(settingsPath, plan.settings.distributed.content, "utf8");
+    written.push(settingsPath);
+  }
 
   return { written: written.sort((a, b) => a.localeCompare(b)) };
 }

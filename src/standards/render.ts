@@ -22,7 +22,7 @@
  * follows.
  */
 
-import type { BlockedSkill, SyncPlan } from "./plan.ts";
+import type { BlockedSkill, SettingsPlan, SyncPlan } from "./plan.ts";
 
 /** How many heading groups to name before falling back to "N more — see
  * the YAML file". A handful, not an enumeration — the whole point is that a
@@ -59,10 +59,35 @@ function renderBlockedSkill(blocked: BlockedSkill): string[] {
 }
 
 /**
+ * Renders `.claude/settings.json`'s own line(s) — grouped by conflict KIND
+ * when blocked (task 3.2: "a reader sees one place to look and still sees
+ * that the causes differ"), the settings analogue of `renderBlockedSkill`'s
+ * heading grouping. `null` when the caller never considered settings at all
+ * (`plan.settings` is `null`/`undefined`) — nothing is rendered, rather than
+ * a misleading "0 of 0" line for a file that was never planned.
+ */
+function renderSettingsPlan(settings: SettingsPlan | null | undefined): string[] {
+  if (!settings) return [];
+
+  if (settings.distributed) {
+    return [`settings.json    distributed (${settings.distributed.path})`];
+  }
+
+  const blocked = settings.blocked!;
+  const total = blocked.conflictsByKind.reduce((sum, k) => sum + k.count, 0);
+  const lines = [`blocked          settings.json  ${total} conflict${total === 1 ? "" : "s"}`];
+  for (const group of blocked.conflictsByKind) {
+    lines.push(`                   ${group.kind} (${group.count})`);
+  }
+  return lines;
+}
+
+/**
  * Renders the full `sync` summary: the load-bearing "N of M distributed"
  * line first (kept exactly as `cli.ts` printed it before this renderer
  * existed — the string every CLI test asserts against), then one scannable
- * block per blocked skill.
+ * block per blocked skill, then `.claude/settings.json`'s own line(s) when
+ * the caller supplied merged settings.
  */
 export function renderSyncSummary(plan: SyncPlan): string {
   const total = plan.distributed.length + plan.blocked.length;
@@ -75,6 +100,12 @@ export function renderSyncSummary(plan: SyncPlan): string {
   if (sortedBlocked.length > 0) {
     lines.push("");
     for (const blocked of sortedBlocked) lines.push(...renderBlockedSkill(blocked));
+  }
+
+  const settingsLines = renderSettingsPlan(plan.settings);
+  if (settingsLines.length > 0) {
+    lines.push("");
+    lines.push(...settingsLines);
   }
 
   return lines.join("\n");

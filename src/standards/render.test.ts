@@ -12,12 +12,16 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import type { BlockedSkill, DistributedFile, SyncPlan } from "./plan.ts";
+import type { BlockedSkill, DistributedFile, SettingsPlan, SyncPlan } from "./plan.ts";
 import { renderSyncSummary } from "./render.ts";
 
 const TOOL = "wazuh-ctx@0.1.0";
 
-function plan(distributed: readonly DistributedFile[], blocked: readonly BlockedSkill[]): SyncPlan {
+function plan(
+  distributed: readonly DistributedFile[],
+  blocked: readonly BlockedSkill[],
+  settings: SettingsPlan | null = null,
+): SyncPlan {
   return {
     repo: "wazuh-dashboard",
     distributed,
@@ -27,6 +31,7 @@ function plan(distributed: readonly DistributedFile[], blocked: readonly Blocked
       payloadHash: "sha256:whatever",
       files: distributed.map((d) => ({ path: d.path, hash: d.hash })),
     },
+    settings,
   };
 }
 
@@ -129,5 +134,36 @@ describe("a skill blocked for a non-conflict reason (no copy for this repo)", ()
     expect(summary).toContain("wcs-management");
     expect(summary).toContain("has no copy of this skill");
     expect(summary).not.toContain("conflicts");
+  });
+});
+
+describe("settings.json blocked by a typed conflict is reported, grouped by kind (task 3.2)", () => {
+  test("the summary names the kind, not just 'blocked'", () => {
+    const settings: SettingsPlan = {
+      distributed: null,
+      blocked: {
+        reasons: ["permissions.allow: 'x' is present in every repository except 'reporting' (removed-from-core)"],
+        conflictsByKind: [{ kind: "removed-from-core", count: 1 }],
+      },
+    };
+
+    const summary = renderSyncSummary(plan([], [], settings));
+
+    expect(summary).toContain("settings.json");
+    expect(summary).toContain("removed-from-core");
+  });
+});
+
+describe("settings.json distributed cleanly is reported alongside the skills", () => {
+  test("the summary states it was distributed", () => {
+    const settings: SettingsPlan = {
+      distributed: { path: ".claude/settings.json", content: "{}\n", hash: "sha256:def" },
+      blocked: null,
+    };
+
+    const summary = renderSyncSummary(plan([], [], settings));
+
+    expect(summary).toContain("settings.json");
+    expect(summary).toContain("distributed");
   });
 });

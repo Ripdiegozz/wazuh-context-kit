@@ -24,10 +24,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@modelcontextprotocol/core": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
     "yaml": "2.9.1",
     "zod": "4.6.5"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
     "@types/bun": "1.4.2",
     "typescript": "7.0.2"
   }

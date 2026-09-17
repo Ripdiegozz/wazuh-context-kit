@@ -1,0 +1,11 @@
+refs:
+  - "5.0.0"
+
+repos:
+  - { name: wazuh-dashboard, kind: platform }
+
+docsVersionMap:
+  owner: diego.garcia
+  lastReviewed: "2026-09-17"
+  map:
+    "5.0.0": 5

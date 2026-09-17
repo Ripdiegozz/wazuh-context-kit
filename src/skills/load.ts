@@ -19,10 +19,13 @@
  * `singleRepoSkills`, naming the skill and its one repository, which is
  * exactly the process-overlap report SPEC 2.2 asks for.
  *
- * `.claude/settings.json` is never opened. It sits beside `.claude/skills/`,
- * not inside it, and this loader only ever descends into
+ * `.claude/settings.json` is never opened HERE. It sits beside
+ * `.claude/skills/`, not inside it, and this loader only ever descends into
  * `.claude/skills/<name>/SKILL.md` — the exclusion is structural, not a
- * filter applied after the fact.
+ * filter applied after the fact. `.claude/settings.json` has its own loader,
+ * `src/settings/load.ts`'s `loadSettingsVariants`, run over the same
+ * `LoadTarget`s from the same call site in `cli.ts` — one fetch, two
+ * independent reads of what it produced.
  */
 
 import { readdir, readFile } from "node:fs/promises";

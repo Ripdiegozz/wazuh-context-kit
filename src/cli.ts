@@ -32,6 +32,9 @@ import { extractSkill } from "./skills/extract.ts";
 import type { ExtractedSkill } from "./skills/extract.ts";
 import { loadSkills } from "./skills/load.ts";
 import { renderSkillsDiffMarkdown } from "./skills/render.ts";
+import { loadSettingsVariants } from "./settings/load.ts";
+import { mergeSettings } from "./settings/merge.ts";
+import type { MergedSettings } from "./settings/types.ts";
 import { loadSources } from "./sources.ts";
 import { applySync, checkStandards } from "./standards/apply.ts";
 import { planSync } from "./standards/plan.ts";
@@ -501,6 +504,14 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
 
   const loaded = await loadSkills(targets);
 
+  // `.claude/settings.json` sits beside `.claude/skills/`, not inside it
+  // (`skills/load.ts`'s own docblock), so it is loaded separately, over the
+  // SAME `targets` skills were loaded from — one fetch, two independent
+  // reads of what it produced. A repository with no `settings.json` is
+  // reported, never thrown and never silently dropped (`loadSettingsVariants`'s
+  // own docblock).
+  const loadedSettings = await loadSettingsVariants(targets);
+
   // `fetchRepos` reports non-fatal skips SEPARATELY from what it fetched
   // (e.g. `wazuh-dashboard-ml-commons`, skipped because it has no `5.0.0`
   // branch). Left out of `repos`, a skipped repository would simply vanish
@@ -556,9 +567,20 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
   console.log(`CONFLICT         ${totalCounts.conflict}`);
   console.log(`written          ${join(target, "skills-diff.json")}`);
   console.log(`                 ${join(target, "SKILLS-DIFF.md")}`);
+  console.log(`settings         ${loadedSettings.variants.length} of ${targets.length} repos carry .claude/settings.json`);
+  for (const m of loadedSettings.missing) console.log(`                   ${m.repo}: ${m.reason}`);
 
   if (values.extract === true) {
     const extracted = skillsDiff.skills.map((skill) => extractSkill(skill));
+
+    // Merged only when at least one repository actually carries
+    // `.claude/settings.json` — merging zero variants would silently emit an
+    // empty `core/.claude/settings.json` for a run that never saw the file
+    // at all, which is exactly the "confident, plausible, wrong zero" this
+    // change exists to avoid (see `skills/load.ts`'s own "no .claude/skills"
+    // reporting for the same reasoning applied to skills).
+    const mergedSettings: MergedSettings | undefined =
+      loadedSettings.variants.length > 0 ? mergeSettings(loadedSettings.variants) : undefined;
 
     // `skill.name -> repo -> that repo's original flattened body` — the
     // ONLY place this exists, since `extractSkill`'s output does not retain
@@ -576,11 +598,17 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
       }),
     );
 
-    const { written, report } = await emitExtraction(target, extracted, originalsBySkill);
+    const { written, report } = await emitExtraction(target, extracted, originalsBySkill, mergedSettings);
 
     const distributable = extracted.filter((e) => e.distributable).length;
     console.log(`extracted        ${extracted.length} skills`);
     console.log(`distributable    ${distributable} of ${extracted.length}`);
+    if (mergedSettings) {
+      console.log(
+        `settings merged  ${loadedSettings.variants.length} repos, ` +
+          `${mergedSettings.conflicts.length} conflict(s)`,
+      );
+    }
     console.log(`core share       ${(report.overall.coreShare * 100).toFixed(1)}% of core+overrides (floor ${(report.overall.floor * 100).toFixed(0)}%)`);
     console.log(`conflicts share  ${(report.overall.conflictsShare * 100).toFixed(1)}% of core+overrides+conflicts (reported only, not gated)`);
     if (report.overall.reconstruction) {
@@ -618,7 +646,7 @@ async function runSkillsDiff(values: Record<string, unknown>): Promise<CommandRe
  */
 async function loadExtractionForSync(
   values: Record<string, unknown>,
-): Promise<{ readonly extracted: readonly ExtractedSkill[] } | CommandResult> {
+): Promise<{ readonly extracted: readonly ExtractedSkill[]; readonly mergedSettings: MergedSettings | undefined } | CommandResult> {
   const ref = (values.ref as string | undefined) ?? "5.0.0";
 
   let sources: Awaited<ReturnType<typeof loadSources>>;
@@ -659,6 +687,7 @@ async function loadExtractionForSync(
     .filter((t): t is NonNullable<typeof t> => t !== null);
 
   const loaded = await loadSkills(targets);
+  const loadedSettings = await loadSettingsVariants(targets);
   const skippedRepos = fetchOutcome.skipped.map((s) => ({
     repo: s.repo,
     included: false,
@@ -675,11 +704,18 @@ async function loadExtractionForSync(
     singleRepoSkills: loaded.singleRepoSkills,
   });
 
-  return { extracted: skillsDiff.skills.map((skill) => extractSkill(skill)) };
+  // Same "merge only when something was actually loaded" rule as
+  // `skills-diff --extract` — see that call site's comment for why.
+  const mergedSettings: MergedSettings | undefined =
+    loadedSettings.variants.length > 0 ? mergeSettings(loadedSettings.variants) : undefined;
+
+  return { extracted: skillsDiff.skills.map((skill) => extractSkill(skill)), mergedSettings };
 }
 
 function isExtractionFailure(
-  outcome: { readonly extracted: readonly ExtractedSkill[] } | CommandResult,
+  outcome:
+    | { readonly extracted: readonly ExtractedSkill[]; readonly mergedSettings: MergedSettings | undefined }
+    | CommandResult,
 ): outcome is CommandResult {
   return !("extracted" in outcome);
 }
@@ -712,7 +748,7 @@ async function runSync(values: Record<string, unknown>): Promise<CommandResult> 
 
   let plan: ReturnType<typeof planSync>;
   try {
-    plan = planSync(outcome.extracted, repo, TOOL);
+    plan = planSync(outcome.extracted, repo, TOOL, outcome.mergedSettings);
   } catch (error) {
     console.error(`wazuh-ctx sync: ${(error as Error).message}`);
     return { code: 1 };

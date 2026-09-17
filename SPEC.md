@@ -925,15 +925,68 @@ un agente vía MCP; el inspector es para las personas que mantienen el dataset.
 Vite `8.3.0` + React `19.3.0`. No es la decisión interesante del proyecto y no se
 la trata como tal.
 
+**Ampliado el 2026-09-17**, por decisión del mantenedor: Tailwind CSS `4.3.3` vía
+`@tailwindcss/vite`, y componentes de shadcn/ui (CLI `4.21.0`). Tailwind 4
+configura desde el CSS, así que no hay `tailwind.config.js`.
+
+La aclaración que importa: **shadcn no es una dependencia, es un generador.** Su
+CLI copia el código fuente de cada componente dentro del repo, así que esos
+archivos pasan a ser código nuestro —los versionamos, los revisamos y los
+mantenemos nosotros—. Eso es exactamente lo que se quiere acá: el inspector es la
+única superficie visual del proyecto y su estilo no debe depender de que un
+paquete externo no cambie de opinión. Pero se dice de frente, porque "agregamos
+shadcn" suena a una línea en `package.json` y no lo es.
+
+Sigue sin ser la decisión interesante del proyecto. El grafo bipartito del
+crosscheck sí lo es, y es lo único que markdown no puede hacer.
+
 ## 1.5.3 Criterios de aceptación — Fase 1.5
 
-- [ ] La UI no escribe fuera de `decisions.yml`, `annotations.yml` y
+**Los cinco verificados el 2026-09-17.** Donde la prueba es automática se nombra
+el test; donde es manual se dice que es manual, porque `ui/` no tiene runner de
+tests y afirmar cobertura que no existe sería exactamente lo que este proyecto
+denuncia en otros lados.
+
+- [x] La UI no escribe fuera de `decisions.yml`, `annotations.yml` y
       `decisions.local.yml`. Test que falla si toca `matrix.json`.
-- [ ] Vista de crosscheck como grafo, con huérfanos de ambos lados visibles.
-- [ ] Toda celda muestra su `evidence.kind` y su origen. Derivadas enlazan al
-      archivo + commit.
-- [ ] Guardar produce un diff YAML mostrado al usuario antes de escribir.
-- [ ] Corre contra fixtures, sin haber clonado ningún repo.
+      **Es un allowlist real, no una convención**: `assertAllowedWrite` es el
+      único punto por el que pasa una escritura, y compara DESPUÉS de
+      normalizar el path. Testeado contra `matrix.json`, `out/5.0.0/matrix.json`,
+      `sources.yml` y un traversal `../../etc/passwd`: los cuatro rechazados.
+- [x] Vista de crosscheck como grafo, con huérfanos de ambos lados visibles.
+      **Hubo que arreglar la fuente para que esto fuera verdad.** `crosscheck.json`
+      guardaba sólo las dos listas de huérfanos: `buildCrosscheck` calculaba el
+      join y persistía únicamente sus sobras, así que un grafo dibujado desde ese
+      artefacto tenía cero aristas, o sea que era una lista. Ahora
+      `CrosscheckJson.matched` sobrevive, y sobre datos reales el grafo tiene
+      **818 aristas, 571 nodos, 5 huérfanos declarados y 24 referenciados**.
+      Un test fija el invariante que lo hace confiable: las tres poblaciones
+      particionan el join, así que un índice no puede dibujarse conectado y
+      abandonado a la vez.
+- [x] Toda celda muestra su `evidence.kind` y su origen. Derivadas enlazan al
+      archivo + commit. **El link lo arma el servidor, no la UI.** La primera
+      versión lo construía en el cliente y admitía en un comentario que el
+      prefijo de la organización era una suposición — el mismo error que 3.1
+      prohíbe. Ahora `src/github.ts` es el único lugar donde vive
+      `github.com/wazuh/<repo>`, y `fetch/`, `docs-validate` y la respuesta de
+      `/api/matrix` lo comparten. **El renderizado es verificación manual**: no
+      hay test automático de UI.
+- [x] Guardar produce un diff YAML mostrado al usuario antes de escribir.
+      Testeado en el servidor: el paso de preview no escribe **nada** —se afirma
+      contenido y `mtime` sin cambios— y el diff nombra las entradas agregadas,
+      cambiadas y removidas.
+
+      > Un defecto encontrado y corregido antes de cerrar: la UI leía las
+      > entradas existentes haciendo POST con `entries: []` y cosechándolas de
+      > `diff.removed`, para después reescribir el arreglo completo. Una lectura
+      > que depende del endpoint de escritura puede **borrar filas que nunca le
+      > mostró a nadie**, en un archivo que después se commitea. Ahora hay
+      > `GET /api/decisions` y `GET /api/annotations`: una lectura es una lectura.
+- [x] Corre contra fixtures, sin haber clonado ningún repo. Testeado: la API
+      entera responde desde `fixtures/` sin red y sin `.cache/`.
+
+El servidor liga **sólo `127.0.0.1`**, sin CORS. Es un instrumento para quien
+mantiene el dataset; el consumidor primario sigue siendo un agente por MCP.
 
 ---
 
@@ -1228,14 +1281,52 @@ markdown limpio.
 
 Implementación: fetch de `<path>.md`, devolver la sección, citar el `.html`.
 
-**Cuidado con el mapeo de versiones.** `/5.0-beta/llms.txt` devuelve 404, y
-`llms.txt` lista como soportados `/current/`, `/5.0/`, `/4.14/`, `/3.13/` —
-`5.0-beta` no aparece, aunque los `.md` responden igual. El mapeo rama de código
-→ path de docs va **explícito en configuración**, nunca derivado.
+**Cuidado con el mapeo de versiones.** El mapeo rama de código → path de docs va
+**explícito en configuración**, nunca derivado.
+
+> **Corregido el 2026-09-17, medido contra el sitio publicado.** Lo que decía
+> esta sección era incompleto en tres puntos, y los tres importan:
+>
+> 1. **`llms.txt` se publica sólo en la raíz del sitio**, no por versión.
+>    `/current/llms.txt`, `/5.0/llms.txt`, `/4.14/llms.txt` y
+>    `/5.0-beta/llms.txt` devuelven **todos** 404. El único que responde es
+>    `https://documentation.wazuh.com/llms.txt`. La ruta que citaba esta sección
+>    —`wazuh-documentation:5.0.0/source/llms.txt`— es el path en el repositorio
+>    fuente, no la URL publicada.
+> 2. **La lista de versiones es ilustrativa, no un allowlist.** Hoy dice
+>    `/current/`, `/4.14/`, `/4.2/`, precedida de "for example". `/3.13/` sigue
+>    respondiendo 200 sin figurar. Derivar las versiones soportadas parseando
+>    `llms.txt` sería leerlo como API: es justamente lo que no es.
+> 3. **`/current/` es un alias de la línea estable, no de la ref pinneada.**
+>    `/current/` y `/4.14/` devuelven contenido byte a byte idéntico
+>    (`sha256 7dc7cb13…`). Por lo tanto `docs` **no** cae a `/current/` cuando hay
+>    una ref pinneada: contestaría una pregunta de 5.0 con documentación de 4.14,
+>    que es exactamente la obsolescencia silenciosa que 3.2 se niega a tolerar.
 
 Ese mapeo es prosa mantenida a mano —chica, pero prosa— así que cae bajo la misma
 regla que el resto: **tiene dueño humano y fecha de última revisión en el propio
 archivo de configuración.** Sin dueño es deriva en miniatura.
+
+**Y la prosa mantenida a mano se pudre en silencio.** El 2026-09-17 el bloque
+`docsVersionMap` de `sources.yml` mapeaba `"5.0.0": "5.0"`, cada URL bajo `/5.0/`
+devolvía 404 —la documentación de 5.0 vive en `/5.0-beta/`— y su `lastReviewed`
+tenía tres días. Nadie lo detectó porque ningún código leía el bloque.
+
+Se evaluó derivar el mapeo de los tags de release de `wazuh-dashboard-plugins` y
+**se descartó con medición**, no por gusto: los seis tags de prerelease de 5.0
+(`v5.0.0-alpha0`, `v5.0.0-beta1`…`beta5`) colapsan en un único path publicado,
+`/5.0-beta/`, que descarta la `v`, el componente de patch y el número de
+prerelease; `/current/` es alias de `/4.14/` y eso no está codificado en ningún
+tag; `/3.13/` y `/4.2/` responden sin figurar en la lista; y `/5.0/` devuelve 404
+aunque la rama `5.0.0` existe y se construye. Los tags describen el **código**; el
+sitio de documentación publica con su propia cadencia y su propia nomenclatura.
+La unión entre ambos es una convención humana.
+
+Entonces la señal de releases se conserva, pero como **alarma, no como
+inferencia**: el mapeo se **valida** contra dos fuentes independientes —que el
+path mapeado responda `text/markdown`, y que el estado de releases siga siendo el
+que la entrada asume— y un desacuerdo falla ruidoso nombrando la entrada y su
+`lastReviewed`. Validar no es derivar: el validador nunca reescribe el mapeo.
 
 **`llms.txt` es una promesa, no una API.** La transformación de path es un
 contrato publicado que nadie versiona y que puede romperse sin aviso. Un test
@@ -1298,20 +1389,72 @@ Opt-out con `--no-telemetry`. Nunca sale de la máquina sin acción explícita.
 
 ## 3.6 Criterios de aceptación — Fase 3
 
-- [ ] `docs` recupera una página y la cita como `.html`.
-- [ ] `docs` falla con mensaje claro ante un path de versión no mapeado.
-- [ ] Test canario de `llms.txt`: si la garantía 1-a-1 se rompe, falla ruidoso.
-- [ ] `schema` responde sin red con el dataset publicado.
-- [ ] `schema` **no arranca** si `payloadHash` no valida. Test con un byte
-      modificado a propósito.
-- [ ] Toda respuesta de `schema` incluye `ref`, `payloadHash` y `resolvedAt`.
-- [ ] `schema` rechaza cuando el `ref` del dataset ≠ rama del working tree, y
-      responde con `--allow-ref-mismatch`. Ambos caminos testeados.
-- [ ] Una celda pisada por `decisions.local.yml` llega marcada `overlay: "local"`.
-- [ ] Un dataset con `resolvedAt` de hace 40 días emite advertencia.
-- [ ] Estando en un fork upstream, el servidor anuncia el mundo antes de la
-      primera consulta.
-- [ ] `runtime` ausente no rompe los otros dos.
+**Los doce verificados el 2026-09-17** por un verificador independiente que no
+escribió el código, contra `bun test` (473 pass, 0 fail), `bun run typecheck`,
+`bun run build` y el canario corrido en vivo contra el sitio real. Cada criterio
+abajo nombra el test que lo prueba; un test que afirma una tautología o que se
+apoya en un fixture que comparte el supuesto del código no cuenta como cobertura,
+y donde quedó una duda se dice.
+
+- [x] `docs` recupera una página y la cita como `.html`. **Doble prueba**:
+      `src/mcp/docs.test.ts` con transporte inyectado, y el canario de red real.
+- [x] `docs` falla con mensaje claro ante un path de versión no mapeado, y ese
+      mensaje es **distinto** del de un path mapeado que no responde. Una es una
+      laguna de configuración; la otra es un mapeo podrido, y confundirlas es
+      perder la única pista de cuál arreglar. **Verificado con una aserción
+      diferencial** —`unmapped.message !== deadMapped.message`— y no con dos
+      chequeos independientes que casualmente pasan.
+- [x] Test canario de `llms.txt`: si la garantía 1-a-1 se rompe, falla ruidoso.
+      Afirma `200` **y** `content-type: text/markdown` **y** que el cuerpo no
+      empiece con `<!DOCTYPE`. El status solo no alcanza: el modo de falla que
+      esta sección teme es el sitio sirviendo el HTML bajo el path `.md` con un
+      200, y eso únicamente lo detecta una aserción sobre el contenido.
+      **Corrido en vivo el 2026-09-17**: pasa. Gateado con
+      `WAZUH_CTX_NETWORK=1`, nunca en un `bun test` por defecto.
+- [x] El mapeo de versiones se **valida**, no se deriva. Un chequeo compara cada
+      entrada contra dos fuentes: que el path mapeado responda `text/markdown`, y
+      que el estado de releases de `wazuh-dashboard-plugins` siga siendo el que la
+      entrada asume. Un desacuerdo falla ruidoso y nombra la entrada y su
+      `lastReviewed`. El validador no reescribe el mapeo: derivarlo sigue
+      prohibido. **La mitad "no reescribe" se afirma directamente** con una
+      comparación profunda del mapa antes y después, no se infiere de que la
+      función no reciba un handle de escritura.
+- [x] `schema` responde sin red con el dataset publicado. Lee `out/5.0.0/` sin
+      transporte inyectado en absoluto.
+- [x] `schema` **no arranca** si `payloadHash` no valida. Test con un byte
+      modificado a propósito. **El test copia el dataset committeado real y le
+      da vuelta un carácter**, en lugar de construir un `matrix.json` de mentira:
+      un fixture escrito a mano comparte los supuestos del código y por eso no
+      prueba nada. Este proyecto ya se quemó con eso.
+- [x] Toda respuesta de `schema` incluye `ref`, `payloadHash` y `resolvedAt`.
+      Chequeado en los tres handlers, no en uno.
+- [x] `schema` rechaza cuando el `ref` del dataset ≠ rama del working tree, y
+      responde con `--allow-ref-mismatch`. Ambos caminos testeados. **Y un tercer
+      camino que la redacción original no distinguía**: un HEAD desprendido no es
+      un desacuerdo entre dos refs conocidas, es no poder determinar la rama, y
+      rechaza con un mensaje distinto que no nombra ninguna ref. Un cuarto caso
+      —`cwd` fuera de todo repo conocido— **sirve** con mundo `unknown`, porque el
+      chequeo es sobre la posición del consumidor y quien está fuera del corpus no
+      tiene posición que contradecir. Cuatro resultados, cuatro tests, ninguno
+      colapsado.
+- [x] Una celda pisada por `decisions.local.yml` llega marcada `overlay: "local"`.
+      Con control negativo: el mismo campo resuelto desde `decisions.yml` **no**
+      queda marcado. Y sin archivo local, `payloadHash` se afirma contra un hash
+      literal capturado antes del cambio — por eso `out/5.0.0/` no se regeneró.
+- [x] Un dataset con `resolvedAt` de hace 40 días emite advertencia. Los dos
+      lados del borde: a los 29 días no advierte.
+- [x] Estando en un fork upstream, el servidor anuncia el mundo antes de la
+      primera consulta. **Probado con una consulta real**: un `Client` de verdad
+      sobre `InMemoryTransport` emite un `resources/read` y se afirma que el
+      anuncio quedó registrado antes de que vuelva el resultado. La primera
+      versión de este test simulaba la consulta empujando un string, y un test que
+      simula justamente lo que dice observar no prueba el orden.
+- [x] `runtime` ausente no rompe los otros dos. **No es un flag, es la ausencia
+      del registro**: no hay forma a nivel de protocolo de marcar un recurso como
+      no disponible, así que `runtime` simplemente no se registra cuando su
+      backend no resuelve, y la propiedad se sostiene por construcción en vez de
+      por un camino de código que puede regresionar. Verificado sobre el protocolo
+      real: `resources/list` devuelve sólo `schema`, y un `docs` sigue leyendo.
 
 ---
 
@@ -1372,10 +1515,22 @@ Si `matrix/` importa el reloj, la propiedad se pierde.
 ```
 1. src/matrix/ puro + fixtures     ← HECHO
 2. src/parse/ + src/fetch/         ← HECHO
-3. Fase 2                          ← independiente de Fase 3
-4. Fase 3                          ← depende del dataset de Fase 1
-5. wazuh-ctx serve (Fase 1.5)      ← último, sobre datos reales
+3. Fase 2                          ← HECHO
+4. Fase 3                          ← HECHO (2026-09-17)
+5. wazuh-ctx serve (Fase 1.5)      ← HECHO (2026-09-17)
 ```
+
+Con Fase 1.5 cerrada el mismo día, **los 61 criterios están cumplidos y los
+siete subcomandos funcionan**: `matrix`, `crosscheck`, `skills-diff`, `sync`,
+`check`, `serve` y `mcp`. No queda ningún stub; `notImplemented` se borró porque
+ya no tenía a quién servir.
+
+El riesgo que 1.5 había aceptado por escrito —editar `decisions.yml` y
+`annotations.yml` a mano mientras el inspector no existiera— nunca llegó a
+cobrarse: la cifra que había que vigilar se quedó en **3 unknowns y 0
+conflictos**. La apuesta de diferir el inspector para construirlo contra el
+dominio completo se pagó sola, y de hecho se cobró dos veces: construirlo último
+fue lo que destapó que `crosscheck.json` no guardaba las aristas del grafo.
 
 Se empezó por `matrix/` y no por `fetch/` aunque `fetch` sea el paso 1
 cronológico. Toda la lógica se testeó con fixtures de veinte líneas, sin clonar
@@ -1396,6 +1551,13 @@ en lugar de contra un tercio de él.
 El riesgo aceptado, y queda escrito: hasta entonces `decisions.yml` y
 `annotations.yml` se editan a mano. Con 3 unknowns eso es tolerable; si esa
 cifra crece mucho antes de Fase 3, la decisión se revisa.
+
+> **Cerrado el 2026-09-17.** Fase 3 terminó y la cifra no creció: siguen siendo
+> 3 unknowns y 0 conflictos. La apuesta —diferir el inspector para construirlo
+> contra el dominio completo en vez de contra un tercio— se pagó sola, y el
+> inspector ahora se diseña sobre las tres superficies que entonces no existían:
+> el paquete de estándares de Fase 2, los conflictos del diff a tres bandas, y lo
+> que el agente consume por MCP. La condición de revisión no se gatilló.
 
 ## 8. Decisiones abiertas para Diego
 

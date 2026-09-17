@@ -167,6 +167,75 @@ describe("annotations are additive only", () => {
   });
 });
 
+/**
+ * `overlay: "local"` marking (SPEC "A cell overridden by decisions.local.yml
+ * is marked overlay: 'local'", unit 3). Marking lives in the domain layer
+ * (`applyHumanLayers`) so every consumer of the matrix carries it, not only
+ * the `schema` response -- and it must cost nothing when there is no local
+ * file, which is what the byte-identical `payloadHash` below proves.
+ */
+describe("overlay: local marking", () => {
+  test("a cell written from decisions.local.yml carries overlay: local", () => {
+    const localDecision: Decision = {
+      ...wazuhCoreWorldDecision,
+      author: "diego.garcia",
+    };
+
+    const matrix = buildMatrix(
+      input({
+        facts: [wazuhCore],
+        decisions: [localDecision],
+        localOverrides: new Set(["wazuhCore::world"]),
+      }),
+    );
+    const plugin = matrix.plugins[0]!;
+
+    expect(plugin.world).toBe("wazuh-native");
+    expect(plugin.assertions.world?.overlay).toBe("local");
+  });
+
+  test("a cell resolved from decisions.yml (not local) carries no overlay key", () => {
+    const matrix = buildMatrix(
+      input({ facts: [wazuhCore], decisions: [wazuhCoreWorldDecision] }),
+    );
+    const plugin = matrix.plugins[0]!;
+
+    expect(plugin.assertions.world?.overlay).toBeUndefined();
+  });
+
+  /**
+   * No `decisions.local.yml` means an empty `localOverrides` set, which must
+   * be free: `canonicalize` drops `undefined` keys, so an absent marker must
+   * leave `payloadHash` byte-identical to the value produced before this
+   * change existed. Captured against the actual pre-change implementation
+   * (before `localOverrides` was threaded into `applyHumanLayers`) with this
+   * exact fixture input, so this is a real assertion on a real hash, not a
+   * tautology -- if threading the set ever perturbs the untouched path, this
+   * fails.
+   */
+  test("with no local file, no cell carries an overlay key and payloadHash is byte-identical to the pre-change value", () => {
+    const matrix = buildMatrix(
+      input({
+        facts: allFacts,
+        resolvedRefs: {
+          "wazuh-dashboard-plugins": "5157de35",
+          "wazuh-dashboard-security-analytics": "a91c02f1",
+        },
+      }),
+    );
+
+    for (const plugin of matrix.plugins) {
+      for (const assertion of Object.values(plugin.assertions)) {
+        expect(assertion.overlay).toBeUndefined();
+      }
+    }
+
+    expect(matrix.payloadHash).toBe(
+      "sha256:4009de2a3c7bd993f74ea381a0b2ba1ef8946ffe3e6817096e751b03c9e050ae",
+    );
+  });
+});
+
 describe("determinism survives the overlay", () => {
   test("identical input with decisions yields an identical payloadHash", () => {
     const a = buildMatrix(input({ decisions: [wazuhCoreWorldDecision] }));

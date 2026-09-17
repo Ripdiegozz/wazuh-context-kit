@@ -37,9 +37,20 @@ repos:
 
 # Code-branch -> documentation-path mapping (SPEC 3.1).
 # Hand-maintained prose. It has an owner and a review date, by rule.
+#
+# Do NOT derive these values from release tags. Measured 2026-09-17: the six 5.0
+# prerelease tags collapse into the single published path /5.0-beta/, /current/
+# is a byte-identical alias for /4.14/ that no tag encodes, and /5.0/ 404s even
+# though branch 5.0.0 exists. `wazuh-ctx mcp --validate-docs-map` checks these
+# entries against the live site and against release state; it never rewrites
+# them.
 docsVersionMap:
   owner: diego.garcia
-  lastReviewed: "2026-09-14"
+  lastReviewed: "2026-09-17"
   map:
-    "5.0.0": "5.0"
+    # Was "5.0": every URL under that path returned 404. Wazuh 5.0 documentation
+    # is published at /5.0-beta/ and there is no GA v5.0.0 tag yet -- the latest
+    # is v5.0.0-beta5. This value moves when 5.0 goes GA; the validator is what
+    # catches that day.
+    "5.0.0": "5.0-beta"
     "4.14.0": "4.14"

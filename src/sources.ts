@@ -35,14 +35,34 @@ const repoSourceSchema = z
   })
   .strict();
 
+/**
+ * Code-branch -> documentation-path mapping (SPEC 3.1). Hand-maintained
+ * configuration, validated on load, never derived from tags/releases/branches
+ * (SPEC: "the version mapping is explicit configuration, never derived").
+ *
+ * `.strict()` here for the same reason `repoSourceSchema` is: this block is
+ * hand-edited and committed, so an unrecognised key inside it (e.g. a
+ * misspelled field) should be rejected loudly rather than silently stripped.
+ */
+const docsVersionMapSchema = z
+  .object({
+    owner: z.string().min(1),
+    lastReviewed: z.string().min(1),
+    map: z.record(z.string().min(1), z.string().min(1)),
+  })
+  .strict();
+
+export type DocsVersionMap = z.infer<typeof docsVersionMapSchema>;
+
 // NOT `.strict()` at this level: the real `sources.yml` carries a hand-
-// maintained `docsVersionMap` block (SPEC 3.1) this loader does not read, and
-// rejecting every unrecognised top-level key would break that legitimate
-// block. The credential boundary here is narrower and explicit instead: see
-// `rejectTopLevelCredentialFields` below.
+// maintained `docsVersionMap` block (SPEC 3.1). The credential boundary here
+// is narrower and explicit instead: see `rejectTopLevelCredentialFields`
+// below.
 const sourcesFileSchema = z.object({
   refs: z.array(z.string().min(1)).min(1),
   repos: z.array(repoSourceSchema).min(1),
+  /** Absent for a `sources.yml` that predates this change -- tolerated, not fatal. */
+  docsVersionMap: docsVersionMapSchema.optional(),
 });
 
 /**
@@ -75,6 +95,7 @@ function rejectTopLevelCredentialFields(path: string, parsed: unknown): void {
 export interface Sources {
   readonly refs: string[];
   readonly repos: RepoSource[];
+  readonly docsVersionMap?: DocsVersionMap;
 }
 
 /** Fatal on a missing or schema-invalid file — see module doc. */
@@ -107,5 +128,9 @@ export async function loadSources(root: string): Promise<Sources> {
     throw new Error(`${path}: invalid entry at ${where} — ${first?.message ?? "unknown"}`);
   }
 
-  return { refs: result.data.refs, repos: result.data.repos };
+  return {
+    refs: result.data.refs,
+    repos: result.data.repos,
+    ...(result.data.docsVersionMap ? { docsVersionMap: result.data.docsVersionMap } : {}),
+  };
 }

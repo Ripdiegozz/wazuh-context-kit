@@ -1,0 +1,5 @@
+refs:
+  - "5.0.0"
+
+repos:
+  - { name: wazuh-dashboard, kind: platform }

@@ -85,3 +85,39 @@ describe("loadSources", () => {
     expect(result.repos.some((r) => r.name === "wazuh-dashboards-reporting")).toBe(false);
   });
 });
+
+/**
+ * `docsVersionMap` (SPEC 3.1, unit 2): hand-maintained code-ref -> docs-path
+ * mapping, validated on load rather than derived.
+ */
+describe("docsVersionMap", () => {
+  test("a well-formed block parses, exposing owner, lastReviewed and map", async () => {
+    const result = await loadSources(join(FIXTURES_ROOT, "docs-map-ok"));
+
+    expect(result.docsVersionMap).toEqual({
+      owner: "diego.garcia",
+      lastReviewed: "2026-09-17",
+      map: {
+        "5.0.0": "5.0-beta",
+        "4.14.0": "4.14",
+      },
+    });
+  });
+
+  test("a malformed block throws naming the file and the offending path", async () => {
+    const path = join(FIXTURES_ROOT, "docs-map-bad", "sources.yml");
+
+    await expect(loadSources(join(FIXTURES_ROOT, "docs-map-bad"))).rejects.toThrow(
+      /docsVersionMap\.map/,
+    );
+    await expect(loadSources(join(FIXTURES_ROOT, "docs-map-bad"))).rejects.toThrow(
+      new RegExp(path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+  });
+
+  test("an absent block is tolerated -- the loader stays non-fatal for a file that predates this change", async () => {
+    const result = await loadSources(join(FIXTURES_ROOT, "docs-map-absent"));
+
+    expect(result.docsVersionMap).toBeUndefined();
+  });
+});

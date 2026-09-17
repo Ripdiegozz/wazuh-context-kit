@@ -106,6 +106,15 @@ export interface AssertedEvidence {
   author: string;
   date: string;
   reason: string;
+  /**
+   * Present, and always `"local"`, when this cell's value came from
+   * `decisions.local.yml` -- the gitignored escape hatch (SPEC: "A cell
+   * overridden by decisions.local.yml is marked overlay: 'local'"). Absent
+   * for every other cell, including one resolved by decisions.yml, so that
+   * `canonicalize` drops the key entirely and `payloadHash` stays
+   * byte-identical when there is no local file.
+   */
+  overlay?: "local";
 }
 
 export type Evidence = DerivedEvidence | AssertedEvidence;
@@ -266,8 +275,29 @@ export interface CrosscheckJson {
   coverage: Coverage;
   declaredUnreferenced: DeclaredIndex[];
   referencedUndeclared: IndexReference[];
+  /**
+   * The pairs that DID match: a declared pattern and the site that reaches it.
+   *
+   * These are the edges of the bipartite graph SPEC 1.5 asks the inspector to
+   * draw — declared indices on one side, the code consuming them on the other.
+   * They were computed from the beginning and thrown away: the two orphan lists
+   * are the leftovers of this join, and only the leftovers were kept.
+   *
+   * That was defensible while the only consumer was a markdown report, where a
+   * match is the boring case and nobody reads a list of things that are fine.
+   * It stops being defensible for a graph, where the matches ARE the graph and
+   * the orphans are the two fringes.
+   */
+  matched: MatchedIndex[];
   wcsWithoutConsumer: string[];
   competingCatalogs: CompetingCatalog[];
+}
+
+/** A declared pattern and one site that references a name it covers. */
+export interface MatchedIndex {
+  pattern: string;
+  template: string;
+  reference: IndexReference;
 }
 
 export interface IndexReference {
@@ -361,4 +391,12 @@ export interface BuildInput {
   decisions?: Decision[];
   /** Layer 3, already parsed. */
   annotations?: Annotation[];
+  /**
+   * Handles (`"<plugin>::<field>"`) overridden by `decisions.local.yml`, as
+   * computed by `loadHumanLayers`. Threaded through so `applyHumanLayers` can
+   * mark those cells `overlay: "local"` (SPEC). Absent/empty when there is no
+   * local file -- the common case, and the one that must leave `payloadHash`
+   * untouched.
+   */
+  localOverrides?: Set<string>;
 }

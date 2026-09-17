@@ -152,6 +152,7 @@ export function buildMatrix(input: BuildInput): MatrixJson {
     plugins,
     input.decisions ?? [],
     input.annotations ?? [],
+    input.localOverrides ?? new Set(),
   );
 
   // Unknowns are computed AFTER the overlay, so a field a human resolved no

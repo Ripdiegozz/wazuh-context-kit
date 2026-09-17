@@ -42,6 +42,8 @@ import { renderSkillsDiffMarkdown } from "./skills/render.ts";
 import { loadSettingsVariants } from "./settings/load.ts";
 import { mergeSettings } from "./settings/merge.ts";
 import type { MergedSettings } from "./settings/types.ts";
+import { createNodeServeFs } from "./serve/handlers.ts";
+import { startServeServer } from "./serve/server.ts";
 import { loadSources } from "./sources.ts";
 import { applySync, checkStandards } from "./standards/apply.ts";
 import { planSync } from "./standards/plan.ts";
@@ -50,6 +52,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
 const VERSION = "0.1.0";
 const TOOL = `wazuh-ctx@${VERSION}`;
+
+/** Matches the dev proxy target in `ui/vite.config.ts`; both must move together. */
+const DEFAULT_SERVE_PORT = 4590;
 
 /** Fixture SHAs are fixed, so the instant they were "resolved" is fixed too. */
 const FIXTURE_RESOLVED_AT = "2026-09-14T00:00:00Z";
@@ -70,7 +75,7 @@ COMMANDS
                 --repo <name> --target <dir> are both required
   check         Verify .claude/standards/ against the package (SPEC 2.3)
                 --target <dir> is required; reports not-applicable | in-sync | drifted
-  serve         Local inspector UI
+  serve         Local inspector UI (SPEC 1.5) — 127.0.0.1 only
   mcp           MCP server: docs | schema | runtime (stdio; SPEC Phase 3)
 
 OPTIONS
@@ -87,6 +92,7 @@ OPTIONS
   --indexer-skip-tls-verify
                         crosscheck: accept a certificate that does not validate
   --format <text|json>  crosscheck: format of the --indexer comparison on stdout (default: text)
+  --port <n>            serve: port to bind on 127.0.0.1 (default: 4590)
   --allow-ref-mismatch  mcp: serve schema even when the dataset ref does not
                         match the working tree's branch (refused by default)
   --no-telemetry        mcp: disable the local (plugin, field, resolved) sink entirely
@@ -916,13 +922,73 @@ async function runMcp(values: Record<string, unknown>): Promise<CommandResult> {
   return { code: 0 };
 }
 
-function notImplemented(command: string, specSection: string): CommandResult {
-  console.error(
-    `wazuh-ctx ${command}: not implemented yet. See SPEC ${specSection}.\n` +
-      "Build order is deliberate (SPEC 7) — this phase has not started.",
-  );
-  return { code: 2 };
+/**
+ * `wazuh-ctx serve` — the Phase 1.5 inspector (SPEC 1.5.1).
+ *
+ * Binds 127.0.0.1 only. This is an instrument for the person maintaining the
+ * dataset, not a service: the agent consumes the dataset over MCP, and nothing
+ * here is meant to be reachable from another machine.
+ *
+ * The API writes only `decisions.yml`, `annotations.yml` and
+ * `decisions.local.yml`, through one allow-list chokepoint, and a save shows
+ * its YAML diff before it writes anything. SPEC 1.5.1: the save button does not
+ * mutate state, it produces a diff to commit.
+ */
+async function runServe(values: Record<string, unknown>): Promise<CommandResult> {
+  const ref = (values.ref as string | undefined) ?? "5.0.0";
+  const outDir = (values.out as string | undefined) ?? "out";
+  const portValue = values.port as string | undefined;
+  const port = portValue === undefined ? DEFAULT_SERVE_PORT : Number(portValue);
+
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    console.error(`wazuh-ctx serve: --port must be an integer 0-65535, got '${portValue}'.`);
+    return { code: 64 };
+  }
+
+  const root = process.cwd();
+  const outRoot = resolve(root, outDir);
+
+  // Fail here rather than on the first request: a dashboard that loads and then
+  // reports "no dataset" has wasted the reader's attention to say what the
+  // command already knew.
+  const dataset = await loadDataset(outDir, ref);
+  if (!dataset.ok) {
+    console.error(`wazuh-ctx serve: ${dataset.message}`);
+    return { code: 2 };
+  }
+
+  let server: ReturnType<typeof startServeServer>;
+  try {
+    server = startServeServer({
+      outRoot,
+      ref,
+      root,
+      port,
+      clock: () => new Date().toISOString(),
+      telemetryPath: join(resolve(root, ".cache"), "mcp-telemetry.jsonl"),
+      fs: createNodeServeFs(),
+    });
+  } catch (error) {
+    console.error(`wazuh-ctx serve: could not bind port ${port} — ${(error as Error).message}`);
+    return { code: 2 };
+  }
+
+  console.log(`wazuh-ctx serve: inspector for ref ${dataset.matrix.ref} at ${server.url}`);
+  console.log("  writes are limited to decisions.yml, annotations.yml and decisions.local.yml.");
+  console.log("  Ctrl-C to stop.");
+
+  await new Promise<void>((resolvePromise) => {
+    const stop = (): void => {
+      server.stop();
+      resolvePromise();
+    };
+    process.once("SIGINT", stop);
+    process.once("SIGTERM", stop);
+  });
+
+  return { code: 0 };
 }
+
 
 async function main(): Promise<number> {
   const argv = process.argv.slice(2);
@@ -955,6 +1021,7 @@ async function main(): Promise<number> {
         target: { type: "string" },
         indexer: { type: "string" },
         "indexer-skip-tls-verify": { type: "boolean" },
+      port: { type: "string" },
         format: { type: "string" },
         "allow-ref-mismatch": { type: "boolean" },
         "no-telemetry": { type: "boolean" },
@@ -984,11 +1051,7 @@ async function main(): Promise<number> {
     case "check":
       return (await runCheck(parsed.values)).code;
     case "serve":
-      // Moved to LAST in the build order (SPEC 7, 2026-09-16): an inspector
-      // built now would show 9 plugins and 3 unknowns; built after Phases 2
-      // and 3 it shows the standards package and the MCP surface too. The
-      // "1.5" in its name no longer indicates its position.
-      return notImplemented("serve", "Phase 1.5, now last in SPEC 7").code;
+      return (await runServe(parsed.values)).code;
     case "mcp":
       return (await runMcp(parsed.values)).code;
     default:

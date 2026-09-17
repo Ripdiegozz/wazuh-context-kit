@@ -331,10 +331,23 @@ describe("wazuh-ctx argument handling", () => {
     expect(result.stdout).toContain("USAGE");
   });
 
-  test("an unimplemented command exits 2 and names its SPEC section", async () => {
-    const result = await runCli(["serve"]);
-    expect(result.code).toBe(2);
-    expect(result.stderr).toContain("not implemented yet");
+  // There is no unimplemented command left. `serve` was the last one, and with
+  // Phase 1.5 in place all seven subcommands run -- so the test that used to
+  // assert `serve` exits 2 now asserts the opposite is safely reachable:
+  // argument validation happens BEFORE anything binds a port.
+  test("serve rejects a bad --port before binding anything", async () => {
+    const result = await runCli(["serve", "--port", "not-a-number"]);
+    expect(result.code).toBe(64);
+    expect(result.stderr).toContain("--port must be an integer");
+  });
+
+  test("serve --help prints usage and exits 0 without starting the server", async () => {
+    // Same reasoning as the `mcp --help` case below: `--help` is handled in
+    // `main()` before the command switch, so this is the one way to exercise
+    // `serve` from a spawned process without managing a long-running server.
+    const result = await runCli(["serve", "--help"]);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("Local inspector UI");
   });
 
   test("mcp --help prints usage and exits 0 without starting the server", async () => {

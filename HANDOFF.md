@@ -2,10 +2,19 @@
 
 > Written 2026-09-15, replacing the 2026-09-14 version.
 > Updated later the same day, after `platform-core-plugins` closed.
+> Updated 2026-09-17, after Phase 2 and Phase 3 both closed.
 > The authoritative contract is [`SPEC.md`](SPEC.md). This file only says where
 > the work stopped.
 
 ## Where it stands
+
+**Phases 1, 2 and 3 are complete and closed. Only the Phase 1.5 inspector is
+left.** As of 2026-09-17: **56 of 61 acceptance criteria** are met, and six of
+the seven subcommands work — `matrix`, `crosscheck`, `skills-diff`, `sync`,
+`check` and `mcp`. `serve` is the only surviving `notImplemented`, and it
+survives by the deliberate ordering decision in SPEC section 7, not by neglect.
+
+The five open criteria are all Phase 1.5.
 
 **Phase 1 is complete and closed.** As of 2026-09-15 that is finally true: the
 crosscheck of SPEC 1.8 exists, and `wazuh-ctx crosscheck` no longer returns
@@ -49,9 +58,10 @@ against a real run. There is now an opt-in guard that does
 | `src/sources.ts` | `sources.yml` loader. Done. |
 | `src/cli.ts` | real pipeline wired; both hardcodes gone. Done. |
 | core plugin surfacing | `src/parse/core-plugins.ts` + the `core` section. Done. |
-| `src/skills/` | Phase 2 — **empty** |
-| `src/mcp/` | Phase 3 — **empty** |
-| `ui/` | Phase 1.5 inspector — **empty** |
+| `src/skills/` | Phase 2 — three-band diff, extract, core. Done. |
+| `src/settings/`, `src/standards/` | Phase 2 — settings merge, `sync` / `check`. Done. |
+| `src/mcp/` | Phase 3 — `docs`, `schema`, `runtime`, world detection, telemetry. Done. |
+| `ui/` | Phase 1.5 inspector — **empty**, and the only thing left |
 | `src/crosscheck/` | SPEC 1.8, the index crosscheck. Done. |
 | `.github/workflows/` | `ci.yml` + `regenerate.yml` (SPEC 5.4). Done, see below. |
 
@@ -236,16 +246,23 @@ rather than inferred. Scoped as its own change, with today's evidence in it.
   verified it. A fresh session re-reading `openspec/specs/` against the diff
   would be worth its cost.
 
-## Then: what comes after Phase 1
+## Then: what comes after Phase 3
 
-Per SPEC section 7, the next build step is the **Phase 1.5 inspector**
-(`wazuh-ctx serve`) — a read-only viewer over `matrix.json` plus an editor for
-`decisions.yml` and `annotations.yml`. The crosscheck view is where it earns its
-keep: that data is a bipartite graph and markdown renders it badly.
+The **Phase 1.5 inspector** (`wazuh-ctx serve`), and nothing else — a read-only
+viewer over `matrix.json` plus an editor for `decisions.yml` and
+`annotations.yml`. The crosscheck view is where it earns its keep: that data is a
+bipartite graph and markdown renders it badly.
 
-Phase 3's MCP `schema` resource is what actually makes the dataset consumable by
-an agent. Phase 2 (skills) and the rest of Phase 3 (`docs`, `runtime`) are not on
-the critical path for a usable v1.
+It was deferred from step 2 to last on 2026-09-16, on the argument that an
+inspector built then would show 9 plugins and 3 unknowns while one built after
+Phases 2 and 3 would also show the standards package, the three-band diff's
+conflicts, and the MCP surface. That bet is now settled and it paid: the deferral
+risk was that hand-editing `decisions.yml` would become unbearable before the
+inspector existed, measured by the unknown count. It did not move — still **3
+unknowns and 0 conflicts**.
+
+So the inspector now gets designed once, against the complete domain, instead of
+against a third of it.
 
 ---
 

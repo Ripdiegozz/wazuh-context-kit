@@ -14,3 +14,7 @@ ui/dist/
 
 # NOTE: out/ is intentionally NOT ignored.
 # The dataset is the product and is committed (SPEC 5.1).
+
+# CodeGraph local index. Per-checkout, must never be shared -- its root and
+# checked-out bytes differ per worktree.
+.codegraph/

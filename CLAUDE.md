@@ -23,6 +23,26 @@ ls-remote   clone   fetch   rev-parse   sparse-checkout   init   checkout
 No `push`. No `commit`. No `remote add`. The cached clones under
 `.cache/<repo>@<ref>/` are `blob:none` partial clones, and they stay clean.
 
+**The boundary is what you point git at, not which verb you use.** Phase 3 added
+world detection, which reads the *consumer's own working tree* to answer "where
+is this person standing" — `config --get remote.origin.url` and
+`symbolic-ref --short HEAD`, neither of which appears above. That is not a
+loophole and it is not drift: those commands never touch a `wazuh/*` remote, they
+inspect the checkout the user is already sitting in.
+
+So the contract has two halves, and they are not the same rule:
+
+| Target | Permitted |
+| --- | --- |
+| a `wazuh/*` remote | exactly the seven subcommands listed above |
+| the consumer's local working tree | any read-only subcommand |
+
+A write is forbidden in both columns. The first column is narrow because every
+call in it crosses into the maintainer's employer's organisation; the second is
+broader because it never leaves the machine. Recorded 2026-09-17, when the code
+started using two subcommands this file had not named and the honest fix was to
+say which rule they fall under rather than quietly widen the list.
+
 `gh` against a `wazuh/*` target is read-only too: queries yes, never
 `gh issue create`, `gh pr create`, or `gh api -X POST|PATCH|PUT|DELETE`.
 

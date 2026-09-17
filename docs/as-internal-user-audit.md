@@ -1,5 +1,21 @@
 # `asInternalUser` audit: every call site, classified
 
+> **Precision corrected 2026-09-17, on the maintainer's reading.** An earlier
+> draft of this audit described `asInternalUser` as running "with system
+> credentials" and "bypassing RBAC". Both are wrong in a way that matters.
+>
+> - `asCurrentUser` — the user logged into the session.
+> - `asInternalUser` — **the user configured in the application's configuration**.
+>
+> It does not bypass RBAC. It runs as a *different principal*, which has its own
+> RBAC, and whose permissions are whatever an administrator configured — broad in
+> a typical deployment, but configured rather than inherent.
+>
+> That changes how the findings below should be read. A finding is not "this code
+> escapes permissions"; it is "this code answers as somebody else". Whether that
+> somebody else can see more than the caller depends on the deployment, which is
+> why every finding names what it reads rather than asserting an impact.
+
 > **Companion to** [`as-current-user.md`](./as-current-user.md), which explains why
 > two unrelated permission systems both spell the accessor `asCurrentUser`. Read
 > that page first; this page assumes it.
@@ -89,7 +105,7 @@ Only non-`system-by-design` entries get a section. The `system-by-design` entrie
 that carry a caveat get one too, because the caveat is the part a maintainer
 should be able to argue with.
 
-### Finding 1 — `GET /api/setup` reads the indexer cluster root as the system (call site #3)
+### Finding 1 — `GET /api/setup` reads the indexer cluster root as the configured internal user (call site #3)
 
 **Class: `suspicious`.**
 
@@ -125,7 +141,7 @@ permissions, `asCurrentUser` would make `cluster_uuid` come back `null` for
 those users and the setup panel would degrade. That is a real design reason. If
 the maintainer accepts it, the fix is a justifying comment, not a client change.
 
-### Finding 2 — `GET /elastic/template/{pattern}` enumerates all cluster templates as the system (call site #4)
+### Finding 2 — `GET /elastic/template/{pattern}` enumerates all cluster templates as the configured internal user (call site #4)
 
 **Class: `suspicious`.** This is the strongest of the three.
 
@@ -161,7 +177,7 @@ So this may be dead surface. "Probably unused" is not the same as "not
 registered", and it *is* registered. If it is genuinely unused, deleting the
 route closes the finding more cleanly than switching the client.
 
-### Finding 3 — cross-cluster-search detection runs as the system inside three user routes (call site #9)
+### Finding 3 — cross-cluster-search detection runs as the configured internal user inside three user routes (call site #9)
 
 **Class: `suspicious`, and the one I am least sure about.**
 

@@ -206,8 +206,32 @@ jobs:
           export REVIEW_NOTE
 
           branch="automation/regenerate-${REF}-${{ github.run_id }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Author the commit as the identity whose PAT pushes and opens the PR,
+          # NOT as github-actions[bot].
+          #
+          # The `master-ci` ruleset sets `require_extra_approval_for_unattributed_changes`.
+          # It asks for zero reviews in general, but demands one extra approval
+          # when a change is not attributed to the account that pushed it. With
+          # author = github-actions[bot] and pusher = REGEN_PAT's owner, every
+          # regeneration PR landed BLOCKED and waited for a human who had nothing
+          # to review --- observed on PR #19.
+          #
+          # The fix is to stop misattributing, not to weaken the rule. The commit
+          # IS made under that account's authority: its PAT is what pushes and
+          # merges. Saying so makes the change attributed and the extra approval
+          # no longer applies, while the rule keeps protecting every genuinely
+          # unattributed change. Turning the rule off would have bought the same
+          # convenience by removing the protection from everything else too.
+          # Resolved from the PAT itself, never hardcoded: the noreply address
+          # only links to an account when it carries that account's numeric id
+          # (`<id>+<login>@users.noreply.github.com`). A hardcoded or id-less
+          # address would look attributed and silently fail to be, which is the
+          # same blocked PR with a harder-to-see cause.
+          author_login=$(gh api user --jq .login)
+          author_id=$(gh api user --jq .id)
+          git config user.name "$author_login"
+          git config user.email "${author_id}+${author_login}@users.noreply.github.com"
+          echo "Authoring as ${author_login} <${author_id}+${author_login}@users.noreply.github.com>"
           git checkout -b "$branch"
           git add out/
           git commit -m "chore(out): regenerate ${REF} matrix

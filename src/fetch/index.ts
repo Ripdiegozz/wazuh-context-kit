@@ -9,6 +9,7 @@
  * not exist yet on a fresh checkout.
  */
 
+import { repoCloneUrl } from "../github.ts";
 import type { Skipped } from "../matrix/types.ts";
 import type { RepoSource } from "../sources.ts";
 import { cacheDirFor, cloneRepo, refreshRepo, sparsePathsFor } from "./clone.ts";
@@ -29,10 +30,6 @@ function isValidRepoName(name: string): boolean {
 
 function isValidRef(ref: string): boolean {
   return REF_PATTERN.test(ref) && !ref.startsWith("-");
-}
-
-function repoUrl(name: string): string {
-  return `https://github.com/wazuh/${name}.git`;
 }
 
 function stampPathFor(dir: string): string {
@@ -92,13 +89,13 @@ async function fetchOneRepo(
     return { fetched: { repo: repo.name, dir, commit: result.commit } };
   }
 
-  const remoteRef = await resolveRemoteRef(io.run, repoUrl(repo.name), ref, cacheRoot);
+  const remoteRef = await resolveRemoteRef(io.run, repoCloneUrl(repo.name), ref, cacheRoot);
   if (!remoteRef.found) {
     const reason = remoteRef.reason === "absent" ? `no ${ref} branch` : `ref lookup failed: ${remoteRef.detail}`;
     return { skipped: { repo: repo.name, reason } };
   }
 
-  const cloneResult = await cloneRepo(io.run, cacheRoot, dir, repoUrl(repo.name), ref, sparsePaths);
+  const cloneResult = await cloneRepo(io.run, cacheRoot, dir, repoCloneUrl(repo.name), ref, sparsePaths);
   if (!cloneResult.ok) {
     return { skipped: { repo: repo.name, reason: cloneResult.reason } };
   }

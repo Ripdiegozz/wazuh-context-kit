@@ -20,6 +20,7 @@
  */
 
 import type { GitRunner } from "../fetch/types.ts";
+import { repoCloneUrl } from "../github.ts";
 import type { DocsVersionMap } from "../sources.ts";
 import { buildDocsUrls, type DocsFetchLike } from "./docs.ts";
 
@@ -32,7 +33,7 @@ import { buildDocsUrls, type DocsFetchLike } from "./docs.ts";
 const DEFAULT_PROBE_PATH = "getting-started/components/index";
 
 const RELEASE_TAGS_REPO = "wazuh-dashboard-plugins";
-const RELEASE_TAGS_URL = `https://github.com/wazuh/${RELEASE_TAGS_REPO}.git`;
+const RELEASE_TAGS_URL = repoCloneUrl(RELEASE_TAGS_REPO);
 
 /** A mapped path that assumes pre-GA, e.g. `"5.0-beta"`, `"4.14-rc2"`. */
 const PRERELEASE_PATH_PATTERN = /-(alpha|beta|rc)\d*$/i;

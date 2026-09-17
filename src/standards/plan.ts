@@ -33,6 +33,8 @@
  */
 
 import { createHash } from "node:crypto";
+import { applySettings } from "../settings/apply.ts";
+import type { ConflictKind, MergedSettings, SettingsConflict } from "../settings/types.ts";
 import { headingLabel } from "../skills/extract.ts";
 import type { ExtractedSkill } from "../skills/extract.ts";
 import { reconstructRepo } from "../skills/reconstruct.ts";
@@ -104,15 +106,119 @@ export interface SyncManifest {
   readonly files: readonly ManifestFile[];
 }
 
+/** One conflict kind's count — the settings analogue of `ConflictHeadingCount`
+ * (design decision 4: "the report groups by kind"). `.claude/settings.json`
+ * has no marker convention, so unlike a skill's undeclared-divergence
+ * conflicts, its two kinds — `removed-from-core` and `scalar-disagreement`
+ * — say WHY it is a conflict, not just where. */
+export interface ConflictKindCount {
+  readonly kind: ConflictKind;
+  readonly count: number;
+}
+
+/** The settings analogue of `BlockedSkill` — never empty, same discipline:
+ * every `.claude/settings.json` conflict blocks the WHOLE file for every
+ * repository, mirroring how one skill's conflicts block that skill for
+ * every repository rather than only the repo that happens to appear in the
+ * conflict (design.md: "one conflicts layer... the same gate blocks
+ * distribution"). */
+export interface BlockedSettings {
+  readonly reasons: readonly string[];
+  readonly conflictsByKind: readonly ConflictKindCount[];
+}
+
+export interface DistributedSettings {
+  /** Relative to the target repository's root, matching the real file this
+   * change ultimately materialises — `.claude/settings.json` itself, never
+   * `.claude/standards/...` the way skills are (settings.json is not a
+   * generated standard, it is the file Claude Code itself reads). */
+  readonly path: string;
+  readonly content: string;
+  readonly hash: string;
+}
+
+/** `null` exactly when the caller passed no `MergedSettings` at all — a run
+ * that never considered `.claude/settings.json` is a different fact from
+ * one that considered it and found it clean, the same "not-applicable vs
+ * verified" distinction `standards/verify.ts` makes for `check`. When
+ * non-null, exactly one of `distributed`/`blocked` is set, never both and
+ * never neither — mirroring `BlockedSkill`/`DistributedFile`'s own
+ * partition. */
+export interface SettingsPlan {
+  readonly distributed: DistributedSettings | null;
+  readonly blocked: BlockedSettings | null;
+}
+
 export interface SyncPlan {
   readonly repo: string;
   readonly distributed: readonly DistributedFile[];
   readonly blocked: readonly BlockedSkill[];
   readonly manifest: SyncManifest;
+  /** Optional so existing hand-built `SyncPlan` fixtures (predating this
+   * change) stay valid without edits — `planSync` itself always sets it,
+   * to `null` when no `MergedSettings` was supplied. */
+  readonly settings?: SettingsPlan | null;
 }
 
 function standardPath(skill: string): string {
   return `skills/${skill}/SKILL.md`;
+}
+
+/** `.claude/settings.json`'s own path, distinct from `standardPath` above —
+ * settings is not written under `.claude/standards/`. */
+const SETTINGS_PATH = ".claude/settings.json";
+
+/** One human-readable line per conflict, naming its kind (task 3.3: "the
+ * reason naming it") — never the disputed content verbatim beyond what is
+ * needed to identify it, the same restraint `render.ts` uses for skill
+ * conflicts (the full detail lives in the conflict object itself, not the
+ * summary line). */
+function describeSettingsConflict(conflict: SettingsConflict): string {
+  const heading = conflict.path.join(".");
+  if (conflict.kind === "removed-from-core") {
+    return (
+      `${heading}: '${conflict.value}' is present in every repository except '${conflict.missingFrom}' ` +
+      `(removed-from-core)`
+    );
+  }
+  const values = conflict.variants.map((v) => `${v.repo}=${JSON.stringify(v.value)}`).join(", ");
+  return `${heading}: repositories disagree (scalar-disagreement) — ${values}`;
+}
+
+/** Groups `conflicts` by kind, counted and sorted by kind name — the
+ * structured basis for `BlockedSettings.conflictsByKind` (task 3.2). */
+function groupSettingsConflictsByKind(conflicts: readonly SettingsConflict[]): ConflictKindCount[] {
+  const counts = new Map<ConflictKind, number>();
+  for (const conflict of conflicts) counts.set(conflict.kind, (counts.get(conflict.kind) ?? 0) + 1);
+  return [...counts.entries()]
+    .map(([kind, count]) => ({ kind, count }))
+    .sort((a, b) => a.kind.localeCompare(b.kind));
+}
+
+/**
+ * Plans `.claude/settings.json` for `repo` from `mergedSettings` — `null`
+ * when the caller supplied none. Any conflict at all blocks the file for
+ * EVERY repository (task 3.3), the same all-or-nothing gate `distributable`
+ * applies to a skill: a conflict is, by construction, content nobody can
+ * safely reconstruct on any one repository's behalf, so there is no partial
+ * distribution to offer.
+ */
+function planSettings(mergedSettings: MergedSettings | undefined, repo: string): SettingsPlan | null {
+  if (!mergedSettings) return null;
+
+  if (mergedSettings.conflicts.length > 0) {
+    return {
+      distributed: null,
+      blocked: {
+        reasons: mergedSettings.conflicts.map(describeSettingsConflict),
+        conflictsByKind: groupSettingsConflictsByKind(mergedSettings.conflicts),
+      },
+    };
+  }
+
+  const settingsTree = applySettings(mergedSettings, repo);
+  const content = `${JSON.stringify(settingsTree, null, 2)}\n`;
+  return { distributed: { path: SETTINGS_PATH, content, hash: hashContent(content) }, blocked: null };
 }
 
 /** Groups `conflicts` by heading path, counted, sorted by heading — the
@@ -137,7 +243,12 @@ function groupConflictsByHeading(conflicts: ExtractedSkill["conflicts"]): Confli
  * determinism-by-construction discipline `emit.ts` established for the
  * sibling package.
  */
-export function planSync(extracted: readonly ExtractedSkill[], repo: string, tool: string): SyncPlan {
+export function planSync(
+  extracted: readonly ExtractedSkill[],
+  repo: string,
+  tool: string,
+  mergedSettings?: MergedSettings,
+): SyncPlan {
   const distributed: DistributedFile[] = [];
   const blocked: BlockedSkill[] = [];
 
@@ -171,9 +282,16 @@ export function planSync(extracted: readonly ExtractedSkill[], repo: string, too
     distributed.push({ skill: skill.skill, path, content, hash: hashContent(content) });
   }
 
-  const files: ManifestFile[] = distributed
-    .map((d) => ({ path: d.path, hash: d.hash }))
-    .sort((a, b) => a.path.localeCompare(b.path));
+  const settingsPlan = planSettings(mergedSettings, repo);
+
+  // The settings file joins the SAME manifest as the skills — "sync
+  // materialises them alongside the skills" (design.md) means one manifest
+  // covers both, so `check` can detect drift in either without a second
+  // contract to keep in sync with this one.
+  const files: ManifestFile[] = [
+    ...distributed.map((d) => ({ path: d.path, hash: d.hash })),
+    ...(settingsPlan?.distributed ? [{ path: settingsPlan.distributed.path, hash: settingsPlan.distributed.hash }] : []),
+  ].sort((a, b) => a.path.localeCompare(b.path));
 
   const payloadHash = hashContent(JSON.stringify(files));
 
@@ -182,5 +300,6 @@ export function planSync(extracted: readonly ExtractedSkill[], repo: string, too
     distributed,
     blocked,
     manifest: { tool, payloadHash, files },
+    settings: settingsPlan,
   };
 }

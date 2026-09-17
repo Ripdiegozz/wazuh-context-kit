@@ -15,6 +15,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { mergeSettings } from "../settings/merge.ts";
 import type { ExtractedSkill } from "../skills/extract.ts";
 import { applySync, checkStandards, STANDARDS_DIR } from "./apply.ts";
 import { planSync } from "./plan.ts";
@@ -167,6 +168,67 @@ describe("nothing under .cache/ is ever touched (design decision 6)", () => {
 
       await expect(stat(cacheMarker)).rejects.toThrow();
       await expect(stat(join(dir, ".cache"))).rejects.toThrow();
+    });
+  });
+});
+
+/**
+ * `.claude/settings.json` distributed alongside the skills (task 4.2:
+ * "`sync` materialises them alongside the skills") — written directly at
+ * the target's `.claude/settings.json`, never under `.claude/standards/`:
+ * unlike a skill, `settings.json` is not a generated standard, it is the
+ * real file Claude Code itself reads.
+ */
+describe("applySync materialises settings.json alongside the skills (task 4.2)", () => {
+  test("a clean merge writes .claude/settings.json for the target repository", async () => {
+    await withTempDir(async (dir) => {
+      const merged = mergeSettings([
+        { repo: "wazuh-dashboard", settings: { permissions: { allow: ["Bash(git status:*)", "Bash(yarn typecheck)"] } } },
+        { repo: "reporting", settings: { permissions: { allow: ["Bash(git status:*)"] } } },
+      ]);
+      const plan = planSync([cleanSkill("create-pr", "wazuh-dashboard")], "wazuh-dashboard", TOOL, merged);
+
+      const result = await applySync(plan, dir);
+
+      const settingsPath = join(dir, ".claude", "settings.json");
+      expect(result.written).toContain(settingsPath);
+      const content = JSON.parse(await readFile(settingsPath, "utf8"));
+      expect(content).toEqual({ permissions: { allow: ["Bash(git status:*)", "Bash(yarn typecheck)"] } });
+
+      // The skill itself still lands under .claude/standards/ — the two
+      // never share a directory.
+      expect(result.written).toContain(join(dir, STANDARDS_DIR, plan.distributed[0]!.path));
+    });
+  });
+
+  test("a settings conflict writes nothing under .claude/settings.json", async () => {
+    await withTempDir(async (dir) => {
+      const merged = mergeSettings([
+        { repo: "a", settings: { permissions: { allow: ["x", "y"] } } },
+        { repo: "b", settings: { permissions: { allow: ["x", "y"] } } },
+        { repo: "c", settings: { permissions: { allow: ["x"] } } },
+      ]);
+      const plan = planSync([cleanSkill("create-pr", "a")], "a", TOOL, merged);
+
+      const result = await applySync(plan, dir);
+
+      const settingsPath = join(dir, ".claude", "settings.json");
+      expect(result.written).not.toContain(settingsPath);
+      await expect(stat(settingsPath)).rejects.toThrow();
+      // The clean skill is unaffected by the blocked settings conflict.
+      expect(result.written).toContain(join(dir, STANDARDS_DIR, plan.distributed[0]!.path));
+    });
+  });
+
+  test("no plan.settings at all writes nothing at .claude/settings.json (backward compatible)", async () => {
+    await withTempDir(async (dir) => {
+      const plan = planSync([cleanSkill("create-pr", "wazuh-dashboard")], "wazuh-dashboard", TOOL);
+
+      const result = await applySync(plan, dir);
+
+      const settingsPath = join(dir, ".claude", "settings.json");
+      expect(result.written).not.toContain(settingsPath);
+      await expect(stat(settingsPath)).rejects.toThrow();
     });
   });
 });

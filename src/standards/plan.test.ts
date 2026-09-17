@@ -11,6 +11,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { mergeSettings } from "../settings/merge.ts";
 import type { ExtractedSkill, PatchOp } from "../skills/extract.ts";
 import { planSync } from "./plan.ts";
 
@@ -196,5 +197,87 @@ describe("sync fails fatally on an unresolvable anchor (task 3.3, SPEC 2.1.1)", 
     };
 
     expect(() => planSync([ambiguous], "wazuh-dashboard", TOOL)).toThrow(/occurrence/);
+  });
+});
+
+/**
+ * `settings.json` conflicts entering the same `conflicts/` layer as skill
+ * conflicts (design decision 4; tasks 3.1–3.3). `mergeSettings` is the REAL
+ * merge, not a hand-built `MergedSettings` — the same "build inputs through
+ * the real pure function, not by hand" discipline `extract.test.ts` follows
+ * for `diffSkill`, so this suite cannot silently drift from what
+ * `mergeSettings` actually produces.
+ */
+describe("a settings.json conflict enters the same conflicts/ layer as skill conflicts, carrying its kind (task 3.1)", () => {
+  test("a removal conflict blocks settings distribution and names its kind", () => {
+    const merged = mergeSettings([
+      { repo: "wazuh-dashboard", settings: { permissions: { allow: ["Bash(git status:*)", "Bash(yarn test)"] } } },
+      { repo: "wazuh-indexer-plugins", settings: { permissions: { allow: ["Bash(git status:*)", "Bash(yarn test)"] } } },
+      { repo: "reporting", settings: { permissions: { allow: ["Bash(git status:*)"] } } },
+    ]);
+    expect(merged.conflicts).toHaveLength(1);
+
+    const plan = planSync([cleanSkill("create-pr", "wazuh-dashboard")], "wazuh-dashboard", TOOL, merged);
+
+    expect(plan.settings).not.toBeNull();
+    expect(plan.settings!.distributed).toBeNull();
+    expect(plan.settings!.blocked).not.toBeNull();
+    expect(plan.settings!.blocked!.conflictsByKind).toEqual([{ kind: "removed-from-core", count: 1 }]);
+    expect(plan.settings!.blocked!.reasons[0]).toContain("removed-from-core");
+    // A skill with no conflicts is unaffected — settings and skills block
+    // independently (task 3.3, second half).
+    expect(plan.distributed).toHaveLength(1);
+  });
+});
+
+describe("the report groups by kind (task 3.2)", () => {
+  test("a removal and a scalar disagreement are counted under their own kind", () => {
+    const merged = mergeSettings([
+      { repo: "a", settings: { $schema: "one", permissions: { allow: ["x", "y"] } } },
+      { repo: "b", settings: { $schema: "two", permissions: { allow: ["x", "y"] } } },
+      { repo: "c", settings: { $schema: "two", permissions: { allow: ["x"] } } },
+    ]);
+    expect(merged.conflicts.map((c) => c.kind).sort()).toEqual(["removed-from-core", "scalar-disagreement"]);
+
+    const plan = planSync([], "a", TOOL, merged);
+
+    expect(plan.settings!.blocked!.conflictsByKind).toEqual([
+      { kind: "removed-from-core", count: 1 },
+      { kind: "scalar-disagreement", count: 1 },
+    ]);
+  });
+});
+
+describe("a settings conflict alone blocks distribution for that repository (task 3.3)", () => {
+  test("with no skill conflicts, settings is still blocked and names the reason", () => {
+    const merged = mergeSettings([
+      { repo: "wazuh-dashboard", settings: { permissions: { allow: ["Bash(git status:*)", "Bash(yarn test)"] } } },
+      { repo: "wazuh-indexer-plugins", settings: { permissions: { allow: ["Bash(git status:*)", "Bash(yarn test)"] } } },
+      { repo: "reporting", settings: { permissions: { allow: ["Bash(git status:*)"] } } },
+    ]);
+
+    const plan = planSync([cleanSkill("create-pr", "wazuh-dashboard")], "wazuh-dashboard", TOOL, merged);
+
+    expect(plan.settings!.blocked!.reasons.length).toBeGreaterThan(0);
+    expect(plan.settings!.distributed).toBeNull();
+  });
+
+  test("with no conflicts, settings distributes alongside clean skills", () => {
+    const merged = mergeSettings([
+      { repo: "wazuh-dashboard", settings: { permissions: { allow: ["Bash(git status:*)"] } } },
+      { repo: "wazuh-indexer-plugins", settings: { permissions: { allow: ["Bash(git status:*)"] } } },
+    ]);
+
+    const plan = planSync([cleanSkill("create-pr", "wazuh-dashboard")], "wazuh-dashboard", TOOL, merged);
+
+    expect(plan.settings!.blocked).toBeNull();
+    expect(plan.settings!.distributed).not.toBeNull();
+    expect(plan.settings!.distributed!.path).toBe(".claude/settings.json");
+  });
+
+  test("with no mergedSettings supplied at all, `settings` is null and existing behaviour is unchanged", () => {
+    const plan = planSync([cleanSkill("create-pr", "wazuh-dashboard")], "wazuh-dashboard", TOOL);
+
+    expect(plan.settings).toBeNull();
   });
 });

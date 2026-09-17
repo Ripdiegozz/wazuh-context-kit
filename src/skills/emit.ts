@@ -23,6 +23,7 @@ import { coreShareCounts } from "./extract.ts";
 import type { CoreSection, ExtractedSkill, PatchOp } from "./extract.ts";
 import { reconstructAndVerify } from "./reconstruct.ts";
 import type { LossyReport } from "./reconstruct.ts";
+import type { MergedSettings } from "../settings/types.ts";
 
 /** SPEC 2.4's floor: below this, the split proves nothing (the "empty core,
  * every file whole as its own override" trap `extract.ts`'s docblock and
@@ -254,6 +255,7 @@ export async function emitExtraction(
   outDir: string,
   extracted: readonly ExtractedSkill[],
   originalsBySkill?: ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>,
+  mergedSettings?: MergedSettings,
 ): Promise<EmitResult> {
   const written: string[] = [];
   const sortedSkills = [...extracted].sort((a, b) => a.skill.localeCompare(b.skill));
@@ -284,10 +286,66 @@ export async function emitExtraction(
     }
   }
 
+  if (mergedSettings) {
+    written.push(...(await emitSettings(outDir, mergedSettings)));
+  }
+
   const report = buildExtractionReport(extracted, originalsBySkill);
   const reportPath = join(outDir, "extraction-report.json");
   await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, "utf8");
   written.push(reportPath);
 
   return { written: written.sort((a, b) => a.localeCompare(b)), report };
+}
+
+/**
+ * Writes `.claude/settings.json`'s own extraction output — `core/.claude/
+ * settings.json`, `overrides/<repo>/settings.json` for every repo with at
+ * least one addition, and `conflicts/settings.json` when non-empty
+ * (proposal.md: "`skills-diff --extract` additionally emits a core
+ * `settings.json` and per-repo additions"). This is not a fourth writer:
+ * it uses the SAME `core/`, `overrides/`, `conflicts/` trees `emitExtraction`
+ * already lays out for skills, one more file per directory rather than a
+ * parallel layout — `design.md`'s "slots into both rather than adding a
+ * third writer".
+ *
+ * JSON, not the skills' YAML: `.claude/settings.json` is JSON already, and
+ * `MergedSettings`'s `core`/`overrides` are plain data with no anchors or
+ * occurrences to express — there is nothing here that YAML's extra
+ * expressiveness would buy, and this change's own caution is to keep the
+ * merge (and its output) small enough to check by eye.
+ *
+ * Returns every path written, sorted, matching `emitExtraction`'s own
+ * contract so a caller folds the two lists together without special-casing
+ * either.
+ */
+export async function emitSettings(outDir: string, merged: MergedSettings): Promise<string[]> {
+  const written: string[] = [];
+
+  const coreDir = join(outDir, "core", ".claude");
+  await mkdir(coreDir, { recursive: true });
+  const corePath = join(coreDir, "settings.json");
+  await writeFile(corePath, `${JSON.stringify(merged.core, null, 2)}\n`, "utf8");
+  written.push(corePath);
+
+  for (const repo of [...merged.overrides.keys()].sort((a, b) => a.localeCompare(b))) {
+    const ops = merged.overrides.get(repo)!;
+    if (ops.length === 0) continue;
+    const repoDir = join(outDir, "overrides", repo);
+    await mkdir(repoDir, { recursive: true });
+    const overridePath = join(repoDir, "settings.json");
+    const sorted = [...ops].sort((a, b) => a.path.join(" ").localeCompare(b.path.join(" ")) || a.value.localeCompare(b.value));
+    await writeFile(overridePath, `${JSON.stringify(sorted, null, 2)}\n`, "utf8");
+    written.push(overridePath);
+  }
+
+  if (merged.conflicts.length > 0) {
+    const conflictsDir = join(outDir, "conflicts");
+    await mkdir(conflictsDir, { recursive: true });
+    const conflictsPath = join(conflictsDir, "settings.json");
+    await writeFile(conflictsPath, `${JSON.stringify(merged.conflicts, null, 2)}\n`, "utf8");
+    written.push(conflictsPath);
+  }
+
+  return written.sort((a, b) => a.localeCompare(b));
 }

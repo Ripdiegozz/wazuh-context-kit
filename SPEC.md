@@ -1110,18 +1110,35 @@ puede probar hoy, y es lo único que se afirma.
       líneas sobre los 42 archivos, y la mayoría vive en secciones idénticas en
       los 7 repos, así que nunca llegan a ser divergencia. Un marcador dentro de
       texto igual en todos lados no es una divergencia.
-- [ ] Los conflictos conocidos aparecen listados: typecheck en `check-standards`,
+- [x] Los conflictos conocidos aparecen listados: typecheck en `check-standards`,
       label `no-changelog`, `changelogs/fragments` de OSD, divergencia de
       `settings.json` —que son **5 variantes distintas sobre 7 repos**, con
       `alerting`, `notifications` y `security-analytics` idénticos entre sí, y
       que además **no es un `SKILL.md`** y no sale del skills-diff por sí solo.
-      **Parcial (2026-09-16):** los tres primeros se reportan y están
-      verificados. `settings.json` queda **fuera de alcance a propósito** y este
-      criterio sigue abierto: el modelo de override es un parche anclado a texto
-      y un JSON no tiene anclas de heading, así que necesita merge por clave —
-      otro mecanismo. Meterlo ahí daría dos motores de override bajo un nombre, y
-      el día que uno falle el usuario no sabría cuál está mirando. La deuda es
-      más chica que un segundo motor y, a diferencia de él, es visible.
+      **CERRADO el 2026-09-17.** Los tres primeros ya estaban verificados; el de
+      `settings.json` se cerró con `settings-merge`.
+
+      El aplazamiento del 2026-09-16 decía que meterlo daría "dos motores de
+      override bajo un nombre". Ese razonamiento era correcto en forma y
+      equivocado en escala, porque nadie había contado: son **4 claves hoja** y
+      **una sola diverge**. No hacía falta un motor de merge por clave general —
+      hacía falta unión de listas para una clave.
+
+      **Verificado contra los 7 archivos reales**: 22 entradas comunes, 3–6
+      agregados por repo, **0 conflictos**, y **7 de 7 reconstruyen** exacto.
+      `sync` materializa un `settings.json` idéntico al original.
+
+      Dos decisiones quedaron escritas. Una **remoción es conflicto, no
+      override**, y el motivo es estructural más que prudencial: el core es lo
+      que comparten los siete, así que si uno quita una entrada el core encoge
+      **para todos**, no solo para él. Y los conflictos de settings van a la
+      **misma capa** que los de skills pero **tipados**, como un compilador que
+      lleva una sola lista de errores en vez de una por categoría: un solo lugar
+      donde mirar, sin confundir dos significados de "conflicto".
+
+      Límite anotado: el corpus real no tiene remociones ni desacuerdos
+      escalares, así que esos caminos los ejercitan literales y pruebas
+      aleatorias con semilla, no datos reales.
 - [x] `core/` + `overrides/<repo>/` reconstruyen **byte-idénticos ≥ 35 de los 42**
       SKILL.md originales. **Verificado el 2026-09-16: 42 de 42.** Llegar ahí
       costó tres defectos reales que ninguna suite unitaria vio —`.join("\n")` no

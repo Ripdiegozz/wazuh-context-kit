@@ -64,26 +64,26 @@ cases by hand — that is what found the last two defects.
 
 ## 5. Against the seven real files — this closes the change
 
-- [ ] 5.1 Run extraction. **Expect: 22 core entries, 3–6 additions per repo,
+- [x] 5.1 Run extraction. **Expect: 22 core entries, 3–6 additions per repo,
       0 conflicts.** Record the observed numbers.
-- [ ] 5.2 Confirm every repository's `settings.json` reconstructs exactly from
+- [x] 5.2 Confirm every repository's `settings.json` reconstructs exactly from
       core plus its override — 7 of 7.
-- [ ] 5.3 Confirm the three byte-identical repos (`alerting`, `notifications`,
+- [x] 5.3 Confirm the three byte-identical repos (`alerting`, `notifications`,
       `security-analytics`) produce identical overrides, since they add the same
       three entries.
-- [ ] 5.4 Confirm no conflict is reported, and **state in the report that the
+- [x] 5.4 Confirm no conflict is reported, and **state in the report that the
       conflict paths are therefore untested by real data** rather than implying
       coverage.
-- [ ] 5.5 Confirm `.cache/` and `out/` untouched.
-- [ ] 5.6 Record every result, marking each confirmed-against-real-repos or
+- [x] 5.5 Confirm `.cache/` and `out/` untouched.
+- [x] 5.6 Record every result, marking each confirmed-against-real-repos or
       asserted-by-fixture.
 
 ## 6. Documentation
 
-- [ ] 6.1 Tick SPEC 2.4's last criterion with an evidence header. **Phase 2 closes.**
-- [ ] 6.2 State that the removal and scalar-disagreement paths are exercised by
+- [x] 6.1 Tick SPEC 2.4's last criterion with an evidence header. **Phase 2 closes.**
+- [x] 6.2 State that the removal and scalar-disagreement paths are exercised by
       constructed cases only, and why that is acceptable here.
-- [ ] 6.3 Record the product finding for the dashboard team: `reporting` uses
+- [x] 6.3 Record the product finding for the dashboard team: `reporting` uses
       bare `yarn test` where the other six use `yarn test:jest`. Under this model
       it is an addition and distributes cleanly; whether it should be uniform is
       their call, not the tool's.

@@ -337,6 +337,17 @@ describe("wazuh-ctx argument handling", () => {
     expect(result.stderr).toContain("not implemented yet");
   });
 
+  test("mcp --help prints usage and exits 0 without starting the server", async () => {
+    // `--help` is handled in `main()` before the command switch, so this
+    // never reaches `runMcp` / stdio at all -- the one way to exercise `mcp`
+    // from a spawned process without needing to manage a long-running
+    // server's lifecycle from the test.
+    const result = await runCli(["mcp", "--help"]);
+    expect(result.code).toBe(0);
+    expect(result.stdout).toContain("USAGE");
+    expect(result.stdout).toContain("mcp");
+  });
+
   test("crosscheck is no longer unimplemented", async () => {
     // SPEC 1.8 sits inside FASE 1 and returned notImplemented for the whole of
     // Phase 1. Pinned so it cannot quietly regress to a stub.
@@ -367,6 +378,52 @@ describe("wazuh-ctx argument handling", () => {
       await rm(emptyPath, { recursive: true, force: true });
     }
   }, 60_000);
+
+  test("mcp is no longer unimplemented (task 6.12)", async () => {
+    // Task 6.13 — `mcp` is a long-running stdio server by design (task
+    // 6.10), so a spawned CLI test never runs it to a normal completion.
+    // What IS testable at this layer is that the stub is gone: a cwd with
+    // no `sources.yml` reaches `loadSources`'s own fatal message instead of
+    // `notImplemented`'s, before `mcp` ever touches stdio (mirrors the
+    // `crosscheck is no longer unimplemented` test above).
+    const cwd = await mkdtemp(join(tmpdir(), "wazuh-ctx-cli-mcp-"));
+    try {
+      const result = await runCli(["mcp", "--ref", REF, "--out", join(cwd, "out")], { cwd });
+      expect(result.stderr).not.toContain("not implemented yet");
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("sources.yml not found");
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test("mcp accepts --allow-ref-mismatch, --no-telemetry and --runtime with no parse error", async () => {
+    const cwd = await mkdtemp(join(tmpdir(), "wazuh-ctx-cli-mcp-flags-"));
+    try {
+      const result = await runCli(
+        [
+          "mcp",
+          "--ref",
+          REF,
+          "--out",
+          join(cwd, "out"),
+          "--allow-ref-mismatch",
+          "--no-telemetry",
+          "--runtime",
+          "https://runtime.invalid/api",
+        ],
+        { cwd },
+      );
+      // An unrecognised option would exit 64 from parseArgs, before any of
+      // this command's own logic runs. Reaching the SAME "sources.yml not
+      // found" fatal as the flagless run above proves all three flags
+      // parsed, not merely that the process exited non-zero.
+      expect(result.code).toBe(2);
+      expect(result.stderr).toContain("sources.yml not found");
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("wazuh-ctx crosscheck --indexer (crosscheck-live-indexer)", () => {

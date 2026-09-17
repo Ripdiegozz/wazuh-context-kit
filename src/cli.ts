@@ -12,7 +12,7 @@ import { parseArgs } from "node:util";
 import { allFacts } from "../fixtures/facts.ts";
 import { loadHumanLayers } from "./decisions/load.ts";
 import { cacheDirFor } from "./fetch/clone.ts";
-import { createFetchIo } from "./fetch/git-runner.ts";
+import { createFetchIo, createGitRunner } from "./fetch/git-runner.ts";
 import { fetchRepos } from "./fetch/index.ts";
 import { buildMatrix } from "./matrix/build.ts";
 import { renderMatrixMarkdown } from "./matrix/render.ts";
@@ -24,8 +24,15 @@ import { renderLiveComparisonJson, renderLiveComparisonText } from "./crosscheck
 import { fetchClusterState } from "./indexer/client.ts";
 import { IndexerError } from "./indexer/types.ts";
 import type { FetchLike, HttpResponseLike } from "./indexer/types.ts";
-import { scanIndexReferences } from "./parse/index-references.ts";
+import { loadDataset } from "./mcp/dataset.ts";
+import type { DocsFetchLike, DocsHttpResponseLike } from "./mcp/docs.ts";
+import { resolveRuntimeBackend } from "./mcp/runtime.ts";
+import type { RuntimeFetchLike, RuntimeHttpResponseLike } from "./mcp/runtime.ts";
+import { buildMcpServer } from "./mcp/server.ts";
+import { runStartup } from "./mcp/startup.ts";
+import { createTelemetrySink } from "./mcp/telemetry.ts";
 import { parseFetchedRepos, toParseTargets } from "./parse/index.ts";
+import { scanIndexReferences } from "./parse/index-references.ts";
 import { buildSkillsDiffJson } from "./skills/diff.ts";
 import { emitExtraction } from "./skills/emit.ts";
 import { extractSkill } from "./skills/extract.ts";
@@ -39,6 +46,7 @@ import { loadSources } from "./sources.ts";
 import { applySync, checkStandards } from "./standards/apply.ts";
 import { planSync } from "./standards/plan.ts";
 import { renderSyncSummary } from "./standards/render.ts";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 
 const VERSION = "0.1.0";
 const TOOL = `wazuh-ctx@${VERSION}`;
@@ -63,7 +71,7 @@ COMMANDS
   check         Verify .claude/standards/ against the package (SPEC 2.3)
                 --target <dir> is required; reports not-applicable | in-sync | drifted
   serve         Local inspector UI
-  mcp           MCP server: docs | schema | runtime
+  mcp           MCP server: docs | schema | runtime (stdio; SPEC Phase 3)
 
 OPTIONS
   --ref <ref>           Branch to target (default: 5.0.0)
@@ -79,6 +87,12 @@ OPTIONS
   --indexer-skip-tls-verify
                         crosscheck: accept a certificate that does not validate
   --format <text|json>  crosscheck: format of the --indexer comparison on stdout (default: text)
+  --allow-ref-mismatch  mcp: serve schema even when the dataset ref does not
+                        match the working tree's branch (refused by default)
+  --no-telemetry        mcp: disable the local (plugin, field, resolved) sink entirely
+  --runtime <url>       mcp: the optional runtime resource's live instance (read-only);
+                        absent or unreachable degrades to "runtime unavailable" --
+                        docs and schema are never affected
   -h, --help            Show this message
   -v, --version         Show version
 
@@ -105,6 +119,7 @@ async function buildFromFixtures(
   return {
     decisions: layers.decisions,
     annotations: layers.annotations,
+    localOverrides: layers.localOverrides,
     ref,
     facts: allFacts,
     // Fixtures declare no platform repository, so there is no core section to
@@ -177,6 +192,7 @@ async function buildFromRealData(
   return {
     decisions: layers.decisions,
     annotations: layers.annotations,
+    localOverrides: layers.localOverrides,
     ref,
     facts: parsed.facts,
     coreRepos: parsed.coreRepos,
@@ -792,6 +808,114 @@ async function runCheck(values: Record<string, unknown>): Promise<CommandResult>
   return { code: result.state === "drifted" ? 1 : 0 };
 }
 
+/**
+ * `mcp` — SPEC Phase 3. Wires the startup gate sequence (design "`schema`:
+ * the refusal gates run in order") and connects the resulting server over
+ * stdio.
+ *
+ * `mcp` is a long-running server, unlike every other command in this file:
+ * once connected, it must keep serving until the client disconnects (stdin
+ * closes) or the process is signalled, NOT the instant `server.connect`
+ * resolves. `main()` unconditionally does `process.exit(await main())`, so
+ * if this function returned right after `connect()`, the process would exit
+ * the moment the transport started listening -- before it ever served a
+ * request. So this function awaits the transport's own close instead
+ * (chained after whatever `server.connect` itself already wired onto
+ * `onclose`, never replacing it -- `McpServer` relies on that callback for
+ * its own bookkeeping).
+ */
+async function runMcp(values: Record<string, unknown>): Promise<CommandResult> {
+  const ref = (values.ref as string | undefined) ?? "5.0.0";
+  const outDir = (values.out as string | undefined) ?? "out";
+  const allowRefMismatch = values["allow-ref-mismatch"] === true;
+  const telemetryEnabled = values["no-telemetry"] !== true;
+  const runtimeUrl = values.runtime as string | undefined;
+
+  let sources: Awaited<ReturnType<typeof loadSources>>;
+  try {
+    sources = await loadSources(process.cwd());
+  } catch (error) {
+    console.error(`wazuh-ctx mcp: ${(error as Error).message}`);
+    return { code: 2 };
+  }
+
+  const dataset = await loadDataset(outDir, ref);
+  if (!dataset.ok) {
+    console.error(`wazuh-ctx mcp: ${dataset.message}`);
+    return { code: 2 };
+  }
+
+  const clock = () => new Date().toISOString();
+
+  const startup = await runStartup({
+    git: createGitRunner(),
+    cwd: process.cwd(),
+    sources,
+    matrix: dataset.matrix,
+    allowRefMismatch,
+    announce: (world) => {
+      console.error(
+        `wazuh-ctx mcp: cwd -> ${world.repoName ?? "(no repository recognised)"} -> world: ${world.world}`,
+      );
+    },
+  });
+
+  if (!startup.ok) {
+    console.error(`wazuh-ctx mcp: ${startup.message}`);
+    return { code: 2 };
+  }
+
+  const telemetry = createTelemetrySink({
+    enabled: telemetryEnabled,
+    path: join(resolve(process.cwd(), ".cache"), "mcp-telemetry.jsonl"),
+    clock,
+  });
+
+  // Real global `fetch`, structurally compatible with `DocsFetchLike` /
+  // `RuntimeFetchLike` (both narrowed subsets of WHATWG/Bun `fetch`) --
+  // exactly `docs.integration.test.ts`'s own precedent for the same cast.
+  const docsTransport: DocsFetchLike = (url, init) =>
+    fetch(url, init as RequestInit) as unknown as Promise<DocsHttpResponseLike>;
+  const runtimeTransport: RuntimeFetchLike = (url, init) =>
+    fetch(url, init as RequestInit) as unknown as Promise<RuntimeHttpResponseLike>;
+
+  // Never throws (runtime.ts's own docblock): "no instance configured" and
+  // "instance unreachable" both resolve to `null` here, and `null` is what
+  // makes `buildMcpServer` skip registering `runtime` entirely (SPEC
+  // "`runtime` absent never blocks `docs` or `schema`").
+  const runtimeSnapshot = await resolveRuntimeBackend(
+    runtimeTransport,
+    runtimeUrl !== undefined ? { url: runtimeUrl } : undefined,
+  );
+
+  const server = buildMcpServer({
+    dataset,
+    clock,
+    sources,
+    docsTransport,
+    telemetry,
+    runtimeSnapshot,
+  });
+
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error(
+    `wazuh-ctx mcp: serving ref ${dataset.matrix.ref} over stdio ` +
+      `(runtime ${runtimeSnapshot === null ? "unavailable" : "available"}; ` +
+      `telemetry ${telemetryEnabled ? "on" : "off"}).`,
+  );
+
+  await new Promise<void>((resolvePromise) => {
+    const previousOnClose = transport.onclose;
+    transport.onclose = () => {
+      previousOnClose?.();
+      resolvePromise();
+    };
+  });
+
+  return { code: 0 };
+}
+
 function notImplemented(command: string, specSection: string): CommandResult {
   console.error(
     `wazuh-ctx ${command}: not implemented yet. See SPEC ${specSection}.\n` +
@@ -832,6 +956,9 @@ async function main(): Promise<number> {
         indexer: { type: "string" },
         "indexer-skip-tls-verify": { type: "boolean" },
         format: { type: "string" },
+        "allow-ref-mismatch": { type: "boolean" },
+        "no-telemetry": { type: "boolean" },
+        runtime: { type: "string" },
         help: { type: "boolean", short: "h" },
       },
     });
@@ -863,7 +990,7 @@ async function main(): Promise<number> {
       // "1.5" in its name no longer indicates its position.
       return notImplemented("serve", "Phase 1.5, now last in SPEC 7").code;
     case "mcp":
-      return notImplemented("mcp", "Phase 3").code;
+      return (await runMcp(parsed.values)).code;
     default:
       console.error(`wazuh-ctx: unknown command '${command}'\n`);
       console.log(USAGE);

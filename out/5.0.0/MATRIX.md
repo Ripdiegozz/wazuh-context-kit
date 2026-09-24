@@ -8,10 +8,10 @@
 |---|---|---|---|---|---|---|
 | `alertingDashboards` | wazuh-dashboard-alerting | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `48b0fc05` |
 | `notificationsDashboards` | wazuh-dashboard-notifications | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `deebf080` |
-| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `e6149597` |
-| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `e6149597` |
-| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `e6149597` |
-| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `e6149597` |
+| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `65f5298f` |
+| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `65f5298f` |
+| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `65f5298f` |
+| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `65f5298f` |
 | `reportsDashboards` | wazuh-dashboard-reporting | upstream-fork | osd | none | `osd-data`, `osd-data-source` | `71b4b9e2` |
 | `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `eb8b87b7` |
 | `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `0d227eac` |
@@ -41,7 +41,7 @@
 
 | repo | version | plugins | depended on |
 |---|---|---|---|
-| wazuh-dashboard | `3.6.0` | 64 | `charts`, `contentManagement`, `dashboard`, `data`, `discover`, `embeddable`, `expressions`, `inspector`, `navigation`, `opensearchDashboardsLegacy`, `opensearchDashboardsReact`, `opensearchDashboardsUtils`, `savedObjects`, `savedObjectsManagement`, `uiActions`, `visAugmenter`, `visualizations` |
+| wazuh-dashboard | `3.6.0` | 65 | `charts`, `contentManagement`, `dashboard`, `data`, `discover`, `embeddable`, `expressions`, `inspector`, `navigation`, `opensearchDashboardsLegacy`, `opensearchDashboardsReact`, `opensearchDashboardsUtils`, `savedObjects`, `savedObjectsManagement`, `uiActions`, `visAugmenter`, `visualizations` |
 
 ## Index templates (40)
 
@@ -89,15 +89,15 @@
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:89a3fc6e90fefcc2990486f02a2694b2f5beacdeb5f8d01eebaef2d99adb77b4`
-- resolvedAt: `2026-09-23T09:21:55.122Z`
+- payloadHash: `sha256:1a7659be96ff5ca887b1f6e04989d1312fdbcd17549db65a405153ccd7399015`
+- resolvedAt: `2026-09-24T09:21:59.445Z`
 - resolvedRefs:
-  - `wazuh-dashboard` → `1f5bcfe8e4d3ea44ba85cc59f14d7aea1df2558a`
+  - `wazuh-dashboard` → `f8127f7469e7cb781f3d5e803be564c05d00b8ce`
   - `wazuh-dashboard-alerting` → `48b0fc05d3a9cf67eaf3d829d47992a5398cc310`
   - `wazuh-dashboard-notifications` → `deebf080ade530eb662ff8599a57ed6e24198554`
-  - `wazuh-dashboard-plugins` → `e6149597a2372f573bd7b69f5e9916ff86fe8e9a`
+  - `wazuh-dashboard-plugins` → `65f5298f568645b6c29e324f9ac96e895e0efad3`
   - `wazuh-dashboard-reporting` → `71b4b9e2d6252bec29468ca8ac4c4dd185f6c06a`
   - `wazuh-dashboard-security-analytics` → `eb8b87b70b08f4f7b0e25dab3b385ab16cf36d2e`
   - `wazuh-indexer-plugins` → `f4100ff01d4db6661a8143eccde4c796f75ff0ef`
-  - `wazuh-indexer-security-analytics` → `56647050bd55b0b79d73292b04c5fd8be3d78811`
+  - `wazuh-indexer-security-analytics` → `3d1a6fb017f358311743804f1aac4dcbc16e98d8`
   - `wazuh-security-dashboards-plugin` → `0d227eac38719a42d9b21f07e040f956fff55502`

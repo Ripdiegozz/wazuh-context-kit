@@ -1,20 +1,20 @@
 {
   "meta": {
-    "generatedAt": "2026-10-01T11:00:58.551Z",
+    "generatedAt": "2026-10-02T10:34:04.625Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:82626f110c360510234a15e214297716dd15d2177cddadf9d6d610f9458083bc",
+  "payloadHash": "sha256:37f3f224f5e9f7f53eb072081e27da58c0159d09cc60eeda684832f5128ed68f",
   "ref": "5.0.0",
-  "resolvedAt": "2026-10-01T11:01:02.890Z",
+  "resolvedAt": "2026-10-02T10:34:08.300Z",
   "resolvedRefs": {
-    "wazuh-dashboard": "141fc9cdddb244f7179dce63ec4eb73ee5977430",
-    "wazuh-dashboard-plugins": "7da8e65081d15dd115aa2a702181f7ae63e47389",
+    "wazuh-dashboard": "d1681873d393bf6865391bded9eefcc72fd08ece",
+    "wazuh-dashboard-plugins": "a9891e6ee435ccef9aff27a9915f4f3aa0ab7c5a",
     "wazuh-dashboard-alerting": "9c663122349f9b55fc9dd2a5ea77cb3a210c1f3f",
     "wazuh-dashboard-notifications": "43e56933648a7b9533f24ca48f0553c7e653b17b",
     "wazuh-dashboard-reporting": "28b317a21835b4e0a164768e288c1ae67e648267",
     "wazuh-dashboard-security-analytics": "57a73061e23dfbaf4f85e6c21b2f37ab72046774",
-    "wazuh-security-dashboards-plugin": "fc2d091fd617adee47fd332017752b26768ad88e",
-    "wazuh-indexer-plugins": "7aaf5961c30f350f0cb1a620b129b7f363838d86",
+    "wazuh-security-dashboards-plugin": "642eb2af9fc8728d6cda96e47550dadea1940119",
+    "wazuh-indexer-plugins": "085609bc094f159e142bc7592f12423321b6ff0f",
     "wazuh-indexer-security-analytics": "e13fe731641272730654e8308fcfd3160dae38f2"
   },
   "plugins": [
@@ -147,7 +147,7 @@
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "7da8e65081d15dd115aa2a702181f7ae63e47389"
+        "commit": "a9891e6ee435ccef9aff27a9915f4f3aa0ab7c5a"
       },
       "assertions": {},
       "annotations": []
@@ -179,7 +179,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "7da8e65081d15dd115aa2a702181f7ae63e47389"
+        "commit": "a9891e6ee435ccef9aff27a9915f4f3aa0ab7c5a"
       },
       "assertions": {},
       "annotations": []
@@ -208,7 +208,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "7da8e65081d15dd115aa2a702181f7ae63e47389"
+        "commit": "a9891e6ee435ccef9aff27a9915f4f3aa0ab7c5a"
       },
       "assertions": {},
       "annotations": []
@@ -235,7 +235,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "7da8e65081d15dd115aa2a702181f7ae63e47389"
+        "commit": "a9891e6ee435ccef9aff27a9915f4f3aa0ab7c5a"
       },
       "assertions": {
         "world": {
@@ -361,7 +361,7 @@
         "kind": "derived",
         "manifestPath": "opensearch_dashboards.json",
         "packageJsonPath": "package.json",
-        "commit": "fc2d091fd617adee47fd332017752b26768ad88e"
+        "commit": "642eb2af9fc8728d6cda96e47550dadea1940119"
       },
       "assertions": {},
       "annotations": []
@@ -382,7 +382,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/about/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -404,7 +404,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/advanced_settings/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -445,7 +445,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/agent_traces/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -460,7 +460,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/apm_oss/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -473,7 +473,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/application_config/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -486,7 +486,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/banner/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -501,7 +501,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/bfetch/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -516,7 +516,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/charts/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -538,7 +538,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/chat/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -563,7 +563,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/console/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -578,7 +578,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/content_management/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -593,7 +593,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/context_provider/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -608,7 +608,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/csp_handler/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -638,7 +638,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/dashboard/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -664,7 +664,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/data/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -686,7 +686,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/data_explorer/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -704,7 +704,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/data_importer/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -727,7 +727,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/dataset_management/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -742,7 +742,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/data_source/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -765,7 +765,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/data_source_management/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -787,7 +787,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/dev_tools/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -821,7 +821,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/discover/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -841,7 +841,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/embeddable/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -882,7 +882,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/explore/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -899,7 +899,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/expressions/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -916,7 +916,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/healthcheck/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -941,7 +941,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/home/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -965,7 +965,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/index_pattern_management/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -985,7 +985,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/input_control_vis/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1000,7 +1000,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/inspector/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1013,7 +1013,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/legacy_export/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1034,7 +1034,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/management/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1053,7 +1053,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/management_overview/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1069,7 +1069,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/maps_legacy/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1087,7 +1087,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/navigation/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1100,7 +1100,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/opensearch_dashboards_legacy/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1119,7 +1119,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/opensearch_dashboards_overview/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1134,7 +1134,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/opensearch_dashboards_react/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1149,7 +1149,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/opensearch_dashboards_usage_collection/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1162,7 +1162,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/opensearch_dashboards_utils/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1177,7 +1177,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/opensearch_ui_shared/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1199,7 +1199,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/query_enhancements/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1226,7 +1226,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/region_map/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1244,7 +1244,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/saved_objects/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1279,7 +1279,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/saved_objects_management/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1294,7 +1294,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/share/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1318,7 +1318,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/tile_map/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1334,7 +1334,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/ui_actions/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1349,7 +1349,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/url_forwarding/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1364,7 +1364,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/usage_collection/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1388,7 +1388,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_augmenter/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1416,7 +1416,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_builder/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1433,7 +1433,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_default_editor/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1455,7 +1455,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_markdown/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1476,7 +1476,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_metric/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1499,7 +1499,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_table/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1521,7 +1521,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_tagcloud/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1544,7 +1544,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_timeline/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1569,7 +1569,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_timeseries/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1598,7 +1598,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_vega/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1624,7 +1624,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_vislib/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1641,7 +1641,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/vis_type_xy/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1670,7 +1670,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/visualizations/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1702,7 +1702,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/visualize/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         },
         {
@@ -1732,7 +1732,7 @@
             "kind": "derived",
             "manifestPath": "src/plugins/workspace/opensearch_dashboards.json",
             "packageJsonPath": null,
-            "commit": "141fc9cdddb244f7179dce63ec4eb73ee5977430"
+            "commit": "d1681873d393bf6865391bded9eefcc72fd08ece"
           }
         }
       ]

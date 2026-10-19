@@ -1,11 +1,11 @@
 {
   "meta": {
-    "generatedAt": "2026-10-17T08:37:58.813Z",
+    "generatedAt": "2026-10-19T10:00:47.761Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:9f74a4301243006623d3f30438c662631e644dc55e0b928fe1697f8aff403f69",
+  "payloadHash": "sha256:1a4e48650a257554bfb280679ca9bacad4bcb502078a860def22511f155d2b5e",
   "ref": "5.0.0",
-  "resolvedAt": "2026-10-17T08:38:03.557Z",
+  "resolvedAt": "2026-10-19T10:00:53.357Z",
   "resolvedRefs": {
     "wazuh-dashboard": "2c33d85c9dc10d14158c4ee9dd92382f4c048793",
     "wazuh-dashboard-plugins": "2b027b3604694534177a350cde93babdd5e4bb9f",
@@ -14,7 +14,7 @@
     "wazuh-dashboard-reporting": "f0cb16a2dc97e87616745b3678bd8455f2fdefb2",
     "wazuh-dashboard-security-analytics": "93d736298f3815d6af14b8926c66ade344c52387",
     "wazuh-security-dashboards-plugin": "a5cbb045048ad58084ba1f7d40046bb3f116e652",
-    "wazuh-indexer-plugins": "f40de4f8ed57ce1d296e5e711724df26eb596e5e",
+    "wazuh-indexer-plugins": "cdfa4f755025013fc996c2ff7a55adb1026c7177",
     "wazuh-indexer-security-analytics": "84626660ed96217687a59b394f8cd6918ad27876"
   },
   "plugins": [

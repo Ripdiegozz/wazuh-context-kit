@@ -1,11 +1,11 @@
 {
   "meta": {
-    "generatedAt": "2026-10-21T09:25:10.182Z",
+    "generatedAt": "2026-10-22T09:28:11.588Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:cbd1ea622eea1e2200caa4a4572477f5533819d53f780289a2b7323ac561a45e",
+  "payloadHash": "sha256:c6f456d16fe52fd589c2e1e9dbd32261700ed8220020cd49fb8a878dcbad5b5f",
   "ref": "5.0.0",
-  "resolvedAt": "2026-10-21T09:25:14.647Z",
+  "resolvedAt": "2026-10-22T09:28:15.787Z",
   "resolvedRefs": {
     "wazuh-dashboard": "2c33d85c9dc10d14158c4ee9dd92382f4c048793",
     "wazuh-dashboard-plugins": "a472758166fbaa2e5ad8ef278a1b5e130e00878b",
@@ -14,8 +14,8 @@
     "wazuh-dashboard-reporting": "f0cb16a2dc97e87616745b3678bd8455f2fdefb2",
     "wazuh-dashboard-security-analytics": "998deec0cc0878007cb16df063c3c5f922f3f47b",
     "wazuh-security-dashboards-plugin": "3215755547f0b1a288973fffa0dd5b3822af1398",
-    "wazuh-indexer-plugins": "03492449e066ba99af31d7573b29a3d1fc644ff7",
-    "wazuh-indexer-security-analytics": "84626660ed96217687a59b394f8cd6918ad27876"
+    "wazuh-indexer-plugins": "1a1034203569da571bc796ca6168591c6c033d62",
+    "wazuh-indexer-security-analytics": "5a6a71fab90f175e2a44d0ed4a01d41d3455cfdb"
   },
   "plugins": [
     {
@@ -2290,7 +2290,7 @@
       {
         "name": "stateful/inventory/system",
         "fieldsCsv": "wcs/stateful/inventory/system/docs/fields.csv",
-        "fieldCount": 34,
+        "fieldCount": 32,
         "indexPatterns": [
           "wazuh-states-inventory-system*"
         ]

@@ -1,20 +1,20 @@
 {
   "meta": {
-    "generatedAt": "2026-10-24T08:56:14.826Z",
+    "generatedAt": "2026-10-26T10:14:52.491Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:a779d0520f7637e7c8063341511b88fa0347e5c86214a2495fa52b6ed48f4595",
+  "payloadHash": "sha256:1e687146f77df9384d6f84a9b6656df48b844623d5c893b687b4d26918a71fd0",
   "ref": "5.0.0",
-  "resolvedAt": "2026-10-24T08:56:20.661Z",
+  "resolvedAt": "2026-10-26T10:14:57.219Z",
   "resolvedRefs": {
     "wazuh-dashboard": "ea6c6e453e8644df7adf49a0f9a82b82fa9c5943",
-    "wazuh-dashboard-plugins": "9874239c9b035e0e5e3363c2276d5e57f6cfa3ad",
+    "wazuh-dashboard-plugins": "a9d8950b9f1438f9ce0ab635dd25c0ec1c2b8f2b",
     "wazuh-dashboard-alerting": "91960a2c10b8870b3a28130be185e382490d621e",
     "wazuh-dashboard-notifications": "5053d160fcab562e8194255f36e048cbc060e9ae",
     "wazuh-dashboard-reporting": "1cb0741002ee09629a3ce91bd0b948da55022e5d",
     "wazuh-dashboard-security-analytics": "998deec0cc0878007cb16df063c3c5f922f3f47b",
     "wazuh-security-dashboards-plugin": "7ec6b2a8851cd42572b262177e81adea831465b8",
-    "wazuh-indexer-plugins": "bf8470309b65c64139cc11f4ad9bd3a0b92062b1",
+    "wazuh-indexer-plugins": "0e57f520e53eeaa83ee55e7157cb0aad8908eac3",
     "wazuh-indexer-security-analytics": "5a6a71fab90f175e2a44d0ed4a01d41d3455cfdb"
   },
   "plugins": [
@@ -147,7 +147,7 @@
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "9874239c9b035e0e5e3363c2276d5e57f6cfa3ad"
+        "commit": "a9d8950b9f1438f9ce0ab635dd25c0ec1c2b8f2b"
       },
       "assertions": {},
       "annotations": []
@@ -179,7 +179,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "9874239c9b035e0e5e3363c2276d5e57f6cfa3ad"
+        "commit": "a9d8950b9f1438f9ce0ab635dd25c0ec1c2b8f2b"
       },
       "assertions": {},
       "annotations": []
@@ -208,7 +208,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "9874239c9b035e0e5e3363c2276d5e57f6cfa3ad"
+        "commit": "a9d8950b9f1438f9ce0ab635dd25c0ec1c2b8f2b"
       },
       "assertions": {},
       "annotations": []
@@ -235,7 +235,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "9874239c9b035e0e5e3363c2276d5e57f6cfa3ad"
+        "commit": "a9d8950b9f1438f9ce0ab635dd25c0ec1c2b8f2b"
       },
       "assertions": {
         "world": {
@@ -2162,7 +2162,7 @@
       {
         "name": "stateful/agent-config",
         "fieldsCsv": "wcs/stateful/agent-config/docs/fields.csv",
-        "fieldCount": 397,
+        "fieldCount": 404,
         "indexPatterns": [
           "wazuh-agent-config*"
         ]
@@ -2170,7 +2170,7 @@
       {
         "name": "stateful/agent-stats",
         "fieldsCsv": "wcs/stateful/agent-stats/docs/fields.csv",
-        "fieldCount": 27,
+        "fieldCount": 34,
         "indexPatterns": [
           "wazuh-agent-stats*"
         ]

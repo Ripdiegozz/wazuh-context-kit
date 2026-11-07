@@ -8,13 +8,13 @@
 |---|---|---|---|---|---|---|
 | `alertingDashboards` | wazuh-dashboard-alerting | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `79c5a9d3` |
 | `notificationsDashboards` | wazuh-dashboard-notifications | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `4d95b043` |
-| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `66aea6a2` |
-| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `66aea6a2` |
-| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `66aea6a2` |
-| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `66aea6a2` |
+| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `369b0b95` |
+| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `369b0b95` |
+| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `369b0b95` |
+| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `369b0b95` |
 | `reportsDashboards` | wazuh-dashboard-reporting | upstream-fork | osd | none | `osd-data`, `osd-data-source` | `edea8640` |
 | `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `0f830d4c` |
-| `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `7365133e` |
+| `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `055a88f3` |
 
 † Human assertions — not derivable, decided by a person
 
@@ -89,15 +89,15 @@
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:a7f31d97eec1685aaaa4cfc2b530f911fe59c65ec337b9e30749bf62cfdf6c91`
-- resolvedAt: `2026-11-06T12:12:56.713Z`
+- payloadHash: `sha256:79b5977a4a42d87843b9b197d8d147e29443d3d219ddd048f541f30178d6241f`
+- resolvedAt: `2026-11-07T11:09:20.397Z`
 - resolvedRefs:
-  - `wazuh-dashboard` → `4fbeb582f40c229f065cf441f1e4820cd2a48859`
+  - `wazuh-dashboard` → `605e29c8a03192f42f6dacb91ce505945efaafd6`
   - `wazuh-dashboard-alerting` → `79c5a9d3abb35387ba6b9cc78a1ac2a149343b45`
   - `wazuh-dashboard-notifications` → `4d95b04326667ba2d16c06989b22958ae6166532`
-  - `wazuh-dashboard-plugins` → `66aea6a2f83cea4970da9f7aedeb6eda32216114`
+  - `wazuh-dashboard-plugins` → `369b0b95363091ac93655827fb1c8b533eda83e2`
   - `wazuh-dashboard-reporting` → `edea8640c1eaa6ac8c32cf5320837800a832828c`
   - `wazuh-dashboard-security-analytics` → `0f830d4caba7f2ccaab243ebead1fdae6bd3b89b`
   - `wazuh-indexer-plugins` → `b92d87239b851bf639d1cb98871feb4fe98c344b`
   - `wazuh-indexer-security-analytics` → `ee93da947b96628074e76c39df238d1c9d108c4e`
-  - `wazuh-security-dashboards-plugin` → `7365133e1e6837f80e71c6d83971190ff4f0d2fb`
+  - `wazuh-security-dashboards-plugin` → `055a88f371e6e28422b234d9e28ff2007f3f7793`

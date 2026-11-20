@@ -1,14 +1,14 @@
 {
   "meta": {
-    "generatedAt": "2026-11-19T13:26:27.664Z",
+    "generatedAt": "2026-11-20T13:07:04.918Z",
     "tool": "wazuh-ctx@0.1.0"
   },
-  "payloadHash": "sha256:4514ff11d6072b48851e9931385b8eb9bc16fdc74003638ace4625adf23851da",
+  "payloadHash": "sha256:6f94727a667b4772b9cddb42fc892740dc710f05f7fc42256e76ea3b88e029ce",
   "ref": "5.0.0",
-  "resolvedAt": "2026-11-19T13:26:32.298Z",
+  "resolvedAt": "2026-11-20T13:07:08.769Z",
   "resolvedRefs": {
     "wazuh-dashboard": "6c096e940a8c22fe948c58001107da647c7bfe73",
-    "wazuh-dashboard-plugins": "92f3d44481ba81d279a7ef441813207c1b7888e6",
+    "wazuh-dashboard-plugins": "470b0895cbbbdb58373a35132bdeed810ccd5f0f",
     "wazuh-dashboard-alerting": "bb43047350ab39806a9f8eec4402dcd2cb775218",
     "wazuh-dashboard-notifications": "de53dc980f9d2972aac3cc3bc6bcfb8456cf1f73",
     "wazuh-dashboard-reporting": "2f3996873e8dcdd08a2a3b7a72d34ab18651df69",
@@ -147,7 +147,7 @@
         "kind": "derived",
         "manifestPath": "plugins/main/opensearch_dashboards.json",
         "packageJsonPath": "plugins/main/package.json",
-        "commit": "92f3d44481ba81d279a7ef441813207c1b7888e6"
+        "commit": "470b0895cbbbdb58373a35132bdeed810ccd5f0f"
       },
       "assertions": {},
       "annotations": []
@@ -179,7 +179,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-ai-assistant/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-ai-assistant/package.json",
-        "commit": "92f3d44481ba81d279a7ef441813207c1b7888e6"
+        "commit": "470b0895cbbbdb58373a35132bdeed810ccd5f0f"
       },
       "assertions": {},
       "annotations": []
@@ -192,9 +192,12 @@
       "versionScheme": "wazuh",
       "configPath": [],
       "serverApiAccess": "wazuh-core",
-      "indexerAccess": [],
+      "indexerAccess": [
+        "osd-data"
+      ],
       "requiredOSDataSourcePlugins": [],
       "requiredPlugins": [
+        "data",
         "navigation",
         "opensearchDashboardsUtils",
         "opensearchDashboardsReact",
@@ -208,7 +211,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-check-updates/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-check-updates/package.json",
-        "commit": "92f3d44481ba81d279a7ef441813207c1b7888e6"
+        "commit": "470b0895cbbbdb58373a35132bdeed810ccd5f0f"
       },
       "assertions": {},
       "annotations": []
@@ -235,7 +238,7 @@
         "kind": "derived",
         "manifestPath": "plugins/wazuh-core/opensearch_dashboards.json",
         "packageJsonPath": "plugins/wazuh-core/package.json",
-        "commit": "92f3d44481ba81d279a7ef441813207c1b7888e6"
+        "commit": "470b0895cbbbdb58373a35132bdeed810ccd5f0f"
       },
       "assertions": {
         "world": {
@@ -2386,11 +2389,6 @@
   "unknowns": [
     {
       "plugin": "wazuhAiAssistant",
-      "field": "indexerAccess",
-      "reason": "indexer access not derivable from the manifest"
-    },
-    {
-      "plugin": "wazuhCheckUpdates",
       "field": "indexerAccess",
       "reason": "indexer access not derivable from the manifest"
     },

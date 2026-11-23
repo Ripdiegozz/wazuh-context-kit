@@ -88,8 +88,8 @@
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:1d6d319052418b69f95808679480392d6cc361ab4259c0d278841a109ecc8fc9`
-- resolvedAt: `2026-11-21T12:46:53.555Z`
+- payloadHash: `sha256:a8107ba70d5f68cc61849ec927d72e9806ee3ce7ef92c3f246519459bf12b17f`
+- resolvedAt: `2026-11-23T14:51:59.827Z`
 - resolvedRefs:
   - `wazuh-dashboard` → `377f9a1893248666893830c4c89c638f2f419fb1`
   - `wazuh-dashboard-alerting` → `bb43047350ab39806a9f8eec4402dcd2cb775218`
@@ -97,6 +97,6 @@
   - `wazuh-dashboard-plugins` → `5f25b85374bcc5a1b41cddec276f11058935066b`
   - `wazuh-dashboard-reporting` → `2f3996873e8dcdd08a2a3b7a72d34ab18651df69`
   - `wazuh-dashboard-security-analytics` → `2c4d0e1a46122f3504b6a49383b7bade5a3e9d14`
-  - `wazuh-indexer-plugins` → `44e9477a34672ebba3eb8db4c1a1e3a4822f95cf`
-  - `wazuh-indexer-security-analytics` → `9c06535bce0b7a5adba9eba405ee7f1841746fcc`
+  - `wazuh-indexer-plugins` → `6da08f129b586087e6ead10e24c2b23fb0cfb245`
+  - `wazuh-indexer-security-analytics` → `fe1de5e08a4b676d73ca6bb34e6a05e1a74dd2f5`
   - `wazuh-security-dashboards-plugin` → `ba6129442e60be6640ceb0d840a68414f461edcd`

@@ -6,15 +6,15 @@
 
 | plugin | repo | world | version | server API | indexer access | evidence |
 |---|---|---|---|---|---|---|
-| `alertingDashboards` | wazuh-dashboard-alerting | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `bb430473` |
-| `notificationsDashboards` | wazuh-dashboard-notifications | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `67bd0571` |
-| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `5f25b853` |
-| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `5f25b853` |
-| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `5f25b853` |
-| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `5f25b853` |
-| `reportsDashboards` | wazuh-dashboard-reporting | upstream-fork | osd | none | `osd-data`, `osd-data-source` | `2f399687` |
-| `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `2c4d0e1a` |
-| `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `ba612944` |
+| `alertingDashboards` | wazuh-dashboard-alerting | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `6fef463c` |
+| `notificationsDashboards` | wazuh-dashboard-notifications | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `68c71f45` |
+| `wazuh` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `7d2f13d2` |
+| `wazuhAiAssistant` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | — | `7d2f13d2` |
+| `wazuhCheckUpdates` | wazuh-dashboard-plugins | wazuh-native | wazuh | wazuh-core | `osd-data` | `7d2f13d2` |
+| `wazuhCore` | wazuh-dashboard-plugins | wazuh-native † | wazuh | none | — | `7d2f13d2` |
+| `reportsDashboards` | wazuh-dashboard-reporting | upstream-fork | osd | none | `osd-data`, `osd-data-source` | `a762e116` |
+| `securityAnalyticsDashboards` | wazuh-dashboard-security-analytics | upstream-fork | osd | none | `osd-data`, `osd-data-source`, `os-plugin-bound` | `79b7f5e5` |
+| `securityDashboards` | wazuh-security-dashboards-plugin | upstream-fork | osd | none | `osd-data-source`, `os-plugin-bound` | `15d3bc70` |
 
 † Human assertions — not derivable, decided by a person
 
@@ -88,15 +88,15 @@
 ---
 
 - ref: `5.0.0`
-- payloadHash: `sha256:a8107ba70d5f68cc61849ec927d72e9806ee3ce7ef92c3f246519459bf12b17f`
-- resolvedAt: `2026-11-23T14:51:59.827Z`
+- payloadHash: `sha256:80ee3d19a2bfb0d7bc68544e20e0edb0e27e26163de7a98c6515c726f5f24756`
+- resolvedAt: `2026-11-24T14:57:37.318Z`
 - resolvedRefs:
-  - `wazuh-dashboard` → `377f9a1893248666893830c4c89c638f2f419fb1`
-  - `wazuh-dashboard-alerting` → `bb43047350ab39806a9f8eec4402dcd2cb775218`
-  - `wazuh-dashboard-notifications` → `67bd05714d884eba52e0033a94d58f19d9278852`
-  - `wazuh-dashboard-plugins` → `5f25b85374bcc5a1b41cddec276f11058935066b`
-  - `wazuh-dashboard-reporting` → `2f3996873e8dcdd08a2a3b7a72d34ab18651df69`
-  - `wazuh-dashboard-security-analytics` → `2c4d0e1a46122f3504b6a49383b7bade5a3e9d14`
-  - `wazuh-indexer-plugins` → `6da08f129b586087e6ead10e24c2b23fb0cfb245`
+  - `wazuh-dashboard` → `4bfdec1f30db5b8b7449ca55075245d5464f317f`
+  - `wazuh-dashboard-alerting` → `6fef463c9c61a0aeef5caf029aa187be7cef02b7`
+  - `wazuh-dashboard-notifications` → `68c71f45923ffabc69b6f5edc9f2f13a6d35e158`
+  - `wazuh-dashboard-plugins` → `7d2f13d299aaa5b09c18d75f9810f4f1c3d5dba9`
+  - `wazuh-dashboard-reporting` → `a762e116e94977443c4e3e0e640a0973d75ceed7`
+  - `wazuh-dashboard-security-analytics` → `79b7f5e556b592f9746adb0df715a7711a78db66`
+  - `wazuh-indexer-plugins` → `4a5bb789658712b7d0ad360bfdcca7863427476e`
   - `wazuh-indexer-security-analytics` → `fe1de5e08a4b676d73ca6bb34e6a05e1a74dd2f5`
-  - `wazuh-security-dashboards-plugin` → `ba6129442e60be6640ceb0d840a68414f461edcd`
+  - `wazuh-security-dashboards-plugin` → `15d3bc70e95d1e20cfe9161950d6d43e4416d8f3`
